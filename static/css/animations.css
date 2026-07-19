@@ -1,0 +1,128 @@
+/* =============================================
+   TriviaVerse - Animations & Keyframes
+   ============================================= */
+
+/* ---------- Үндсэн анимейшнууд ---------- */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideLeft {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideRight {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes scaleOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes bounceIn {
+    0% { opacity: 0; transform: scale(0.3); }
+    50% { opacity: 1; transform: scale(1.05); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* ---------- Онцгой эффектүүд ---------- */
+@keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px var(--primary, #5865F2); }
+    50% { box-shadow: 0 0 20px var(--primary, #5865F2), 0 0 40px var(--accent, #00D4FF); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+@keyframes confettiFall {
+    to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ---------- Ашиглахад бэлэн классууд ---------- */
+.animate-fadeIn    { animation: fadeIn 0.5s ease forwards; }
+.animate-fadeOut   { animation: fadeOut 0.5s ease forwards; }
+.animate-slideUp   { animation: slideUp 0.5s ease forwards; }
+.animate-slideDown { animation: slideDown 0.5s ease forwards; }
+.animate-slideLeft { animation: slideLeft 0.5s ease forwards; }
+.animate-slideRight{ animation: slideRight 0.5s ease forwards; }
+.animate-scaleIn   { animation: scaleIn 0.3s ease forwards; }
+.animate-scaleOut  { animation: scaleOut 0.3s ease forwards; }
+.animate-bounceIn  { animation: bounceIn 0.6s ease forwards; }
+.animate-pulse     { animation: pulse 2s infinite; }
+.animate-glow      { animation: glow 2s infinite; }
+.animate-shimmer   { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
+.animate-spin      { animation: spin 1s linear infinite; }
+.animate-float     { animation: float 3s ease-in-out infinite; }
+.animate-shake     { animation: shake 0.5s ease; }
+.animate-gradient  { background-size: 200% 200%; animation: gradientShift 5s ease infinite; }
+
+/* ---------- Хугацааны хувилбарууд ---------- */
+.slow { animation-duration: 1.5s !important; }
+.fast { animation-duration: 0.2s !important; }
+
+/* ---------- Хойшлуулалт ---------- */
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+.delay-5 { animation-delay: 0.5s; }
+
+/* ---------- Хөдөлгөөний муруйнууд ---------- */
+.ease-bounce { animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55); }

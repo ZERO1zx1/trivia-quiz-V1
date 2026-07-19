@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<h2>Shop Items</h2>
+<div class="glass" style="padding:24px; border-radius:20px; overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid var(--border);">
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Price</th>
+            <th>Type</th>
+            <th>Active</th>
+            <th>Actions</th>
+        </tr>
+        {% for item in items %}
+        <tr style="border-bottom:1px solid var(--border);">
+            <td>{{ item.id }}</td>
+            <td>{{ item.name }}</td>
+            <td>{{ item.description }}</td>
+            <td>🪙 {{ item.price }}</td>
+            <td>{{ item.item_type }}</td>
+            <td>{{ 'Yes' if item.is_active else 'No' }}</td>
+            <td>
+                <!-- Цаашид засах/устгах товчлуур нэмэх боломжтой -->
+                <button class="btn btn-ghost btn-sm" disabled>Edit</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

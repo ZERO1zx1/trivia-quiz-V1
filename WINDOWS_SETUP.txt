@@ -1,0 +1,83 @@
+
+================================================================================
+                    TRIVIAVERSE - WINDOWS SETUP GUIDE
+================================================================================
+
+STEP 1: Python суулгасан эсэхээ шалгах
+----------------------------------------
+CMD эсвэл PowerShell нээж:
+    python --version
+
+Хэрэв "python" олдохгүй бол:
+    py --version
+
+Хэрэв хоёул олдохгүй бол -> https://python.org/downloads гээс Python 3.11 татаж суулга.
+(Суулгахдаа "Add Python to PATH" гэснийг чагтлаарай!)
+
+STEP 2: Project folder руу орох
+--------------------------------
+    cd C:\Users\ТаныНэр\Downloads\triviaverse
+    (эсвэл хаана ч хуулсан газар руугаа ороорой)
+
+STEP 3: Virtual Environment үүсгэх
+-----------------------------------
+    python -m venv venv
+
+    (Хэрэв python ажиллахгүй бол: py -m venv venv)
+
+STEP 4: Virtual Environment асаах
+-----------------------------------
+    venv\Scripts\activate
+
+    Асаасны дараа ийм харагдана:
+    (venv) C:\...\triviaverse>
+
+STEP 5: Requirements суулгах
+------------------------------
+    pip install -r requirements.txt
+
+    Хэрэв pip ажиллахгүй бол:
+    python -m pip install -r requirements.txt
+
+STEP 6: .env файл үүсгэх
+-------------------------
+    copy .env.example .env
+
+    Дараа нь .env файлыг Notepad-ээр нээж, доторх утгуудыг өөрчилнө:
+    - SECRET_KEY -> python -c "import secrets; print(secrets.token_urlsafe(64))" гэж ажиллуулаад гарч ирэхийг хуулна
+    - JWT_SECRET_KEY -> дээрх команд дахин ажиллуулаад өөр утга хуулна
+    - DISCORD_CLIENT_ID -> Discord Developer Portal-аас авна
+    - DISCORD_CLIENT_SECRET -> Discord Developer Portal-аас авна
+    - DISCORD_BOT_TOKEN -> Discord Developer Portal-аас авна
+
+STEP 7: Апп ажиллуулах
+-----------------------
+    python run.py
+
+    Браузераас: http://localhost:5000
+
+STEP 8: Discord Bot ажиллуулах (өөр CMD нээж)
+-----------------------------------------------
+    venv\Scripts\activate
+    python discord_bot/bot.py
+
+================================================================================
+АЛДАА ГАРВАЛ:
+================================================================================
+
+[X] "pip is not recognized"
+    -> python -m pip install -r requirements.txt (pip-г python модуль болгон дуудна)
+
+[X] "No module named eventlet"
+    -> pip install eventlet
+    -> (venv) дотор хийж байгаа эсэхээ шалга!
+
+[X] "ImportError: cannot import name 'create_app'"
+    -> Project root folder дотор (triviaverse/) байгаа эсэхээ шалга
+
+[X] "ModuleNotFoundError: No module named 'app'"
+    -> python run.py гэж triviaverse/ folder дотороос ажиллуул
+
+[X] "Address already in use"
+    -> Өөр програм 5000 port ашиглаж байна
+    -> run.py дотор port=5000-г port=5001 болгон өөрчил

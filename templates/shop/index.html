@@ -1,0 +1,25 @@
+{% extends "layouts/base.html" %}
+{% block title %}Shop - {{ app_name }}{% endblock %}
+
+{% block content %}
+<h1 style="font-size:2rem;font-weight:800;margin-bottom:24px;">🛍️ Shop</h1>
+
+<div class="shop-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:24px;">
+    {% for item in items %}
+    <div class="glass" style="padding:20px; border-radius:20px; text-align:center;">
+        <img src="{{ item.image_url or '/static/shop/default.png' }}"
+            style="width:80px; height:80px; border-radius:12px; margin-bottom:12px;"
+            onerror="this.onerror=null;this.src='/static/shop/default.png';">
+        <h3 style="font-weight:700; margin-bottom:4px;">{{ item.name }}</h3>
+        <p style="color:var(--text-secondary); font-size:0.9rem;">{{ item.description }}</p>
+        <div style="font-weight:800; color:var(--warning); margin:12px 0;">🪙 {{ item.price }}</div>
+        <form method="POST" action="{{ url_for('shop.buy_item', item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-full">Buy</button>
+        </form>
+    </div>
+    {% else %}
+    <p>No items in the shop yet.</p>
+    {% endfor %}
+</div>
+{% endblock %}

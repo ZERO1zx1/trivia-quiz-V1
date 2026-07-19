@@ -1,0 +1,45 @@
+{% extends "layouts/base.html" %}
+{% block title %}Submit Question{% endblock %}
+{% block content %}
+<h1>Submit a Question</h1>
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-group">
+        <label>Question</label>
+        <textarea name="question_text" required></textarea>
+    </div>
+    <div class="form-group">
+        <label>Correct Answer</label>
+        <input name="correct_answer" required>
+    </div>
+    <div class="form-group">
+        <label>Wrong Answer 1</label>
+        <input name="wrong_answer1" required>
+    </div>
+    <div class="form-group">
+        <label>Wrong Answer 2</label>
+        <input name="wrong_answer2" required>
+    </div>
+    <div class="form-group">
+        <label>Wrong Answer 3</label>
+        <input name="wrong_answer3" required>
+    </div>
+    <div class="form-group">
+        <label>Category</label>
+        <select name="category_id">
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label>Difficulty</label>
+        <select name="difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+{% endblock %}

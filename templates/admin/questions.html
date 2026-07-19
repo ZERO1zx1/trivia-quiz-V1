@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<h2>Question Management</h2>
+<!-- AI Generate form -->
+<div class="glass" style="padding:16px; margin-bottom:24px;">
+    <form method="POST" action="{{ url_for('admin.ai_generate') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Category: <input name="category" value="General Knowledge"></label>
+        <label>Difficulty: 
+            <select name="difficulty">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </label>
+        <label>Count: <input name="count" type="number" value="5"></label>
+        <button class="btn btn-primary">🤖 AI Generate</button>
+    </form>
+</div>
+
+<table style="width:100%; border-collapse:collapse;">
+    <tr style="border-bottom:1px solid var(--border);">
+        <th>ID</th><th>Question</th><th>Category</th><th>Difficulty</th><th>Actions</th>
+    </tr>
+    {% for q in questions.items %}
+    <tr style="border-bottom:1px solid var(--border);">
+        <td>{{ q.id }}</td>
+        <td>{{ q.question_text[:60] }}...</td>
+        <td>{{ q.category.name }}</td>
+        <td>{{ q.difficulty }}</td>
+        <td>
+            <form method="POST" action="{{ url_for('admin.delete_question', question_id=q.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-sm" style="color:red;">Delete</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+<!-- Pagination -->
+<div style="margin-top:16px;">
+    {% if questions.has_prev %}
+        <a href="?page={{ questions.prev_num }}" class="btn btn-ghost">← Previous</a>
+    {% endif %}
+    <span>Page {{ questions.page }} of {{ questions.pages }}</span>
+    {% if questions.has_next %}
+        <a href="?page={{ questions.next_num }}" class="btn btn-ghost">Next →</a>
+    {% endif %}
+</div>
+{% endblock %}

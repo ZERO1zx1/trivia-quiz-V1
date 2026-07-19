@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<h2>Recent Notifications</h2>
+<div class="glass" style="padding:24px; border-radius:20px; overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid var(--border);">
+            <th>ID</th>
+            <th>User</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Message</th>
+            <th>Read</th>
+            <th>Created</th>
+        </tr>
+        {% for n in notifications %}
+        <tr style="border-bottom:1px solid var(--border);">
+            <td>{{ n.id }}</td>
+            <td>{{ n.user.username if n.user else 'N/A' }}</td>
+            <td>{{ n.type }}</td>
+            <td>{{ n.title }}</td>
+            <td>{{ n.message }}</td>
+            <td>{{ 'Yes' if n.is_read else 'No' }}</td>
+            <td>{{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

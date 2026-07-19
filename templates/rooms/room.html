@@ -1,0 +1,114 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ room.name }} - {{ app_name }}{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.currentUserId = {{ current_user.id }};
+    window.hostId = {{ room.host_id }};
+</script>
+{% endblock %}
+
+{% block content %}
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-messages" style="margin-bottom:24px;">
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="room-detail">
+    <div class="room-lobby">
+        <div class="room-lobby-header">
+            <h1 style="font-size:2rem;font-weight:800;">{{ room.name }}</h1>
+            <div class="room-lobby-code">
+                <span>ROOM CODE:</span>
+                <span id="roomCode">{{ room.code }}</span>
+                <button onclick="copyToClipboard('{{ room.code }}')"
+                    style="background:none;border:none;color:var(--accent);cursor:pointer;" title="Copy code">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                </button>
+            </div>
+            <div style="margin-top:16px;color:var(--text-secondary);">
+                {{ room.difficulty.title() }} • {{ room.question_count }} Questions • {{ room.time_per_question }}s per
+                question
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:center;gap:16px;margin-bottom:32px;">
+            {% if is_host %}
+            <button class="btn btn-primary btn-lg" onclick="startGame('{{ room.code }}')" id="startBtn">
+                ▶ Start Game
+            </button>
+            {% else %}
+            <button class="btn btn-success btn-lg" onclick="toggleReady('{{ room.code }}')" id="readyBtn">
+                ✓ Ready Up
+            </button>
+            {% endif %}
+
+            <!-- Leave room form (POST тул CSRF шаардлагатай) -->
+            <form method="POST" action="{{ url_for('rooms.leave_room', code=room.code) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost">Leave Room</button>
+            </form>
+        </div>
+
+        <h3 style="text-align:center;margin-bottom:16px;font-size:1.1rem;">Players ({{ players|length }}/{{
+            room.max_players }})</h3>
+        <div class="player-grid" id="playerList">
+            {% for p in players %}
+            <div
+                class="player-card {% if p.is_ready %}ready{% endif %} {% if p.user_id == room.host_id %}host{% endif %}">
+                {% if p.user_id == room.host_id %}<span class="host-badge">HOST</span>{% endif %}
+                <img src="{{ p.user.avatar_url }}" alt="{{ p.user.username }}"
+                    onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ p.user.username[0] | upper }}%3C/text%3E%3C/svg%3E';">
+                <div style="font-weight:700;">{{ p.user.username }}</div>
+                <div class="ready-indicator {% if p.is_ready %}ready{% endif %}"></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="chat-box">
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Type a message..."
+                    onkeypress="if(event.key==='Enter')sendChatMessage()">
+                <button class="btn btn-primary" onclick="sendChatMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Socket.io холболтыг эхлүүлэх
+    joinRoomSocket('{{ room.code }}');
+
+    // Чат мессеж илгээх
+    function sendChatMessage() {
+        const input = document.getElementById('chatInput');
+        const msg = input.value.trim();
+        if (!msg) return;
+        sendChat('{{ room.code }}', msg);
+        input.value = '';
+    }
+
+    // Код хуулах функц (хэрэв таны скриптэд байхгүй бол)
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Жижигхэн мэдэгдэл харуулах (тоаст)
+            const toast = document.createElement('div');
+            toast.textContent = 'Code copied!';
+            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:8px 16px;border-radius:8px;z-index:9999;';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }).catch(err => console.error('Copy failed', err));
+    }
+</script>
+{% endblock %}

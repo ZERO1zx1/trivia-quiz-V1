@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% block admin_content %}
+<h2>Achievements</h2>
+<div class="glass" style="padding:24px; border-radius:20px; overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse;">
+        <tr style="border-bottom:1px solid var(--border);">
+            <th>ID</th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Requirement</th>
+            <th>XP Reward</th>
+            <th>Coin Reward</th>
+            <th>Rarity</th>
+        </tr>
+        {% for ach in achievements %}
+        <tr style="border-bottom:1px solid var(--border);">
+            <td>{{ ach.id }}</td>
+            <td>{{ ach.name }}</td>
+            <td>{{ ach.description }}</td>
+            <td>{{ ach.requirement_type }} {{ ach.requirement_value }}</td>
+            <td>{{ ach.xp_reward }}</td>
+            <td>{{ ach.coin_reward }}</td>
+            <td>{{ ach.rarity }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}
