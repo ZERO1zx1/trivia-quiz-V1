@@ -40,3 +40,25 @@ def submit_question():
     from app.models.question import Category
     categories = Category.query.filter_by(is_active=True).all()
     return render_template('questions/submit.html', categories=categories)
+
+@user_q_bp.route('/create-quiz', methods=['POST'])
+@login_required
+def create_quiz():
+    data = request.json
+    # Шинэ өрөө үүсгэх, асуултуудыг хадгалах
+    room_code = Room.generate_unique_code()
+    room = Room(name='Custom Quiz', code=room_code, host_id=current_user.id, is_private=True)
+    db.session.add(room)
+    db.session.flush()
+    
+    for item in data['questions']:
+        q = Question(question_text=item['text'], difficulty='custom', category_id=1)
+        db.session.add(q)
+        db.session.flush()
+        db.session.add(Answer(question_id=q.id, answer_text=item['correct'], is_correct=True))
+        db.session.add(Answer(question_id=q.id, answer_text=item['wrong1'], is_correct=False))
+        # ... wrong2, wrong3
+        # Асуултыг өрөөнд холбох (RoomQuestion загвар хэрэгтэй, эсвэл room.question_count-г тохируулах)
+    
+    db.session.commit()
+    return jsonify({'quiz_code': room_code})

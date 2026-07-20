@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-class LeaderboardCog(commands.Cog):
+class Leaderboard(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -88,4 +88,4 @@ class LeaderboardCog(commands.Cog):
         await interaction.followup.send(embed=embed)
 
 async def setup(bot):
-    await bot.add_cog(LeaderboardCog(bot))
+    await bot.add_cog(Leaderboard(bot))

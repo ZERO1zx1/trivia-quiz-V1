@@ -3,23 +3,17 @@
 {% block title %}Lobby - {{ app_name }}{% endblock %}
 
 {% block content %}
-<!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-{% if messages %}
-<div class="flash-messages" style="margin-bottom:24px;">
-    {% for category, message in messages %}
-    <div class="flash flash-{{ category }}">{{ message }}</div>
-    {% endfor %}
-</div>
-{% endif %}
-{% endwith %}
-
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
     <h1 style="font-size:2rem;font-weight:800;">Game Lobby 🎮</h1>
-    <button class="btn btn-primary" onclick="document.getElementById('createModal').style.display='flex'">+ Create
-        Room</button>
+    <div style="display:flex;gap:12px;">
+        <!-- Solo Practice Button -->
+        <button class="btn btn-primary" onclick="startSoloPractice()">🎮 Solo Practice</button>
+        <!-- Create Room Button -->
+        <button class="btn btn-primary" onclick="document.getElementById('createModal').style.display='flex'">+ Create Room</button>
+    </div>
 </div>
 
+<!-- Room Grid (нэмэлт: game mode харуулах) -->
 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:24px;">
     {% for room in rooms.items %}
     <div class="room-card" onclick="location.href='{{ url_for('rooms.room', code=room.code) }}'">
@@ -31,12 +25,13 @@
             <span>{{ room.difficulty.title() }}</span>
             <span>{{ room.question_count }} Qs</span>
             <span>{{ room.get_player_count() }}/{{ room.max_players }}</span>
+            <span style="color:var(--accent);">{{ room.game_mode.replace('_',' ').title() }}</span>
         </div>
         <div class="room-card-footer">
             <div class="room-players">
                 {% for p in room.players.limit(3) %}
                 <img src="{{ p.user.avatar_url }}" alt="{{ p.user.username }}"
-                    onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ p.user.username[0] | upper }}%3C/text%3E%3C/svg%3E';">
+                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ p.user.username[0] | upper }}%3C/text%3E%3C/svg%3E';">
                 {% endfor %}
             </div>
             <span class="room-status status-waiting">Waiting</span>
@@ -46,7 +41,7 @@
     <div style="grid-column:1/-1;text-align:center;padding:64px;color:var(--text-secondary);">
         <div style="font-size:4rem;margin-bottom:16px;">🎮</div>
         <h2 style="margin-bottom:8px;">No rooms available</h2>
-        <p>Be the first to create a room!</p>
+        <p>Be the first to create a room or start a solo practice!</p>
     </div>
     {% endfor %}
 </div>
@@ -55,41 +50,38 @@
 <div class="glass" style="padding:24px;border-radius:20px;margin-top:32px;max-width:500px;">
     <h3 style="margin-bottom:16px;">Join by Code</h3>
     <form method="POST" action="{{ url_for('rooms.join_room') }}" style="display:flex;gap:12px;">
-        <!-- CSRF Token -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="text" name="code" placeholder="Enter room code"
-            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;"
-            required>
+               style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;" required>
         <input type="password" name="password" placeholder="Password (if private)"
-            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+               style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
         <button type="submit" class="btn btn-primary">Join</button>
     </form>
 </div>
 
 <!-- Create Room Modal -->
 <div id="createModal"
-    style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(8px);">
-    <div class="glass" style="padding:40px;border-radius:24px;width:100%;max-width:480px;position:relative;">
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(8px);">
+    <div class="glass" style="padding:40px;border-radius:24px;width:100%;max-width:520px;position:relative;">
         <button onclick="document.getElementById('createModal').style.display='none'"
-            style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">×</button>
+                style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--text);font-size:1.5rem;cursor:pointer;">×</button>
         <h2 style="margin-bottom:24px;font-size:1.5rem;font-weight:800;">Create Room</h2>
-        <form method="POST" action="{{ url_for('rooms.create_room') }}"
-            style="display:flex;flex-direction:column;gap:16px;">
-            <!-- CSRF Token -->
+        <form method="POST" action="{{ url_for('rooms.create_room') }}" style="display:flex;flex-direction:column;gap:16px;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Room Name -->
             <div>
-                <label
-                    style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Room
-                    Name</label>
+                <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Room Name</label>
                 <input type="text" name="name" value="Trivia Room" required
-                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                       style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
             </div>
+
+            <!-- Category & Difficulty -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                 <div>
-                    <label
-                        style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Category</label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Category</label>
                     <select name="category_id"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
                         <option value="">All Categories</option>
                         {% for cat in categories %}
                         <option value="{{ cat.id }}">{{ cat.name }}</option>
@@ -97,10 +89,9 @@
                     </select>
                 </div>
                 <div>
-                    <label
-                        style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Difficulty</label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Difficulty</label>
                     <select name="difficulty"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
                         <option value="mixed">Mixed</option>
                         <option value="easy">Easy</option>
                         <option value="medium">Medium</option>
@@ -108,34 +99,60 @@
                     </select>
                 </div>
             </div>
+
+            <!-- Questions & Max Players -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
                 <div>
-                    <label
-                        style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Questions</label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Questions</label>
                     <input type="number" name="question_count" value="10" min="5" max="50"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                           style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
                 </div>
                 <div>
-                    <label
-                        style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Max
-                        Players</label>
+                    <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Max Players</label>
                     <input type="number" name="max_players" value="8" min="2" max="8"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                           style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
                 </div>
             </div>
+
+            <!-- Game Mode -->
+            <div>
+                <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--text-secondary);">Game Mode</label>
+                <select name="game_mode"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                    <option value="classic">Classic</option>
+                    <option value="time_attack">⚡ Time Attack</option>
+                    <option value="survival">💀 Survival</option>
+                </select>
+            </div>
+
+            <!-- Private & Password -->
             <div style="display:flex;align-items:center;gap:12px;">
                 <input type="checkbox" name="is_private" id="isPrivate" style="width:18px;height:18px;">
                 <label for="isPrivate" style="font-size:0.9rem;">Private Room</label>
             </div>
             <div>
-                <label
-                    style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Password
-                    (optional)</label>
+                <label style="display:block;margin-bottom:8px;font-size:0.85rem;font-weight:600;color:var(--text-secondary);">Password (optional)</label>
                 <input type="password" name="password" placeholder="Leave empty for public"
-                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
+                       style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
             </div>
+
             <button type="submit" class="btn btn-primary btn-full btn-glow" style="margin-top:8px;">Create Room</button>
         </form>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Solo Practice эхлүүлэх
+window.startSoloPractice = function() {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/quiz/solo/start';
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    form.innerHTML = `<input type="hidden" name="csrf_token" value="${csrf}">`;
+    document.body.appendChild(form);
+    form.submit();
+};
+</script>
 {% endblock %}

@@ -166,3 +166,15 @@ def add_xp():
         'old_level': old_lvl,
         'new_level': new_lvl
     })
+
+@api_bp.route('/discord/sync-role', methods=['POST'])
+def discord_sync_role():
+    data = request.json
+    discord_id = data.get('discord_id')
+    level = data.get('level')
+    try:
+        import requests as req
+        req.post(f"http://localhost:9600/sync-role", json={"discord_id": discord_id, "level": level})
+        return jsonify({'success': True})
+    except:
+        return jsonify({'error': 'Failed'}), 500

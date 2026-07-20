@@ -1,5 +1,5 @@
 """Admin Routes"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user
 from app.extensions import db
 from app.utils.admin import admin_required
@@ -9,9 +9,10 @@ from app.models.economy import Transaction
 from app.models.shop import ShopItem
 from app.models.achievement import Achievement
 from app.models.notification import Notification
-from app.models.room import Room  # Missing import added
-from app.models.user_question import UserQuestion  # Added for user-questions route
+from app.models.room import Room
+from app.models.user_question import UserQuestion
 from app.utils.ai import generate_trivia_question
+import requests
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -20,7 +21,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 def before_request():
     pass  # Protect all admin routes
 
-# Dashboard – single endpoint
+# ==================== Dashboard ====================
 @admin_bp.route('/')
 def dashboard():
     stats = {
@@ -55,6 +56,24 @@ def toggle_ban(user_id):
     flash(f'Ban status updated for {user.username}', 'success')
     return redirect(url_for('admin.users'))
 
+@admin_bp.route('/users/<int:user_id>/ban-sync', methods=['POST'])
+@admin_required
+def ban_sync(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.discord_account:
+        try:
+            requests.post(
+                f"{current_app.config['API_BASE_URL']}/discord/ban",
+                json={"discord_id": user.discord_account.discord_id},
+                timeout=5
+            )
+        except Exception as e:
+            current_app.logger.error(f"Discord ban sync failed: {e}")
+    user.is_banned = True
+    db.session.commit()
+    flash(f'{user.username} has been banned on Discord and website.', 'success')
+    return redirect(url_for('admin.users'))
+
 # ==================== Questions ====================
 @admin_bp.route('/questions')
 def questions():
@@ -84,7 +103,8 @@ def ai_generate():
     generated = 0
     for _ in range(count):
         result = generate_trivia_question(category_name, difficulty)
-        if not result: continue
+        if not result:
+            continue
         q = Question(question_text=result['question'], difficulty=difficulty, category_id=cat.id)
         db.session.add(q)
         db.session.flush()
@@ -129,6 +149,7 @@ def user_questions():
 @admin_bp.route('/user-questions/<int:qid>/approve', methods=['POST'])
 def approve_question(qid):
     uq = UserQuestion.query.get_or_404(qid)
+    
     q = Question(
         question_text=uq.question_text,
         difficulty=uq.difficulty,
@@ -143,7 +164,22 @@ def approve_question(qid):
     db.session.add(Answer(question_id=q.id, answer_text=uq.wrong_answer3, is_correct=False))
     uq.status = 'approved'
     db.session.commit()
-    flash('Question approved and added to the pool!', 'success')
+
+    # Discord-р хэрэглэгчид мэдэгдэх
+    if uq.user and uq.user.discord_account:
+        try:
+            requests.post(
+                f"{current_app.config['API_BASE_URL']}/discord/dm",
+                json={
+                    "discord_id": uq.user.discord_account.discord_id,
+                    "message": f"✅ Your question has been approved!\nQuestion: {uq.question_text[:50]}..."
+                },
+                timeout=5
+            )
+        except Exception as e:
+            current_app.logger.error(f"Discord DM failed: {e}")
+
+    flash('Question approved and user notified!', 'success')
     return redirect(url_for('admin.user_questions'))
 
 @admin_bp.route('/user-questions/<int:qid>/reject', methods=['POST'])
@@ -153,3 +189,20 @@ def reject_question(qid):
     db.session.commit()
     flash('Question rejected.', 'info')
     return redirect(url_for('admin.user_questions'))
+
+# ==================== Discord Integration ====================
+@admin_bp.route('/discord/announce', methods=['POST'])
+@admin_required
+def discord_announce():
+    message = request.form.get('message', '')
+    webhook_url = current_app.config.get('DISCORD_ANNOUNCEMENT_WEBHOOK')
+    if webhook_url:
+        try:
+            requests.post(webhook_url, json={"content": message}, timeout=5)
+            flash('Announcement sent to Discord!', 'success')
+        except Exception as e:
+            current_app.logger.error(f"Discord announce failed: {e}")
+            flash('Failed to send announcement.', 'danger')
+    else:
+        flash('Webhook not configured.', 'danger')
+    return redirect(url_for('admin.dashboard'))

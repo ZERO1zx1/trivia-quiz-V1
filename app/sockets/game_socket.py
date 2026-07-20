@@ -2,14 +2,14 @@
 from flask import request
 from flask_socketio import emit
 from flask_login import current_user
-from datetime import datetime
+from datetime import datetime, date
 from app.extensions import db
 from app.models.room import Room, RoomPlayer, Match, Score
 from app.models.question import Question
 from app.models.user import User
 from app.models.notification import Notification
 from app.models.achievement import Achievement, UserAchievement
-from datetime import date
+from app.models.quest import DailyQuest
 
 game_states = {}
 
@@ -27,6 +27,12 @@ def register_game_events(socketio):
         if len(players) < 2:
             emit('error', {'message': 'Need at least 2 players'})
             return
+
+        # Survival Mode-д амьдралыг оноох
+        if room.game_mode == 'survival':
+            for p in players:
+                p.survival_lives = room.survival_lives
+            db.session.commit()
 
         query = Question.query.filter_by(is_active=True)
         if room.category_id:
@@ -51,7 +57,10 @@ def register_game_events(socketio):
             'answers': {},
             'scores': {p.user_id: 0 for p in players},
             'streaks': {p.user_id: 0 for p in players},
-            'started_at': datetime.utcnow().isoformat()
+            'started_at': datetime.utcnow().isoformat(),
+            'game_mode': room.game_mode,
+            'survival_lives': {p.user_id: p.survival_lives for p in players},
+            'eliminated': set()
         }
 
         room.status = 'playing'
@@ -61,7 +70,8 @@ def register_game_events(socketio):
         emit('game_started', {
             'match_id': match.id,
             'total_questions': len(questions),
-            'time_per_question': room.time_per_question
+            'time_per_question': room.time_per_question,
+            'game_mode': room.game_mode
         }, room=room_code)
 
     @socketio.on('request_question')
@@ -74,11 +84,21 @@ def register_game_events(socketio):
         state = game_states[room_code]
         q_idx = state['current_question']
 
+        # Хасагдсан тоглогчийг шалгах (Survival)
+        if current_user.id in state.get('eliminated', set()):
+            emit('error', {'message': 'You have been eliminated'})
+            return
+
         if q_idx >= len(state['questions']):
             _end_game(socketio, room_code)
             return
 
         question = state['questions'][q_idx]
+        room = Room.query.filter_by(code=room_code).first()
+        time_limit = room.time_per_question
+        if state['game_mode'] == 'time_attack':
+            time_limit = room.time_attack_duration
+
         question_data = {
             'id': question['id'],
             'question_text': question['question_text'],
@@ -87,7 +107,8 @@ def register_game_events(socketio):
             'answers': [{'id': a['id'], 'answer_text': a['answer_text']} for a in question['answers']],
             'question_number': q_idx + 1,
             'total_questions': len(state['questions']),
-            'time_limit': Room.query.filter_by(code=room_code).first().time_per_question
+            'time_limit': time_limit,
+            'game_mode': state['game_mode']
         }
         emit('question', question_data, room=room_code)
 
@@ -104,11 +125,16 @@ def register_game_events(socketio):
         q_idx = state['current_question']
         question = state['questions'][q_idx]
 
+        # Хасагдсан тоглогч хариулах ёсгүй
+        if current_user.id in state.get('eliminated', set()):
+            return
+
         correct_answer = next((a for a in question['answers'] if a['is_correct']), None)
         is_correct = correct_answer and correct_answer['id'] == answer_id
 
+        room = Room.query.filter_by(code=room_code).first()
         base_score = 100
-        time_bonus = max(0, int((Room.query.filter_by(code=room_code).first().time_per_question - time_taken) * 5))
+        time_bonus = max(0, int((room.time_per_question - time_taken) * 5))
         streak_bonus = state['streaks'].get(current_user.id, 0) * 10
 
         question_score = 0
@@ -129,19 +155,34 @@ def register_game_events(socketio):
             'score': question_score
         }
 
+        # Survival Mode: буруу хариулсан бол амь хасах
+        if not is_correct and state['game_mode'] == 'survival':
+            state['survival_lives'][current_user.id] = state['survival_lives'].get(current_user.id, 1) - 1
+            if state['survival_lives'][current_user.id] <= 0:
+                state['eliminated'].add(current_user.id)
+                emit('player_eliminated', {'user_id': current_user.id}, room=room_code)
+                # Зөвхөн нэг тоглогч үлдсэн бол тоглоомыг дуусгах
+                remaining = [uid for uid in state['survival_lives'] 
+                            if uid not in state['eliminated'] and state['survival_lives'][uid] > 0]
+                if len(remaining) <= 1:
+                    _end_game(socketio, room_code)
+                    return
+
         emit('answer_result', {
             'correct': is_correct,
             'correct_answer_id': correct_answer['id'] if correct_answer else None,
             'score_earned': question_score,
             'total_score': state['scores'][current_user.id],
             'streak': state['streaks'][current_user.id],
-            'explanation': question.get('explanation', '')
+            'explanation': question.get('explanation', ''),
+            'survival_lives': state['survival_lives'].get(current_user.id) if state['game_mode'] == 'survival' else None
         })
 
-        room = Room.query.filter_by(code=room_code).first()
+        # Бүгд хариулсан эсэхийг шалгах (хасагдсангүй тоглогчид)
         players = RoomPlayer.query.filter_by(room_id=room.id).all()
         all_answered = all(
-            current_user.id in state['answers'] and q_idx in state['answers'].get(p.user_id, {})
+            p.user_id in state.get('eliminated', set()) or
+            (current_user.id in state['answers'] and q_idx in state['answers'].get(p.user_id, {}))
             for p in players
         )
 
@@ -153,7 +194,8 @@ def register_game_events(socketio):
                     'username': p.user.username if p.user else 'Unknown',
                     'avatar': p.user.avatar_url if p.user else None,
                     'score': state['scores'].get(p.user_id, 0),
-                    'streak': state['streaks'].get(p.user_id, 0)
+                    'streak': state['streaks'].get(p.user_id, 0),
+                    'survival_lives': state['survival_lives'].get(p.user_id) if state['game_mode'] == 'survival' else None
                 })
             leaderboard.sort(key=lambda x: x['score'], reverse=True)
             emit('round_results', {
@@ -193,6 +235,7 @@ def _end_game(socketio, room_code):
 
     for p in players:
         user = p.user
+        # Хасагдсан тоглогчид оноо тооцохгүй (хэрэв survival)
         user_answers = state['answers'].get(p.user_id, {})
         correct_count = sum(1 for a in user_answers.values() if a['correct'])
         total_time = sum(a['time_taken'] for a in user_answers.values())
@@ -203,7 +246,7 @@ def _end_game(socketio, room_code):
         user.total_questions += len(state['questions'])
         user.update_accuracy()
 
-        if final_score > max_score:
+        if final_score > max_score and p.user_id not in state.get('eliminated', set()):
             max_score = final_score
             winner_id = p.user_id
 
@@ -226,7 +269,8 @@ def _end_game(socketio, room_code):
             'score': final_score,
             'correct': correct_count,
             'accuracy': round((correct_count / len(state['questions'])) * 100, 1) if state['questions'] else 0,
-            'streak': state['streaks'].get(p.user_id, 0)
+            'streak': state['streaks'].get(p.user_id, 0),
+            'eliminated': p.user_id in state.get('eliminated', set())
         })
 
     if winner_id:
@@ -261,34 +305,16 @@ def _end_game(socketio, room_code):
     emit('game_over', {
         'results': results,
         'winner': results[0] if results else None,
-        'total_questions': len(state['questions'])
+        'total_questions': len(state['questions']),
+        'game_mode': state.get('game_mode', 'classic')
     }, room=room_code)
-    
-def _check_achievements(user):
-    achievements = Achievement.query.all()
-    for ach in achievements:
-        ua = UserAchievement.query.filter_by(user_id=user.id, achievement_id=ach.id).first()
-        if not ua:
-            continue
-        if ua.is_unlocked:
-            continue
-        
-        # Шаардлагыг шалгах
-        if ach.check_requirement(user):
-            ua.progress = ach.requirement_value
-            if ua.update_progress(ach.requirement_value):  # unlock хийгдэнэ
-                # Шагнал өгөх, мэдэгдэл илгээх
-                user.xp += ach.xp_reward
-                user.add_coins(ach.coin_reward, f'Achievement: {ach.name}')
-                notif = Notification(
-                    user_id=user.id,
-                    type='achievement',
-                    title='Achievement Unlocked!',
-                    message=f'You unlocked "{ach.name}"! +{ach.xp_reward} XP, +{ach.coin_reward} Coins'
-                )
-                db.session.add(notif)
 
-    # game_socket.py-ийн _end_game функцын төгсгөлд нэмэх:
+    # Өдөр тутмын даалгаврыг шинэчлэх
+    _update_daily_quests(state, players, winner_id)
+
+
+def _update_daily_quests(state, players, winner_id):
+    from datetime import date
     today = date.today()
     for p in players:
         # play_games даалгавар
@@ -301,7 +327,7 @@ def _check_achievements(user):
                 q.is_completed = True
                 q.completed_at = datetime.utcnow()
 
-        # win_games даалгавар (хожсон тохиолдолд)
+        # win_games даалгавар
         if p.user_id == winner_id:
             win_quests = DailyQuest.query.filter_by(
                 user_id=p.user_id, quest_type='win_games', date_assigned=today, is_completed=False
@@ -312,7 +338,7 @@ def _check_achievements(user):
                     q.is_completed = True
                     q.completed_at = datetime.utcnow()
 
-        # correct_answers даалгавар (зөв хариулсан тоо)
+        # correct_answers даалгавар
         user_answers = state['answers'].get(p.user_id, {})
         correct_count = sum(1 for a in user_answers.values() if a['correct'])
         answer_quests = DailyQuest.query.filter_by(
@@ -323,4 +349,27 @@ def _check_achievements(user):
             if q.current_value >= q.target_value:
                 q.is_completed = True
                 q.completed_at = datetime.utcnow()
+    db.session.commit()
+
+
+def _check_achievements(user):
+    achievements = Achievement.query.all()
+    for ach in achievements:
+        ua = UserAchievement.query.filter_by(user_id=user.id, achievement_id=ach.id).first()
+        if not ua or ua.is_unlocked:
+            continue
+        
+        if ach.check_requirement(user):
+            ua.progress = ach.requirement_value
+            ua.is_unlocked = True
+            ua.unlocked_at = datetime.utcnow()
+            user.xp += ach.xp_reward
+            user.add_coins(ach.coin_reward, f'Achievement: {ach.name}')
+            notif = Notification(
+                user_id=user.id,
+                type='achievement',
+                title='Achievement Unlocked!',
+                message=f'You unlocked "{ach.name}"! +{ach.xp_reward} XP, +{ach.coin_reward} Coins'
+            )
+            db.session.add(notif)
     db.session.commit()

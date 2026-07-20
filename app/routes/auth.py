@@ -1,12 +1,14 @@
 """Authentication Routes"""
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
-from flask_login import login_user, logout_user, login_required, current_user
-from urllib.parse import urlparse
+import jwt
 import requests
 import secrets
-
+from urllib.parse import urlparse
+from datetime import datetime, timedelta
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask_login import login_user, logout_user, login_required, current_user
 from app.extensions import db
 from app.models.user import User, DiscordAccount
+from app.models.achievement import Achievement, UserAchievement
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -48,7 +50,6 @@ def register():
         db.session.add(user)
         db.session.flush()
 
-        from app.models.achievement import Achievement, UserAchievement
         achievements = Achievement.query.all()
         for ach in achievements:
             ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
@@ -60,6 +61,7 @@ def register():
         return redirect(url_for('dashboard.index'))
 
     return render_template('auth/register.html')
+
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -95,6 +97,7 @@ def login():
 
     return render_template('auth/login.html')
 
+
 @auth_bp.route('/logout')
 @login_required
 def logout():
@@ -103,6 +106,7 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('home.index'))
+
 
 @auth_bp.route('/discord')
 def discord_login():
@@ -115,6 +119,7 @@ def discord_login():
     )
     return redirect(discord_auth_url)
 
+
 @auth_bp.route('/discord/callback')
 def discord_callback():
     code = request.args.get('code')
@@ -122,6 +127,7 @@ def discord_callback():
         flash('Discord authentication failed.', 'danger')
         return redirect(url_for('auth.login'))
 
+    # Токен авах
     data = {
         'client_id': current_app.config['DISCORD_CLIENT_ID'],
         'client_secret': current_app.config['DISCORD_CLIENT_SECRET'],
@@ -129,12 +135,8 @@ def discord_callback():
         'code': code,
         'redirect_uri': current_app.config['DISCORD_REDIRECT_URI']
     }
-
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    token_response = requests.post(
-        'https://discord.com/api/oauth2/token',
-        data=data, headers=headers
-    )
+    token_response = requests.post('https://discord.com/api/oauth2/token', data=data, headers=headers)
 
     if token_response.status_code != 200:
         flash('Failed to authenticate with Discord.', 'danger')
@@ -143,11 +145,11 @@ def discord_callback():
     tokens = token_response.json()
     access_token = tokens.get('access_token')
 
+    # Хэрэглэгчийн мэдээлэл авах
     user_response = requests.get(
         'https://discord.com/api/users/@me',
         headers={'Authorization': f'Bearer {access_token}'}
     )
-
     if user_response.status_code != 200:
         flash('Failed to get Discord user info.', 'danger')
         return redirect(url_for('auth.login'))
@@ -167,59 +169,88 @@ def discord_callback():
         db.session.commit()
         login_user(discord_account.user, remember=True)
         flash(f'Welcome back, {discord_account.user.username}!', 'success')
-    else:
-        if current_user.is_authenticated:
-            discord_account = DiscordAccount(
-                user_id=current_user.id,
-                discord_id=discord_id,
-                discord_username=discord_username,
-                discord_avatar=discord_avatar,
-                access_token=access_token
-            )
-            db.session.add(discord_account)
-            db.session.commit()
-            flash('Discord account linked successfully!', 'success')
+        return redirect(url_for('dashboard.index'))
+
+    if current_user.is_authenticated:
+        if current_user.discord_account:
+            flash('You already have a Discord account linked.', 'warning')
+            return redirect(url_for('dashboard.index'))
+        discord_account = DiscordAccount(
+            user_id=current_user.id,
+            discord_id=discord_id,
+            discord_username=discord_username,
+            discord_avatar=discord_avatar,
+            access_token=access_token
+        )
+        db.session.add(discord_account)
+        db.session.commit()
+        flash('Discord account linked successfully!', 'success')
+        return redirect(url_for('dashboard.index'))
+
+    if email:
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            # Имэйлтэй хэрэглэгч байгаа тул түүнтэй холбох
+            if not existing_user.discord_account:
+                discord_account = DiscordAccount(
+                    user_id=existing_user.id,
+                    discord_id=discord_id,
+                    discord_username=discord_username,
+                    discord_avatar=discord_avatar,
+                    access_token=access_token
+                )
+                db.session.add(discord_account)
+                db.session.commit()
+            login_user(existing_user, remember=True)
+            flash('Your account has been linked with Discord!', 'success')
             return redirect(url_for('dashboard.index'))
         else:
-            base_username = discord_username
-            username = base_username
-            counter = 1
-            while User.query.filter_by(username=username).first():
-                username = f"{base_username}_{counter}"
-                counter += 1
+            user_email = email
+    else:
+        user_email = f"{discord_id}@discord.user"
 
-            user = User(
-                username=username,
-                email=email or f"{discord_id}@discord.user",
-                display_name=discord_username,
-                avatar_url=discord_avatar or '/static/avatars/default.png'
-            )
-            user.set_password(secrets.token_urlsafe(32))
-            user.coins = 500
-            db.session.add(user)
-            db.session.flush()
+    # Хэрэглэгчийн нэрийг тохируулах
+    base_username = discord_username
+    username = base_username
+    counter = 1
+    while User.query.filter_by(username=username).first():
+        username = f"{base_username}_{counter}"
+        counter += 1
 
-            discord_account = DiscordAccount(
-                user_id=user.id,
-                discord_id=discord_id,
-                discord_username=discord_username,
-                discord_avatar=discord_avatar,
-                access_token=access_token
-            )
-            db.session.add(discord_account)
-            db.session.commit()
+    # Хэрэглэгч үүсгэх
+    user = User(
+        username=username,
+        email=user_email,
+        display_name=discord_username,
+        avatar_url=discord_avatar or '/static/avatars/default.png'
+    )
+    user.set_password(secrets.token_urlsafe(32))
+    user.coins = 500
+    db.session.add(user)
+    db.session.flush()
 
-            from app.models.achievement import Achievement, UserAchievement
-            achievements = Achievement.query.all()
-            for ach in achievements:
-                ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
-                db.session.add(ua)
-            db.session.commit()
+    # DiscordAccount үүсгэх
+    discord_account = DiscordAccount(
+        user_id=user.id,
+        discord_id=discord_id,
+        discord_username=discord_username,
+        discord_avatar=discord_avatar,
+        access_token=access_token
+    )
+    db.session.add(discord_account)
+    db.session.commit()
 
-            login_user(user, remember=True)
-            flash('Account created with Discord! Welcome to TriviaVerse.', 'success')
+    # Амжилтуудыг оноох
+    achievements = Achievement.query.all()
+    for ach in achievements:
+        ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
+        db.session.add(ua)
+    db.session.commit()
 
+    login_user(user, remember=True)
+    flash('Account created with Discord! Welcome to TriviaVerse.', 'success')
     return redirect(url_for('dashboard.index'))
+
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -231,10 +262,14 @@ def forgot_password():
         if not email:
             flash('Please enter your email address.', 'warning')
         else:
+            user = User.query.filter_by(email=email).first()
+            if user:
+                pass
             flash('If that email is registered, you will receive a reset link shortly.', 'info')
             return redirect(url_for('auth.forgot_password'))
 
     return render_template('auth/forgot_password.html')
+
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):

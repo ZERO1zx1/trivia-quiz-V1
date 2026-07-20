@@ -33,6 +33,14 @@
             <div class="stat-card"><div class="stat-card-icon yellow">🪙</div><div class="stat-card-value">{{ current_user.coins }}</div><div class="stat-card-label">Coins</div></div>
         </div>
 
+        <!-- Quick Actions -->
+        <div style="margin-top: 24px; display: flex; gap: 12px;">
+            <!-- Solo Practice Button -->
+            <button class="btn btn-primary" onclick="startSoloPractice()">🎮 Solo Practice</button>
+            <!-- Create Room Button (opens modal) -->
+            <button class="btn btn-ghost" onclick="document.getElementById('createModal').style.display='flex'">+ Create Room</button>
+        </div>
+
         <!-- Active Rooms -->
         <div style="margin-top:32px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -93,13 +101,20 @@
             </div>
         </div>
 
+        <!-- Solo Practice Card (илүү тод харагдах) -->
+        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px; background: linear-gradient(135deg, rgba(88,101,242,0.3), rgba(0,212,255,0.1));">
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px;">🎮 Solo Practice</h3>
+            <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:16px;">Warm up alone, earn XP and coins!</p>
+            <button class="btn btn-primary btn-full" onclick="startSoloPractice()">Start Solo Game</button>
+        </div>
+
         <!-- Daily Reward -->
         <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
             <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">Daily Reward</h3>
             <button class="btn btn-primary btn-full" id="dailyBtn" onclick="claimDaily()">🎁 Claim 100 Coins</button>
         </div>
 
-        <!-- Daily Quests (зөв байршилд) -->
+        <!-- Daily Quests -->
         <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
             <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">🎯 Daily Quests</h3>
             <div id="dailyQuests">Loading...</div>

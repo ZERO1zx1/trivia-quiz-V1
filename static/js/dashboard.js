@@ -149,5 +149,15 @@ async function claimQuest(questId) {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadDailyQuests();
-    // ... бусад
 });
+
+window.startSoloPractice = function() {
+    // CSRF токен ашиглан POST хүсэлт илгээх
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/quiz/solo/start';
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    form.innerHTML = `<input type="hidden" name="csrf_token" value="${csrf}">`;
+    document.body.appendChild(form);
+    form.submit();
+};

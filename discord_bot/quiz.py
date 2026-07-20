@@ -6,6 +6,8 @@ class QuizCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_games = {}
+        # message_id -> {answers, correct_index}
+        self._solo_cache = {}
 
     @app_commands.command(name="create-room", description="Create a trivia room on the website")
     @app_commands.describe(name="Room name", private="Make room private", password="Password for private room")
@@ -114,7 +116,12 @@ class QuizCog(commands.Cog):
                 btn.callback = self.solo_answer_callback
                 view.add_item(btn)
 
-            await interaction.followup.send(embed=embed, view=view)
+            msg = await interaction.followup.send(embed=embed, view=view)
+            # Cache answers so callback can show correct answer if wrong
+            self._solo_cache[msg.id] = {
+                'answers': answers,
+                'correct_index': correct_index
+            }
 
         except Exception as e:
             embed = discord.Embed(title="❌ Error", description=str(e), color=0xED4245)
@@ -169,9 +176,75 @@ class QuizCog(commands.Cog):
                 pass
         else:
             embed.title = "❌ Wrong!"
-            embed.description += f"\n\n{interaction.user.mention}, better luck next time!"
+            # Show correct answer if cached
+            cache = self._solo_cache.get(interaction.message.id, {})
+            answers = cache.get('answers', [])
+            if answers and 0 <= correct < len(answers):
+                embed.description += f"\n\nЗөв хариулт: **{answers[correct]}**"
+            embed.description += f"\n{interaction.user.mention}, дараа дахин оролдоорой!"
 
+        # Clean cache
+        self._solo_cache.pop(interaction.message.id, None)
         await interaction.response.edit_message(embed=embed, view=None)
+
+    @commands.command(name='play')
+    async def play_trivia(self, ctx):
+        """Discord суваг дотор trivia асуулт асуух"""
+        # API-с асуулт татах
+        async with self.bot.session.get(f"{self.bot.api_base}/questions/random") as resp:
+            if resp.status != 200:
+                await ctx.send("❌ Could not load question.")
+                return
+            question = await resp.json()
+
+        embed = discord.Embed(
+            title=f"❓ {question.get('category', 'Trivia')}",
+            description=question['question_text'],
+            color=0x00D4FF
+        )
+        emojis = ['🇦', '🇧', '🇨', '🇩']
+        for i, ans in enumerate(question['answers']):
+            embed.add_field(name=f"{emojis[i]} {ans['answer_text']}", value='', inline=False)
+
+        msg = await ctx.send(embed=embed)
+        for emoji in emojis[:len(question['answers'])]:
+            await msg.add_reaction(emoji)
+
+        # Хариултыг хадгалах
+        self.active_games[msg.id] = {
+            'question': question,
+            'answers': {},
+            'expires': datetime.utcnow() + timedelta(seconds=30)
+        }
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if user.bot:
+            return
+        if reaction.message.id not in self.active_games:
+            return
+
+        game = self.active_games[reaction.message.id]
+        if datetime.utcnow() > game['expires']:
+            return
+
+        emoji_map = {'🇦': 0, '🇧': 1, '🇨': 2, '🇩': 3}
+        if str(reaction.emoji) not in emoji_map:
+            return
+
+        answer_idx = emoji_map[str(reaction.emoji)]
+        is_correct = (answer_idx == game['question']['correct_index'])
+
+        # Хариултыг бүртгэх
+        game['answers'][user.id] = {'correct': is_correct}
+
+        # XP, coins нэмэх API дуудах
+        if is_correct:
+            async with self.bot.session.post(
+                f"{self.bot.api_base}/users/xp/add",
+                json={"discord_id": str(user.id), "amount": 10, "reason": "Discord trivia"}
+            ) as resp:
+                pass
 
 async def setup(bot):
     await bot.add_cog(QuizCog(bot))

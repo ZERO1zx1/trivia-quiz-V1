@@ -41,12 +41,8 @@ class TriviaVerseBot(commands.Bot):
         )
 
         cogs = [
-            'discord_bot.cogs.profile',
-            'discord_bot.cogs.economy',
-            'discord_bot.cogs.quiz',
-            'discord_bot.cogs.level',
-            'discord_bot.cogs.leaderboard',
-            'discord_bot.cogs.help',
+            'economy', 'help', 'leaderboard',
+            'level', 'profile', 'quiz', 'social'
         ]
 
         for cog in cogs:
@@ -117,7 +113,11 @@ def run_bot():
 
     def signal_handler(sig, frame):
         logger.info("Received shutdown signal")
-        asyncio.create_task(bot.close())
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(bot.close())
+        except RuntimeError:
+            pass
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)

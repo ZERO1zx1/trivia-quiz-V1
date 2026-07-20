@@ -1,6 +1,13 @@
 """TriviaVerse Configuration"""
 import os
+from dotenv import load_dotenv
 from datetime import timedelta
+from flask import Flask
+from flask_mail import Mail
+
+app = Flask(__name__)
+
+load_dotenv()
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'triviaverse-dev-secret-key-change-in-production'
@@ -12,7 +19,7 @@ class Config:
     DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
     DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI') or 'http://localhost:5000/auth/discord/callback'
     DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
-    SOCKETIO_ASYNC_MODE = 'threading'          # eventlet-г threading-ээр сольсон
+    SOCKETIO_ASYNC_MODE = 'threading'
     SOCKETIO_CORS_ALLOWED_ORIGINS = '*'
     QUESTION_TIME_LIMIT = 20
     MAX_PLAYERS_PER_ROOM = 8
@@ -44,9 +51,19 @@ config = {
     'default': DevelopmentConfig
 }
 
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 587
-MAIL_USE_TLS = True
-MAIL_USERNAME = os.environ.get('MAIL_USERNAME') or 'your-email@gmail.com'
-MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or 'your-app-password'
-MAIL_DEFAULT_SENDER = ('TriviaVerse', 'your-email@gmail.com')
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = ('TriviaVerse', app.config['MAIL_USERNAME'])
+
+# Имэйл илгээх санг холбох
+mail = Mail(app)
+
+@app.route('/')
+def index():
+    return "Имэйл тохиргоо бэлэн боллоо!"
+
+if __name__ == '__main__':
+    app.run(debug=True)

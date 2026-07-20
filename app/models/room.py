@@ -21,6 +21,9 @@ class Room(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     started_at = db.Column(db.DateTime)
     ended_at = db.Column(db.DateTime)
+    game_mode = db.Column(db.String(20), default='classic')
+    survival_lives = db.Column(db.Integer, default=3)
+    time_attack_duration = db.Column(db.Integer, default=15)
 
     host = db.relationship('User', foreign_keys=[host_id])
     players = db.relationship('RoomPlayer', back_populates='room', lazy='dynamic',
@@ -49,6 +52,7 @@ class Room(db.Model):
             'difficulty': self.difficulty,
             'question_count': self.question_count,
             'status': self.status,
+            'game_mode': self.game_mode,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
@@ -70,6 +74,7 @@ class RoomPlayer(db.Model):
     streak = db.Column(db.Integer, default=0)
     max_streak = db.Column(db.Integer, default=0)
     total_time = db.Column(db.Float, default=0.0)
+    survival_lives = db.Column(db.Integer, default=3)  # Survival Mode-д хэрэглэнэ
 
     room = db.relationship('Room', back_populates='players')
     user = db.relationship('User', back_populates='room_players')
@@ -84,7 +89,8 @@ class RoomPlayer(db.Model):
             'is_spectator': self.is_spectator,
             'score': self.score,
             'correct_answers': self.correct_answers,
-            'streak': self.streak
+            'streak': self.streak,
+            'survival_lives': self.survival_lives
         }
 
 

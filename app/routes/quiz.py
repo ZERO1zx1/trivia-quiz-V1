@@ -108,3 +108,58 @@ def submit_answer():
         'new_level': new_lvl,
         'total_coins': current_user.coins
     })
+
+@quiz_bp.route('/solo/start', methods=['POST'])
+@login_required
+def start_solo():
+    """Solo practice тоглолт эхлүүлэх"""
+    category_id = request.form.get('category_id', type=int)
+    difficulty = request.form.get('difficulty', 'mixed')
+    question_count = request.form.get('question_count', 10, type=int)
+
+    # Асуултуудыг татах
+    query = Question.query.filter_by(is_active=True)
+    if category_id:
+        query = query.filter_by(category_id=category_id)
+    if difficulty != 'mixed':
+        query = query.filter_by(difficulty=difficulty)
+    questions = query.order_by(db.func.random()).limit(question_count).all()
+
+    if len(questions) < question_count:
+        flash('Not enough questions available.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    # Түр зуурын "хайрцаг" өрөө үүсгэх
+    import random, string
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    room = Room(
+        code=code,
+        name='Solo Practice',
+        host_id=current_user.id,
+        is_private=True,
+        category_id=category_id if category_id else None,
+        difficulty=difficulty,
+        question_count=question_count,
+        max_players=1,
+        game_mode='classic',
+        status='playing'
+    )
+    db.session.add(room)
+    db.session.commit()
+
+    return redirect(url_for('quiz.solo_play', room_code=code))
+
+@quiz_bp.route('/solo/submit', methods=['POST'])
+@login_required
+def solo_submit():
+    data = request.json
+    # Solo тоглолтын статистик шинэчлэх
+    current_user.games_played += 1
+    current_user.total_correct += data['correct']
+    current_user.total_questions += data['total']
+    current_user.update_accuracy()
+    current_user.add_xp(data['correct'] * 5)
+    current_user.add_coins(data['correct'] * 2, 'Solo practice')
+    db.session.commit()
+
+    return jsonify({'success': True, 'xp_earned': data['correct'] * 5, 'coins_earned': data['correct'] * 2})

@@ -94,6 +94,16 @@ class User(UserMixin, db.Model):
             )
             return True, old_level, self.level
         return False, self.level, self.level
+    
+        if level_up:
+            import requests
+            try:
+                requests.post(
+                    f"{current_app.config['API_BASE_URL']}/discord/sync-role",
+                    json={"discord_id": self.discord_account.discord_id, "level": self.level}
+                )
+            except:
+                pass
 
     def add_coins(self, amount, reason=''):
         self.coins += amount

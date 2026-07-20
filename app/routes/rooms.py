@@ -39,12 +39,13 @@ def create_room():
     difficulty = request.form.get('difficulty', 'mixed')
     question_count = request.form.get('question_count', 10, type=int)
     max_players = request.form.get('max_players', 8, type=int)
+    game_mode = request.form.get('game_mode', 'classic')
+    time_attack_duration = request.form.get('time_attack_duration', 15, type=int)
 
     if not name:
         flash('Room name is required.', 'danger')
         return redirect(url_for('rooms.lobby'))
 
-    # Хязгаарлалт шалгах
     question_count = min(max(question_count, 5), 50)
     max_players = min(max(max_players, 2), 8)
 
@@ -57,13 +58,14 @@ def create_room():
         category_id=category_id if category_id else None,
         difficulty=difficulty,
         question_count=question_count,
-        max_players=max_players
+        max_players=max_players,
+        game_mode=game_mode,
+        time_attack_duration=time_attack_duration
     )
 
     db.session.add(room)
-    db.session.flush()  # room.id авахын тулд
+    db.session.flush()
 
-    # Үүсгэгчийг автоматаар өрөөнд оруулах
     room_player = RoomPlayer(room_id=room.id, user_id=current_user.id, is_ready=True)
     db.session.add(room_player)
     db.session.commit()

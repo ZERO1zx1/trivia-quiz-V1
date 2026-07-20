@@ -7,6 +7,7 @@ from config import config
 from .extensions import db, socketio
 from app.routes.quests import quests_bp
 from app.routes.user_questions import user_q_bp
+from app.routes.daily_trivia import daily_trivia_bp
 
 def create_app(config_name='default'):
     app = Flask(__name__,
@@ -58,6 +59,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(user_q_bp, url_prefix='/user-questions')
+    app.register_blueprint(daily_trivia_bp, url_prefix='/daily-trivia')
 
     # Other Blueprints
     from app.routes.home import home_bp

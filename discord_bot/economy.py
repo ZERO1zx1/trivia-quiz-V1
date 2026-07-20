@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-class EconomyCog(commands.Cog):
+class Economy(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -218,4 +218,4 @@ class EconomyCog(commands.Cog):
                 )
 
 async def setup(bot):
-    await bot.add_cog(EconomyCog(bot))
+    await bot.add_cog(Economy(bot))
