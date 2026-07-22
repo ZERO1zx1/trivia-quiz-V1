@@ -29,7 +29,15 @@ class Config:
     PERFECT_GAME_BONUS = 200
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
     UPLOAD_FOLDER = 'static/uploads'
-    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or 'your-api-key'
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or 'your-actual-api-key'
+    OWNER_USERNAME = os.environ.get('OWNER_USERNAME') or None
+    API_BASE_URL = os.environ.get('API_BASE_URL') or 'http://localhost:5000/api'
+    DISCORD_ERROR_WEBHOOK = os.environ.get('DISCORD_ERROR_WEBHOOK') or ''
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS') or 'http://localhost:5000'
+    RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI') or 'memory://'
+    OWNER_USERNAME = os.environ.get('OWNER_USERNAME') or None
+    OWNER_DISCORD_ID = os.environ.get('OWNER_DISCORD_ID') or None
+    OWNER_EMAIL = os.environ.get('OWNER_EMAIL') or None
 
 class DevelopmentConfig(Config):
     DEBUG = True
@@ -51,12 +59,12 @@ config = {
     'default': DevelopmentConfig
 }
 
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = ('TriviaVerse', app.config['MAIL_USERNAME'])
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USE_TLS = True
+MAIL_USERNAME = os.environ.get('MAIL_USERNAME') or 'your-email@gmail.com'
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD') or 'your-app-password'
+MAIL_DEFAULT_SENDER = ('TriviaVerse', os.environ.get('MAIL_USERNAME') or 'your-email@gmail.com')
 
 # Имэйл илгээх санг холбох
 mail = Mail(app)

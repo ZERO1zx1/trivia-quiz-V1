@@ -1,62 +1,91 @@
 {% extends "layouts/base.html" %}
-
 {% block title %}Dashboard - {{ app_name }}{% endblock %}
-
 {% block content %}
-<div class="dashboard-header">
-    <h1 style="font-size:2rem;font-weight:800;margin-bottom:8px;">
-        Welcome back, {{ current_user.display_name or current_user.username }}! 👋
+<div class="dashboard-header animate-slideDown">
+    <h1 style="font-size:2rem;font-weight:800;margin-bottom:4px;">
+        Welcome back, {{ current_user.display_name or current_user.username }}{% if current_user.is_premium %} 👑{%
+        endif %}!
     </h1>
     <p style="color:var(--text-secondary);">Ready to test your knowledge today?</p>
 </div>
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-        <div class="auth-messages" style="margin-bottom: 20px;">
-            {% for category, message in messages %}
-                <div class="flash-message flash-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
+{% if messages %}
+<div class="auth-messages" style="margin-bottom: 20px;">
+    {% for category, message in messages %}
+    <div class="flash-message flash-{{ category }} animate-fadeIn">{{ message }}</div>
+    {% endfor %}
+</div>
+{% endif %}
 {% endwith %}
 
-<!-- Main Dashboard Grid -->
-<div style="display:grid;grid-template-columns:2fr 1fr;gap:24px;">
-    <!-- Left Column -->
+<!-- Main Grid -->
+<div style="display:grid; grid-template-columns:1fr 320px; gap:24px;">
+    <!-- ========== LEFT COLUMN ========== -->
     <div>
-        <!-- Stats Cards -->
-        <div class="dashboard-grid">
-            <div class="stat-card"><div class="stat-card-icon blue">🏆</div><div class="stat-card-value">{{ current_user.wins }}</div><div class="stat-card-label">Total Wins</div></div>
-            <div class="stat-card"><div class="stat-card-icon green">🎯</div><div class="stat-card-value">{{ "%.1f"|format(current_user.accuracy) }}%</div><div class="stat-card-label">Accuracy</div></div>
-            <div class="stat-card"><div class="stat-card-icon purple">⭐</div><div class="stat-card-value">{{ current_user.level }}</div><div class="stat-card-label">Level</div></div>
-            <div class="stat-card"><div class="stat-card-icon yellow">🪙</div><div class="stat-card-value">{{ current_user.coins }}</div><div class="stat-card-label">Coins</div></div>
+        <!-- Quick Actions Row -->
+        <div style="display:flex; gap:12px; margin-bottom:24px;">
+            <button class="btn btn-primary" onclick="startSoloPractice()" style="flex:1;">
+                🎮 Solo Practice
+            </button>
+            <button class="btn btn-glow" id="fortuneBtn" onclick="spinFortune()" style="flex:1;">
+                🎰 Spin Wheel
+            </button>
+            <a href="{{ url_for('rooms.lobby') }}" class="btn btn-ghost" style="flex:1; text-align:center;">
+                + Create Room
+            </a>
         </div>
 
-        <!-- Quick Actions -->
-        <div style="margin-top: 24px; display: flex; gap: 12px;">
-            <!-- Solo Practice Button -->
-            <button class="btn btn-primary" onclick="startSoloPractice()">🎮 Solo Practice</button>
-            <!-- Create Room Button (opens modal) -->
-            <button class="btn btn-ghost" onclick="document.getElementById('createModal').style.display='flex'">+ Create Room</button>
+        <!-- Stats Cards -->
+        <div class="dashboard-grid" style="margin-bottom:24px;">
+            <div class="stat-card animate-slideUp delay-1">
+                <div class="stat-card-icon blue">🏆</div>
+                <div class="stat-card-value">{{ current_user.wins }}</div>
+                <div class="stat-card-label">Total Wins</div>
+            </div>
+            <div class="stat-card animate-slideUp delay-2">
+                <div class="stat-card-icon green">🎯</div>
+                <div class="stat-card-value">{{ "%.1f"|format(current_user.accuracy) }}%</div>
+                <div class="stat-card-label">Accuracy</div>
+            </div>
+            <div class="stat-card animate-slideUp delay-3">
+                <div class="stat-card-icon purple">⭐</div>
+                <div class="stat-card-value">{{ current_user.level }}</div>
+                <div class="stat-card-label">Level</div>
+            </div>
+            <div class="stat-card animate-slideUp delay-4">
+                <div class="stat-card-icon yellow">🪙</div>
+                <div class="stat-card-value">{{ current_user.coins }}</div>
+                <div class="stat-card-label">Coins</div>
+            </div>
         </div>
 
         <!-- Active Rooms -->
-        <div style="margin-top:32px;">
+        <div style="margin-bottom:24px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
                 <h2 style="font-size:1.3rem;font-weight:700;">Active Rooms</h2>
                 <a href="{{ url_for('rooms.lobby') }}" class="link">View All →</a>
             </div>
             <div class="room-grid">
                 {% for room in active_rooms %}
-                <div class="room-card" onclick="location.href='{{ url_for('rooms.room', code=room.code) }}'">
-                    <div class="room-card-header"><div class="room-card-name">{{ room.name }}</div><div class="room-card-code">{{ room.code }}</div></div>
-                    <div class="room-card-meta"><span>{{ room.difficulty.title() }}</span><span>{{ room.question_count }} Qs</span><span>{{ room.get_player_count() }}/{{ room.max_players }} Players</span></div>
+                <div class="room-card animate-fadeIn"
+                    onclick="location.href='{{ url_for('rooms.room', code=room.code) }}'">
+                    <div class="room-card-header">
+                        <div class="room-card-name">{{ room.name }}</div>
+                        <div class="room-card-code">{{ room.code }}</div>
+                    </div>
+                    <div class="room-card-meta">
+                        <span>{{ room.difficulty.title() }}</span>
+                        <span>{{ room.question_count }} Qs</span>
+                        <span>{{ room.get_player_count() }}/{{ room.max_players }}</span>
+                    </div>
                     <div class="room-card-footer">
                         <div class="room-players">
                             {% for p in room.players.limit(3) %}
-                            <img src="{{ p.user.avatar_url or url_for('static', filename='avatars/default.png') }}" alt="{{ p.user.username }}"
-                                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ p.user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
+                            <img src="{{ p.user.avatar_url or url_for('static', filename='avatars/default.png') }}"
+                                alt="{{ p.user.username }}"
+                                onerror="this.onerror=null;this.src='data:image/svg+xml,...';">
                             {% endfor %}
                         </div>
                         <span class="room-status status-waiting">Waiting</span>
@@ -72,84 +101,113 @@
         </div>
     </div>
 
-    <!-- Right Column -->
+    <!-- ========== RIGHT COLUMN ========== -->
     <div>
         <!-- Profile Card -->
-        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
-            <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
-                <img src="{{ current_user.avatar_url }}" alt="Avatar" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ current_user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
-                <div>
-                    <div style="font-size:1.2rem;font-weight:700;">{{ current_user.display_name or current_user.username }}</div>
-                    <div style="color:var(--text-secondary);">Level {{ current_user.level }}</div>
+        <div class="glass animate-slideRight" style="padding:24px;border-radius:20px;margin-bottom:24px;">
+            <div style="text-align:center; margin-bottom:20px;">
+                <img src="{{ current_user.avatar_url }}" alt="Avatar"
+                    style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);"
+                    onerror="this.onerror=null;this.src='data:image/svg+xml,...';">
+                <div style="font-size:1.2rem;font-weight:700; margin-top:8px;">
+                    {{ current_user.display_name or current_user.username }}
+                    {% if current_user.is_premium %} 👑{% endif %}
                 </div>
+                <div style="color:var(--text-secondary);">Level {{ current_user.level }}</div>
+                {% if current_user.discord_account %}
+                <div style="margin-top:4px; font-size:0.8rem; color:#5865F2;">
+                    💜 Discord Linked
+                </div>
+                {% endif %}
             </div>
+            <!-- XP Bar -->
             <div style="margin-bottom:16px;">
                 <div style="font-weight:600;margin-bottom:4px;">XP Progress</div>
                 <div style="background:var(--surface);border-radius:10px;height:10px;overflow:hidden;">
                     {% set xp_for_next = current_user.level * current_user.level * 100 %}
                     {% set progress = (current_user.xp / xp_for_next * 100) if xp_for_next else 0 %}
-                    <div style="width:{% if progress > 100 %}100{% else %}{{ progress }}{% endif %}%;height:100%;background:linear-gradient(90deg, var(--primary), var(--accent));border-radius:10px;"></div>
+                    <div
+                        style="width:{% if progress > 100 %}100{% else %}{{ progress }}{% endif %}%;height:100%;background:linear-gradient(90deg, var(--primary), var(--accent));border-radius:10px;">
+                    </div>
                 </div>
-                <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">{{ current_user.xp }} / {{ xp_for_next }} XP</div>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">{{ current_user.xp }} / {{
+                    xp_for_next }} XP</div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px; margin-bottom:12px;">
                 <div><span style="color:var(--text-secondary);">Coins:</span> 🪙 {{ current_user.coins }}</div>
                 <div><span style="color:var(--text-secondary);">Wins:</span> 🏆 {{ current_user.wins }}</div>
                 <div><span style="color:var(--text-secondary);">Games:</span> {{ current_user.games_played }}</div>
-                <div><span style="color:var(--text-secondary);">Accuracy:</span> {{ "%.1f"|format(current_user.accuracy) }}%</div>
+                <div><span style="color:var(--text-secondary);">Accuracy:</span> {{ "%.1f"|format(current_user.accuracy)
+                    }}%</div>
             </div>
-        </div>
-
-        <!-- Solo Practice Card (илүү тод харагдах) -->
-        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px; background: linear-gradient(135deg, rgba(88,101,242,0.3), rgba(0,212,255,0.1));">
-            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px;">🎮 Solo Practice</h3>
-            <p style="font-size:0.9rem;color:var(--text-secondary);margin-bottom:16px;">Warm up alone, earn XP and coins!</p>
-            <button class="btn btn-primary btn-full" onclick="startSoloPractice()">Start Solo Game</button>
-        </div>
-
-        <!-- Daily Reward -->
-        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
-            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">Daily Reward</h3>
-            <button class="btn btn-primary btn-full" id="dailyBtn" onclick="claimDaily()">🎁 Claim 100 Coins</button>
-        </div>
-
-        <!-- Daily Quests -->
-        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
-            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">🎯 Daily Quests</h3>
-            <div id="dailyQuests">Loading...</div>
-        </div>
-
-        <!-- Leaderboard -->
-        <div class="glass" style="padding:24px;border-radius:20px;margin-bottom:24px;">
-            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">Leaderboard</h3>
-            {% for entry in top_players[:5] %}
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-                <span style="font-weight:800;width:24px;color:var(--accent);">#{{ loop.index }}</span>
-                <img src="{{ entry.user.avatar_url or url_for('static', filename='avatars/default.png') }}" style="width:32px;height:32px;border-radius:50%;"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ entry.user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
-                <span style="flex:1;font-weight:600;font-size:0.9rem;">{{ entry.user.username }}</span>
-                <span style="font-weight:700;color:var(--warning);">{{ entry.score }}</span>
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- Notifications -->
-        <div class="glass" style="padding:24px;border-radius:20px;">
-            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:16px;">Notifications</h3>
-            {% if notifications %}
-                {% for n in notifications[:5] %}
-                <div style="padding:10px 0;border-bottom:1px solid var(--border);{% if not n.is_read %}background:rgba(88,101,242,0.05);{% endif %}">
-                    <div style="font-weight:600;">{{ n.title }}</div>
-                    <div style="font-size:0.85rem;color:var(--text-secondary);">{{ n.message }}</div>
-                    <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:4px;">{{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}</div>
-                </div>
+            {% if current_user.achievements %}
+            <div style="border-top:1px solid var(--border); padding-top:12px;">
+                <div style="font-weight:600;margin-bottom:8px;">🏅 Badges</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    {% for ua in current_user.achievements %}
+                    {% if ua.is_unlocked and loop.index <= 4 %} <div title="{{ ua.achievement.name }}"
+                        style="font-size:1.5rem;">{{ ua.achievement.icon }}</div>
+                {% endif %}
                 {% endfor %}
-            {% else %}
-                <p style="color:var(--text-secondary);text-align:center;">No notifications</p>
-            {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Daily Reward + Fortune Wheel (combined) -->
+    <div class="glass animate-slideRight delay-1" style="padding:24px;border-radius:20px;margin-bottom:24px;">
+        <div style="display:flex; gap:12px;">
+            <div style="flex:1;">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Daily Reward</h3>
+                <button class="btn btn-primary btn-full btn-sm" id="dailyBtn" onclick="claimDaily()">🎁 Claim 100
+                    Coins</button>
+            </div>
+            <div style="flex:1;">
+                <h3 style="font-size:1rem;font-weight:700;margin-bottom:8px;">Fortune Wheel</h3>
+                <button class="btn btn-glow btn-full btn-sm" onclick="spinFortune()">🎰 Spin</button>
+            </div>
         </div>
     </div>
+
+    <!-- Daily Quests -->
+    <div class="glass animate-slideRight delay-2" style="padding:24px;border-radius:20px;margin-bottom:24px;">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">🎯 Daily Quests</h3>
+        <div id="dailyQuests">Loading...</div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="glass animate-slideRight delay-3" style="padding:24px;border-radius:20px;margin-bottom:24px;">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">🏆 Leaderboard</h3>
+        {% for entry in top_players[:5] %}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <span style="font-weight:800;width:20px;color:var(--accent);">#{{ loop.index }}</span>
+            <img src="{{ entry.user.avatar_url or url_for('static', filename='avatars/default.png') }}"
+                style="width:28px;height:28px;border-radius:50%;"
+                onerror="this.onerror=null;this.src='data:image/svg+xml,...';">
+            <span style="flex:1;font-weight:600;font-size:0.85rem;">{{ entry.user.username }}</span>
+            <span style="font-weight:700;color:var(--warning);font-size:0.85rem;">{{ entry.score }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Notifications -->
+    <div class="glass animate-slideRight delay-4" style="padding:24px;border-radius:20px;">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">🔔 Notifications</h3>
+        {% if notifications %}
+        {% for n in notifications[:4] %}
+        <div
+            style="padding:8px 0;border-bottom:1px solid var(--border);{% if not n.is_read %}background:rgba(88,101,242,0.05);{% endif %}">
+            <div style="font-weight:600; font-size:0.85rem;">{{ n.title }}</div>
+            <div style="font-size:0.75rem;color:var(--text-secondary);">{{ n.message[:50] }}{% if n.message|length > 50
+                %}...{% endif %}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="color:var(--text-secondary);text-align:center;font-size:0.85rem;">No notifications</p>
+        {% endif %}
+    </div>
+</div>
 </div>
 {% endblock %}
 

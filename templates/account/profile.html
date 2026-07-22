@@ -1,91 +1,211 @@
 {% extends "layouts/base.html" %}
-
 {% block title %}Profile - {{ app_name }}{% endblock %}
-
 {% block content %}
 <h1 style="font-size:2rem;font-weight:800;margin-bottom:24px;">👤 Profile</h1>
 
-<div class="glass" style="padding:32px;border-radius:24px;max-width:600px;">
-    <form method="POST" action="{{ url_for('account.update_profile') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div style="display:grid; grid-template-columns:1fr 300px; gap:24px;">
+    <!-- Main Card -->
+    <div>
+        <div class="glass" style="padding:32px; border-radius:24px;">
+            <form method="POST" action="{{ url_for('account.update_profile') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="text-align:center; margin-bottom:24px;">
+                    <img src="{{ current_user.avatar_url }}"
+                        style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);"
+                        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ current_user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
+                    <div style="margin-top:12px;">
+                        <label for="avatar_upload" class="btn btn-ghost" style="cursor:pointer;">Change Avatar</label>
+                        <input type="file" id="avatar_upload" name="avatar" accept="image/*" style="display:none;">
+                    </div>
+                </div>
 
-        <div style="text-align:center;margin-bottom:32px;">
-            <img src="{{ current_user.avatar_url }}" alt="Avatar"
-                 style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);"
-                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ current_user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
-            <div style="margin-top:12px;">
-                <label for="avatar_upload" class="btn btn-ghost" style="cursor:pointer;">Change Avatar</label>
-                <input type="file" id="avatar_upload" name="avatar" accept="image/*" style="display:none;">
+                <!-- Display Name & Role Badge -->
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Display Name</label>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <input type="text" name="display_name" value="{{ current_user.display_name or '' }}"
+                            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+                        {% if current_user.role != 'user' %}
+                        <span
+                            style="display:inline-block; padding:4px 14px; border-radius:20px; font-size:0.8rem; font-weight:700; color:white; background: {% if current_user.role == 'owner' %}#FFD700{% elif current_user.role == 'developer' %}#FF4500{% elif current_user.role == 'admin' %}#FF3333{% elif current_user.role == 'moderator' %}#33FF33{% elif current_user.role == 'helper' %}#3399FF{% else %}#888{% endif %};">
+                            {{ current_user.role|capitalize }}
+                        </span>
+                        {% endif %}
+                        {% if current_user.is_premium %}
+                        <span style="font-size:1.2rem;" title="Premium Member">👑</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Bio</label>
+                    <textarea name="bio" rows="3"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">{{ current_user.bio or '' }}</textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:24px;">
+                    <label>Country</label>
+                    <select name="country"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+                        <option value="" {% if not current_user.country %}selected{% endif %}>Select your country
+                        </option>
+                        <option value="MN" {% if current_user.country=='MN' %}selected{% endif %}>Mongolia</option>
+                        <!-- бусад улсууд -->
+                    </select>
+                </div>
+                {% if current_user.is_premium %}
+                <div class="form-group" style="margin-bottom:16px;">
+                    <label>Banner Image (Premium)</label>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <img src="{{ current_user.banner_url }}" style="height:60px; border-radius:8px;">
+                        <label for="banner_upload" class="btn btn-ghost" style="cursor:pointer;">Change Banner</label>
+                        <input type="file" id="banner_upload" name="banner" accept="image/*" style="display:none;">
+                    </div>
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+        <!-- Discord Settings -->
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">🎧 Discord</h3>
+            {% if current_user.discord_account %}
+            <div style="margin-bottom:12px; font-size:0.9rem; color:#5865F2;">
+                💜 Connected as <strong>{{ current_user.discord_account.discord_username }}</strong>
             </div>
+            {% else %}
+            <a href="{{ url_for('auth.discord_login') }}" class="btn btn-discord btn-full"
+                style="margin-bottom:12px;">Link Discord Account</a>
+            {% endif %}
+            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <input type="checkbox" {% if current_user.discord_rich_presence %}checked{% endif %}
+                    onchange="updateDiscordSetting('rich_presence', this.checked)">
+                <span>Rich Presence</span>
+            </label>
+            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                <input type="checkbox" {% if current_user.discord_dm_notifications %}checked{% endif %}
+                    onchange="updateDiscordSetting('dm_notifications', this.checked)">
+                <span>DM Notifications</span>
+            </label>
         </div>
 
-        <div class="form-group" style="margin-bottom:16px;">
-            <label style="display:block;margin-bottom:8px;font-weight:600;">Display Name</label>
-            <input type="text" name="display_name" value="{{ current_user.display_name or '' }}"
-                   placeholder="Enter display name"
-                   style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">
-        </div>
-
-        <div class="form-group" style="margin-bottom:16px;">
-            <label style="display:block;margin-bottom:8px;font-weight:600;">Bio</label>
-            <textarea name="bio" rows="3" placeholder="Tell us about yourself..."
-                      style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;">{{ current_user.bio or '' }}</textarea>
-        </div>
-
-        <div class="form-group" style="margin-bottom:24px;">
-            <label style="display:block;margin-bottom:8px;font-weight:600;">Country</label>
-            <select name="country"
-                    style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);font-family:inherit;appearance:none;background-image:url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%23aaaaaa\" stroke-width=\"2\"><path d=\"M6 9l6 6 6-6\"/></svg>');background-repeat:no-repeat;background-position:right 16px center;background-size:16px;">
-                <option value="" {% if not current_user.country %}selected{% endif %}>Select your country</option>
-                <option value="AF" {% if current_user.country == 'AF' %}selected{% endif %}>Afghanistan</option>
-                <option value="AL" {% if current_user.country == 'AL' %}selected{% endif %}>Albania</option>
-                <option value="DZ" {% if current_user.country == 'DZ' %}selected{% endif %}>Algeria</option>
-                <option value="AR" {% if current_user.country == 'AR' %}selected{% endif %}>Argentina</option>
-                <option value="AM" {% if current_user.country == 'AM' %}selected{% endif %}>Armenia</option>
-                <option value="AU" {% if current_user.country == 'AU' %}selected{% endif %}>Australia</option>
-                <option value="AT" {% if current_user.country == 'AT' %}selected{% endif %}>Austria</option>
-                <option value="BD" {% if current_user.country == 'BD' %}selected{% endif %}>Bangladesh</option>
-                <option value="BY" {% if current_user.country == 'BY' %}selected{% endif %}>Belarus</option>
-                <option value="BE" {% if current_user.country == 'BE' %}selected{% endif %}>Belgium</option>
-                <option value="BR" {% if current_user.country == 'BR' %}selected{% endif %}>Brazil</option>
-                <option value="CA" {% if current_user.country == 'CA' %}selected{% endif %}>Canada</option>
-                <option value="CN" {% if current_user.country == 'CN' %}selected{% endif %}>China</option>
-                <option value="FR" {% if current_user.country == 'FR' %}selected{% endif %}>France</option>
-                <option value="DE" {% if current_user.country == 'DE' %}selected{% endif %}>Germany</option>
-                <option value="IN" {% if current_user.country == 'IN' %}selected{% endif %}>India</option>
-                <option value="JP" {% if current_user.country == 'JP' %}selected{% endif %}>Japan</option>
-                <option value="MN" {% if current_user.country == 'MN' %}selected{% endif %}>Mongolia</option>
-                <option value="RU" {% if current_user.country == 'RU' %}selected{% endif %}>Russia</option>
-                <option value="KR" {% if current_user.country == 'KR' %}selected{% endif %}>South Korea</option>
-                <option value="GB" {% if current_user.country == 'GB' %}selected{% endif %}>United Kingdom</option>
-                <option value="US" {% if current_user.country == 'US' %}selected{% endif %}>United States</option>
-            </select>
-        </div>
-
-        <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
-    </form>
-
-    {% if current_user.achievements %}
-    <div class="glass" style="padding:24px;border-radius:20px;margin-top:24px;">
-        <h3 style="font-weight:700;margin-bottom:16px;">🏅 Badges</h3>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            {% for ua in current_user.achievements %}
+        <!-- Showcase Badges -->
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">🏅 Showcase Badges</h3>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;" id="badgeContainer">
+                {% set selected = current_user.showcase_badge_ids.split(',') if current_user.showcase_badge_ids else []
+                %}
+                {% for ua in current_user.achievements %}
                 {% if ua.is_unlocked %}
-                <div style="text-align:center;" title="{{ ua.achievement.description }}">
+                <div class="badge-item" data-badge-id="{{ ua.achievement.id }}"
+                    style="text-align:center; cursor:pointer; padding:8px; border-radius:12px; border:2px solid {% if ua.achievement.id|string in selected %}var(--accent){% else %}transparent{% endif %};"
+                    onclick="toggleBadge('{{ ua.achievement.id }}')">
                     <div style="font-size:2rem;">{{ ua.achievement.icon }}</div>
                     <div style="font-size:0.8rem;">{{ ua.achievement.name }}</div>
                 </div>
                 {% endif %}
-            {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if current_user.is_premium %}
+        <!-- Name Effect -->
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">✨ Name Effect</h3>
+            <select onchange="updateNicknameEffect(this.value)"
+                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+                <option value="none" {% if current_user.nickname_effect=='none' %}selected{% endif %}>No Effect</option>
+                <option value="glow" {% if current_user.nickname_effect=='glow' %}selected{% endif %}>Glow</option>
+                <option value="gradient" {% if current_user.nickname_effect=='gradient' %}selected{% endif %}>Rainbow
+                </option>
+            </select>
+        </div>
+
+        <!-- Profile Music -->
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">🎵 Profile Music</h3>
+            <input type="text" id="profileMusic" value="{{ current_user.profile_theme_music or '' }}"
+                placeholder="SoundCloud URL"
+                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+            <button onclick="saveProfileMusic()" class="btn btn-primary btn-full" style="margin-top:12px;">Save</button>
+        </div>
+        {% endif %}
+
+        <!-- Gameplay Preferences -->
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">🎮 Gameplay</h3>
+            <label style="font-weight:600;">Difficulty</label>
+            <select onchange="updateGameSetting('preferred_difficulty', this.value)"
+                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);margin-bottom:12px;">
+                <option value="mixed" {% if current_user.preferred_difficulty=='mixed' %}selected{% endif %}>Mixed
+                </option>
+                <option value="easy" {% if current_user.preferred_difficulty=='easy' %}selected{% endif %}>Easy</option>
+                <option value="medium" {% if current_user.preferred_difficulty=='medium' %}selected{% endif %}>Medium
+                </option>
+                <option value="hard" {% if current_user.preferred_difficulty=='hard' %}selected{% endif %}>Hard</option>
+            </select>
+            <label class="checkbox" style="display:flex;align-items:center;gap:12px;">
+                <input type="checkbox" {% if current_user.performance_mode %}checked{% endif %}
+                    onchange="updateGameSetting('performance_mode', this.checked)">
+                <span>Performance Mode</span>
+            </label>
         </div>
     </div>
-    {% endif %}
 </div>
 
 <script>
-    // Avatar upload товчлуурын ажиллагаа
-    document.querySelector('label[for="avatar_upload"]').addEventListener('click', function(e) {
-        document.getElementById('avatar_upload').click();
-    });
+    // --- Helper ---
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // Discord settings
+    function updateDiscordSetting(key, value) {
+        fetch('/account/update-discord-settings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ [key]: value })
+        });
+    }
+
+    // Badge toggle
+    let selectedBadges = '{{ current_user.showcase_badge_ids or "" }}'.split(',').filter(Boolean);
+    function toggleBadge(badgeId) {
+        const idx = selectedBadges.indexOf(badgeId);
+        if (idx > -1) selectedBadges.splice(idx, 1);
+        else selectedBadges.push(badgeId);
+        document.querySelectorAll('.badge-item').forEach(el => {
+            el.style.borderColor = selectedBadges.includes(el.dataset.badgeId) ? 'var(--accent)' : 'transparent';
+        });
+        fetch('/account/update-profile', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ showcase_badge_ids: selectedBadges })
+        });
+    }
+
+    // Nickname effect
+    function updateNicknameEffect(effect) {
+        fetch('/account/update-profile', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ nickname_effect: effect })
+        });
+    }
+
+    // Profile music
+    function saveProfileMusic() {
+        const url = document.getElementById('profileMusic').value;
+        fetch('/account/update-profile', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ profile_theme_music: url })
+        });
+    }
+
+    // Game settings
+    function updateGameSetting(key, value) {
+        fetch('/account/update-game-settings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ [key]: value })
+        });
+    }
 </script>
 {% endblock %}

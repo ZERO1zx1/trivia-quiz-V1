@@ -15,6 +15,7 @@ class ShopItem(db.Model):
     image_url = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    premium_only = db.Column(db.Boolean, default=False)
 
     # Хэрэглэгчдийн инвентартэй холбох
     user_inventory = db.relationship('UserInventory', back_populates='item', lazy='dynamic')

@@ -18,15 +18,27 @@ def get_questions():
     category_id = request.args.get('category_id', type=int)
     difficulty = request.args.get('difficulty', 'mixed')
     limit = request.args.get('limit', 10, type=int)
-
     query = Question.query.filter_by(is_active=True)
     if category_id:
         query = query.filter_by(category_id=category_id)
     if difficulty != 'mixed':
         query = query.filter_by(difficulty=difficulty)
-
     questions = query.order_by(db.func.random()).limit(limit).all()
-    return jsonify([q.to_dict() for q in questions])
+    # is_correct-гүйгээр зөвхөн текст, ID буцаах
+    result = []
+    for q in questions:
+        answers = [{'id': a.id, 'answer_text': a.answer_text} for a in q.answers]
+        # Давхар шалгалт: зөв хариултын ID-г ч илгээхгүй
+        result.append({
+            'id': q.id,
+            'question_text': q.question_text,
+            'question_type': q.question_type,
+            'image_url': q.image_url,
+            'difficulty': q.difficulty,
+            'category': q.category.name if q.category else None,
+            'answers': answers
+        })
+    return jsonify(result)
 
 @quiz_bp.route('/play/<room_code>')
 @login_required
@@ -37,6 +49,16 @@ def play(room_code):
         flash('You are not in this room.', 'danger')
         return redirect(url_for('rooms.lobby'))
     return render_template('quiz/play.html', room=room)
+
+@quiz_bp.route('/solo/play/<room_code>')
+@login_required
+def solo_play(room_code):
+    room = Room.query.filter_by(code=room_code).first_or_404()
+    # Зөвхөн өөрийнхөө соло өрөөг харах эрхтэй
+    if room.host_id != current_user.id or room.game_mode != 'classic':
+        flash('Invalid solo session.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    return render_template('quiz/solo_play.html', room=room)
 
 @quiz_bp.route('/submit_answer', methods=['POST'])
 @login_required
@@ -112,19 +134,17 @@ def submit_answer():
 @quiz_bp.route('/solo/start', methods=['POST'])
 @login_required
 def start_solo():
-    """Solo practice тоглолт эхлүүлэх"""
     category_id = request.form.get('category_id', type=int)
-    difficulty = request.form.get('difficulty', 'mixed')
+    difficulty = request.form.get('difficulty', 'mixed')  # ЭНЭ МӨР нэмэгдсэн
     question_count = request.form.get('question_count', 10, type=int)
 
-    # Асуултуудыг татах
     query = Question.query.filter_by(is_active=True)
     if category_id:
         query = query.filter_by(category_id=category_id)
     if difficulty != 'mixed':
-        query = query.filter_by(difficulty=difficulty)
-    questions = query.order_by(db.func.random()).limit(question_count).all()
+        query = query.filter_by(difficulty=difficulty)    # ЭНЭ ШҮҮЛТ нэмэгдсэн
 
+    questions = query.order_by(db.func.random()).limit(question_count).all()
     if len(questions) < question_count:
         flash('Not enough questions available.', 'danger')
         return redirect(url_for('dashboard.index'))
@@ -163,3 +183,19 @@ def solo_submit():
     db.session.commit()
 
     return jsonify({'success': True, 'xp_earned': data['correct'] * 5, 'coins_earned': data['correct'] * 2})
+
+@quiz_bp.route('/solo/check_answer', methods=['POST'])
+@login_required
+def check_solo_answer():
+    data = request.json
+    question_id = data.get('question_id')
+    answer_id = data.get('answer_id')
+    question = Question.query.get(question_id)
+    if not question:
+        return jsonify({'error': 'Question not found'}), 404
+    correct_answer = question.get_correct_answer()
+    is_correct = (correct_answer and correct_answer.id == answer_id)
+    return jsonify({
+        'correct': is_correct,
+        'correct_answer_id': correct_answer.id if correct_answer else None
+    })

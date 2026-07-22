@@ -130,7 +130,7 @@ function renderQuestion(data) {
                 <div id="optionsContainer" class="options-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                     ${data.answers.map((a, idx) => `
                         <button class="option-btn answer-btn" onclick="submitAnswer(${a.id})" data-id="${a.id}">
-                            <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;">${idx+1}</span>
+                            <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;">${idx + 1}</span>
                             ${escapeHtml(a.answer_text)}
                         </button>
                     `).join('')}
@@ -168,7 +168,7 @@ function renderScoreboard(scores) {
     if (!scores.length) return '<p style="color:var(--text-secondary);">Waiting for scores...</p>';
     return scores.slice(0, 5).map((s, i) => `
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.9rem;">
-            <span style="width:20px;font-weight:700;">#${i+1}</span>
+            <span style="width:20px;font-weight:700;">#${i + 1}</span>
             <span style="flex:1;">${escapeHtml(s.username)}</span>
             <span style="font-weight:700;">${s.score}</span>
         </div>
@@ -275,7 +275,7 @@ function showRoundResults(data) {
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     ${data.leaderboard.map((p, i) => `
                         <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border-radius:12px;border:${i === 0 ? '2px solid var(--warning)' : '1px solid var(--border)'};">
-                            <div style="font-size:1.5rem;font-weight:800;width:40px;">#${i+1}</div>
+                            <div style="font-size:1.5rem;font-weight:800;width:40px;">#${i + 1}</div>
                             <img src="${p.avatar || '/static/avatars/default.png'}" style="width:40px;height:40px;border-radius:50%;">
                             <div style="flex:1;text-align:left;">
                                 <div style="font-weight:700;">${escapeHtml(p.username)}</div>
@@ -313,7 +313,7 @@ function showGameOver(data) {
                             <img src="${p.avatar || '/static/avatars/default.png'}" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);">
                             <div style="font-weight:800;margin-top:8px;">${escapeHtml(p.username)}</div>
                             <div style="font-weight:700;color:var(--warning);">${p.score} pts</div>
-                            <div style="font-size:0.85rem;">#${i+1}</div>
+                            <div style="font-size:0.85rem;">#${i + 1}</div>
                         </div>
                     `).join('')}
                 </div>
@@ -321,7 +321,7 @@ function showGameOver(data) {
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;">
                     ${data.results.map((p, i) => `
                         <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-radius:12px;">
-                            <span style="font-weight:800;width:30px;">#${i+1}</span>
+                            <span style="font-weight:800;width:30px;">#${i + 1}</span>
                             <span style="flex:1;">${escapeHtml(p.username)}</span>
                             <span style="color:var(--accent);font-weight:700;">${p.score}</span>
                             <span style="font-size:0.85rem;color:var(--text-secondary);">${p.correct}/${data.total_questions}</span>
@@ -344,11 +344,11 @@ function createConfetti() {
         confetti.style.cssText = `
             position:fixed;
             width:10px;height:10px;
-            background:${colors[Math.floor(Math.random()*colors.length)]};
-            left:${Math.random()*100}%;
+            background:${colors[Math.floor(Math.random() * colors.length)]};
+            left:${Math.random() * 100}%;
             top:-10px;
-            border-radius:${Math.random()>0.5?'50%':'0'};
-            animation:confettiFall ${3+Math.random()*4}s linear forwards;
+            border-radius:${Math.random() > 0.5 ? '50%' : '0'};
+            animation:confettiFall ${3 + Math.random() * 4}s linear forwards;
             z-index:9999;
             pointer-events:none;
         `;
@@ -358,7 +358,7 @@ function createConfetti() {
 }
 
 // ---------- Leave Game ----------
-window.confirmLeave = function() {
+window.confirmLeave = function () {
     if (confirm('Are you sure you want to leave the game?')) {
         const sock = getSocket();
         if (sock) {
@@ -429,3 +429,12 @@ socket.on('level_up', (data) => {
         showToast(`🎉 Level Up! You are now level ${data.new_level}!`, 'success');
     }
 });
+
+// quiz.js дотор тоглогчийн жагсаалтад admin товч нэмэх
+function renderPlayers(players) {
+    let adminButtons = '';
+    if (window.currentUserRole && ['admin', 'moderator', 'owner'].includes(window.currentUserRole)) {
+        adminButtons = `<button onclick="skipQuestion()">⏭️ Skip</button>
+                        <button onclick="kickPlayer('${p.user_id}')">👢 Kick</button>`;
+    }
+}

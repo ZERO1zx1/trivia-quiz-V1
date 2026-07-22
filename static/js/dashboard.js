@@ -122,7 +122,7 @@ async function loadDailyQuests() {
         }
         container.innerHTML = quests.map(q => `
             <div style="margin-bottom:12px;">
-                <div style="font-weight:600;">${q.quest_type.replace('_',' ').toUpperCase()}: ${q.current_value}/${q.target_value}</div>
+                <div style="font-weight:600;">${q.quest_type.replace('_', ' ').toUpperCase()}: ${q.current_value}/${q.target_value}</div>
                 <div style="background:var(--surface);border-radius:10px;height:8px;overflow:hidden;margin:4px 0;">
                     <div style="width:${q.progress}%;height:100%;background:linear-gradient(90deg, var(--primary), var(--accent));"></div>
                 </div>
@@ -133,7 +133,7 @@ async function loadDailyQuests() {
                 </div>
             </div>
         `).join('');
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
 }
 
 async function claimQuest(questId) {
@@ -144,20 +144,51 @@ async function claimQuest(questId) {
             loadDailyQuests();
             updateDashboardStats();
         }
-    } catch(e) { showToast('Failed to claim', 'error'); }
+    } catch (e) { showToast('Failed to claim', 'error'); }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     loadDailyQuests();
 });
 
-window.startSoloPractice = function() {
+window.startSoloPractice = function () {
     // CSRF токен ашиглан POST хүсэлт илгээх
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = '/quiz/solo/start';
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     form.innerHTML = `<input type="hidden" name="csrf_token" value="${csrf}">`;
+    document.body.appendChild(form);
+    form.submit();
+};
+
+// Fortune Wheel
+async function spinFortune() {
+    try {
+        const data = await apiFetch('/fortune/spin', { method: 'POST' });
+        if (data.success) {
+            showToast(`You won: ${data.prize.name}!`, 'success');
+        } else {
+            showToast(data.message, 'warning');
+        }
+    } catch (e) {
+        showToast('Failed to spin. Try again later.', 'error');
+    }
+}
+
+window.openSoloModal = function () {
+    document.getElementById('soloModal').style.display = 'flex';
+};
+
+window.startSoloWithDifficulty = function (difficulty) {
+    document.getElementById('soloModal').style.display = 'none';
+    // Хүндрэлийг query string-ээр дамжуулж эсвэл шууд форм үүсгэж болно
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/quiz/solo/start';
+    const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    form.innerHTML = `<input type="hidden" name="csrf_token" value="${csrf}">
+                      <input type="hidden" name="difficulty" value="${difficulty}">`;
     document.body.appendChild(form);
     form.submit();
 };

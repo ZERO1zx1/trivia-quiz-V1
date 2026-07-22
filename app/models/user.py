@@ -1,12 +1,12 @@
 """User Model"""
-from datetime import datetime
+from datetime import datetime, date
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 import jwt
 from time import time
 from flask import current_app
-from app.models import Transaction
+from app.models.economy import Transaction
 from app.models.shop import UserInventory
 
 class User(UserMixin, db.Model):
@@ -38,6 +38,35 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     last_daily_reward = db.Column(db.DateTime)
+    last_fortune_spin = db.Column(db.DateTime, nullable=True)
+    respect_count = db.Column(db.Integer, default=0)          # Нийт авсан Respect
+    do_not_disturb = db.Column(db.Boolean, default=False)    # Завгүй горим
+    last_challenge_at = db.Column(db.DateTime, nullable=True) # Challenge cooldown
+
+    # Role & Premium (нэг л удаа)
+    role = db.Column(db.String(20), default='user')
+    is_premium = db.Column(db.Boolean, default=False)
+    premium_expiry = db.Column(db.DateTime, nullable=True)
+    daily_premium_reward_claimed_at = db.Column(db.DateTime, nullable=True)
+
+    # Эдийн засаг
+    coin_multiplier = db.Column(db.Integer, default=1)
+    box_storage_limit = db.Column(db.Integer, default=50)
+    daily_coins_earned = db.Column(db.Integer, default=0)
+    daily_coins_limit = db.Column(db.Integer, default=1000)
+
+    # Discord тохиргоо
+    discord_rich_presence = db.Column(db.Boolean, default=True)
+    discord_dm_notifications = db.Column(db.Boolean, default=True)
+
+    # Профайл тохиргоо
+    showcase_badge_ids = db.Column(db.String(200), default='')
+    nickname_effect = db.Column(db.String(50), default='none')
+    profile_theme_music = db.Column(db.String(500), nullable=True)
+
+    # Тоглоомын тохиргоо
+    performance_mode = db.Column(db.Boolean, default=False)
+    preferred_difficulty = db.Column(db.String(20), default='mixed')
 
     # Relationships
     discord_account = db.relationship('DiscordAccount', back_populates='user', uselist=False)
@@ -82,9 +111,7 @@ class User(UserMixin, db.Model):
         if new_level > self.level:
             old_level = self.level
             self.level = new_level
-            # Level up хийсэн тохиолдолд урамшуулал өгөх
             self.coins += 50
-            # Мэдэгдэл илгээх
             from app.utils.notify import send_notification
             send_notification(
                 user_id=self.id,
@@ -92,21 +119,37 @@ class User(UserMixin, db.Model):
                 message=f'You are now level {new_level}!',
                 notif_type='success'
             )
+            # Discord role синк (хэрэв Discord холбогдсон бол)
+            if self.discord_account:
+                import requests
+                try:
+                    requests.post(
+                        f"{current_app.config['API_BASE_URL']}/discord/sync-role",
+                        json={"discord_id": self.discord_account.discord_id, "level": self.level},
+                        timeout=5
+                    )
+                except:
+                    pass
             return True, old_level, self.level
         return False, self.level, self.level
-    
-        if level_up:
-            import requests
-            try:
-                requests.post(
-                    f"{current_app.config['API_BASE_URL']}/discord/sync-role",
-                    json={"discord_id": self.discord_account.discord_id, "level": self.level}
-                )
-            except:
-                pass
 
     def add_coins(self, amount, reason=''):
+        """Coins нэмэх, өдрийн хязгаартай"""
+        today = date.today()
+        if self.last_daily_reward and self.last_daily_reward.date() != today:
+            self.daily_coins_earned = 0
+
+        # Өдрийн хязгаар (хэрэв Premium биш бол)
+        if not self.is_premium:
+            if self.daily_coins_earned + amount > self.daily_coins_limit:
+                amount = max(0, self.daily_coins_limit - self.daily_coins_earned)
+            if amount <= 0:
+                return
+
         self.coins += amount
+        self.daily_coins_earned += amount
+
+        # Transaction бүртгэх
         tx = Transaction(user_id=self.id, amount=amount, type='credit', reason=reason)
         db.session.add(tx)
 
@@ -144,7 +187,6 @@ class DiscordAccount(db.Model):
     refresh_token = db.Column(db.String(500))
     token_expires_at = db.Column(db.DateTime)
 
-    # Заавал back_populates таарах ёстой
     user = db.relationship('User', back_populates='discord_account')
 
     def __repr__(self):

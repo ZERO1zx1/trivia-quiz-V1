@@ -82,14 +82,5 @@
     <span class="btn btn-ghost disabled" style="opacity:0.5;pointer-events:none;">Next →</span>
     {% endif %}
 </div>
-
-{% if current_user.is_admin %}
-<div class="nav-section">
-    <span class="nav-label">Admin</span>
-    <a href="{{ url_for('admin.dashboard') }}" class="nav-item">
-        ⚙️ Admin Panel
-    </a>
-</div>
-{% endif %}
 {% endif %}
 {% endblock %}

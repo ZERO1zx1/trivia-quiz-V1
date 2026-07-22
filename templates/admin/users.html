@@ -8,7 +8,8 @@
         <th>Email</th>
         <th>Level</th>
         <th>Coins</th>
-        <th>Admin</th>
+        <th>Role</th>
+        <th>Premium</th>
         <th>Banned</th>
         <th>Actions</th>
     </tr>
@@ -19,9 +20,45 @@
         <td>{{ user.email }}</td>
         <td>{{ user.level }}</td>
         <td>{{ user.coins }}</td>
-        <td>{{ 'Yes' if user.is_admin else 'No' }}</td>
+        <td>
+            {% if current_user.role == 'owner' %}
+            <form method="POST" action="{{ url_for('admin.change_role', user_id=user.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="role" onchange="this.form.submit()"
+                    style="background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:4px 8px; color:var(--text); font-size:0.85rem;">
+                    <option value="user" {% if user.role=='user' %}selected{% endif %}>User</option>
+                    <option value="helper" {% if user.role=='helper' %}selected{% endif %}>Helper</option>
+                    <option value="moderator" {% if user.role=='moderator' %}selected{% endif %}>Moderator</option>
+                    <option value="admin" {% if user.role=='admin' %}selected{% endif %}>Admin</option>
+                    <option value="developer" {% if user.role=='developer' %}selected{% endif %}>Developer</option>
+                    <option value="owner" {% if user.role=='owner' %}selected{% endif %}>Owner</option>
+                </select>
+            </form>
+            {% else %}
+            <span style="font-size:0.85rem; text-transform: capitalize;">{{ user.role }}</span>
+            {% endif %}
+        </td>
+        <td>
+            {% if current_user.role in ('owner', 'admin') %}
+            <form method="POST" action="{{ url_for('admin.toggle_premium', user_id=user.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;">
+                    {{ '❌ Remove' if user.is_premium else '⭐ Give' }}
+                </button>
+            </form>
+            {% else %}
+            <span style="font-size:0.85rem;">{{ 'Yes' if user.is_premium else 'No' }}</span>
+            {% endif %}
+        </td>
         <td>{{ 'Yes' if user.is_banned else 'No' }}</td>
         <td>
+            <!-- Coins өгөх -->
+            <form method="POST" action="{{ url_for('admin.give_coins', user_id=user.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="number" name="amount" value="100" style="width:60px; padding:2px;" min="1">
+                <button class="btn btn-ghost btn-sm">Give Coins</button>
+            </form>
+            <!-- Admin/Ban товч -->
             <form method="POST" action="{{ url_for('admin.toggle_admin', user_id=user.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-ghost btn-sm">{{ 'Remove Admin' if user.is_admin else 'Make Admin' }}</button>
@@ -34,6 +71,7 @@
     </tr>
     {% endfor %}
 </table>
+
 <!-- Pagination -->
 <div style="margin-top:16px;">
     {% if users.has_prev %}
@@ -44,14 +82,4 @@
     <a href="?page={{ users.next_num }}" class="btn btn-ghost">Next →</a>
     {% endif %}
 </div>
-
-{% if current_user.is_admin %}
-<div class="nav-section">
-    <span class="nav-label">Admin</span>
-    <a href="{{ url_for('admin.dashboard') }}" class="nav-item">
-        ⚙️ Admin Panel
-    </a>
-</div>
-{% endif %}
-
 {% endblock %}

@@ -15,22 +15,22 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
 <script>
-new Vue({
-    el: '#quizBuilder',
-    data: { questions: [{text:'', correct:'', wrong1:'', wrong2:'', wrong3:''}] },
-    methods: {
-        addQuestion() { this.questions.push({text:'', correct:'', wrong1:'', wrong2:'', wrong3:''}); },
-        async saveQuiz() {
-            const resp = await apiFetch('/user-questions/create-quiz', {
-                method: 'POST',
-                body: JSON.stringify({ questions: this.questions })
-            });
-            if (resp.quiz_code) {
-                showToast(`Quiz created! Code: ${resp.quiz_code}`, 'success');
-                window.location.href = `/quiz/play/${resp.quiz_code}`;
+    new Vue({
+        el: '#quizBuilder',
+        data: { questions: [{ text: '', correct: '', wrong1: '', wrong2: '', wrong3: '' }] },
+        methods: {
+            addQuestion() { this.questions.push({ text: '', correct: '', wrong1: '', wrong2: '', wrong3: '' }); },
+            async saveQuiz() {
+                const resp = await apiFetch('/user-questions/create-quiz', {
+                    method: 'POST',
+                    body: JSON.stringify({ questions: this.questions })
+                });
+                if (resp.quiz_code) {
+                    showToast(`Quiz created! Code: ${resp.quiz_code}`, 'success');
+                    window.location.href = `/quiz/play/${resp.quiz_code}`;
+                }
             }
         }
-    }
-});
+    });
 </script>
 {% endblock %}

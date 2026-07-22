@@ -1,15 +1,19 @@
+// Socket.IO холболт (notifications namespace)
+const notifSocket = io('/notifications');
+
 // =============================================
 //  TriviaVerse Core Application Script
 // =============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ---------- Sidebar Toggle ----------
+    // ========== SIDEBAR TOGGLE ==========
     const sidebar = document.getElementById('sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
 
     if (sidebarToggle && sidebar) {
-        // LocalStorage-с төлөвийг унших
-        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        // Хадгалагдсан төлөв
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
             sidebar.classList.add('collapsed');
         }
 
@@ -19,7 +23,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ---------- User Dropdown ----------
+    // ========== MOBILE SIDEBAR TOGGLE ==========
+    const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
+    if (mobileSidebarToggle && sidebar) {
+        mobileSidebarToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Гадна дархад хаах
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(e.target) && e.target !== mobileSidebarToggle) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+    }
+
+    // Цонхны хэмжээ өөрчлөгдөхөд mobile sidebar хаах
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768 && sidebar) {
+            sidebar.classList.remove('open');
+        }
+    });
+
+    // ========== USER DROPDOWN ==========
     window.toggleDropdown = () => {
         const dropdown = document.getElementById('userDropdown');
         if (dropdown) dropdown.classList.toggle('show');
@@ -31,38 +59,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ---------- Flash Messages → Toast (шуурхай) ----------
+    // ========== FLASH MESSAGES → TOAST ==========
     document.querySelectorAll('.flash').forEach(el => {
         const category = el.classList.contains('flash-success') ? 'success' :
-                         el.classList.contains('flash-error') ? 'error' :
-                         el.classList.contains('flash-warning') ? 'warning' : 'info';
+            el.classList.contains('flash-error') ? 'error' :
+                el.classList.contains('flash-warning') ? 'warning' : 'info';
         if (typeof showToast === 'function') {
             showToast(el.textContent.trim(), category);
         }
         el.remove();
     });
 
-    // ---------- Search Input ----------
+    // ========== SEARCH INPUT ==========
     const searchInput = document.querySelector('.navbar-search input');
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const query = searchInput.value.trim();
                 if (query) {
-                    // Хайлтын хуудас руу чиглүүлэх (одоогоор placeholder)
                     window.location.href = `/search?q=${encodeURIComponent(query)}`;
                 }
             }
         });
     }
 
-    // ---------- Notification Button ----------
-    const notifBtn = document.getElementById('notifBtn');
-    if (notifBtn) {
-        notifBtn.addEventListener('click', () => {
-            // Мэдэгдлийн цонх нээх (одоогоор toast харуулна)
-            showToast('Notifications not yet implemented', 'info');
-        });
+    // ========== THEME ==========
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
     }
 });
 
@@ -70,15 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
 //  Global Utility Functions
 // ==================================
 
-/**
- * CSRF Token авах (meta tag эсвэл cookie-оос)
- * @returns {string|null}
- */
 window.getCSRFToken = () => {
     const meta = document.querySelector('meta[name="csrf-token"]');
     if (meta) return meta.getAttribute('content');
-
-    // Fallback: cookie-с хайх
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
@@ -93,15 +111,10 @@ window.getCSRFToken = () => {
     return cookieValue;
 };
 
-/**
- * Clipboard-д хуулах
- * @param {string} text
- */
 window.copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
         showToast('Copied to clipboard!', 'success');
     }).catch(() => {
-        // Fallback
         const input = document.createElement('textarea');
         input.value = text;
         document.body.appendChild(input);
@@ -112,11 +125,6 @@ window.copyToClipboard = (text) => {
     });
 };
 
-/**
- * Toast мэдэгдэл харуулах
- * @param {string} message
- * @param {string} type - 'success', 'error', 'warning', 'info'
- */
 window.showToast = (message, type = 'info') => {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
@@ -124,13 +132,11 @@ window.showToast = (message, type = 'info') => {
     toast.setAttribute('role', 'alert');
     document.body.appendChild(toast);
 
-    // Slide in
     requestAnimationFrame(() => {
         toast.style.transform = 'translateX(0)';
         toast.style.opacity = '1';
     });
 
-    // Автоматаар устгах
     setTimeout(() => {
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(100%)';
@@ -138,49 +144,29 @@ window.showToast = (message, type = 'info') => {
     }, 4000);
 };
 
-/**
- * API хүсэлт илгээхэд зориулсан туслах функц
- * @param {string} url
- * @param {object} options
- * @returns {Promise<any>}
- */
 window.apiFetch = async (url, options = {}) => {
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
     };
-
-    // Хэрэв POST/PUT/DELETE бол CSRF токен нэмэх
     if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method.toUpperCase())) {
         headers['X-CSRFToken'] = getCSRFToken();
     }
-
-    const response = await fetch(url, {
-        ...options,
-        headers
-    });
-
+    const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Request failed' }));
         throw new Error(error.message || `HTTP ${response.status}`);
     }
-
     return response.json();
 };
 
-// ==================================
-//  Sidebar Active State Updater
-// ==================================
-// Хуудас ачаалагдах үед одоогийн URL-д тохирох nav-item-г идэвхжүүлэх
-document.addEventListener('DOMContentLoaded', () => {
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.nav-item').forEach(link => {
-        const href = link.getAttribute('href');
-        if (href && currentPath.startsWith(href)) {
-            link.classList.add('active');
-        }
-    });
-});
+window.toggleTheme = function () {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+};
 
 // ==================================
 //  Toast CSS
@@ -211,43 +197,37 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-window.apiFetch = async (url, options = {}) => {
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
+// Mobile Sidebar Toggle
+const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.createElement('div');
+overlay.className = 'sidebar-overlay';
+document.body.appendChild(overlay);
 
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method.toUpperCase())) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (csrfToken) {
-            headers['X-CSRFToken'] = csrfToken;
-        }
-    }
+if (mobileSidebarToggle && sidebar) {
+    mobileSidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    });
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    });
+}
 
-    const response = await fetch(url, { ...options, headers });
-
-    if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || `HTTP ${response.status}`);
-    }
-
-    return response.json();
-};
-
-// =====================
-//  Dark/Light Mode Toggle
-// =====================
-window.toggleTheme = function() {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-};
-
-document.addEventListener('DOMContentLoaded', () => {
-    const saved = localStorage.getItem('theme');
-    if (saved) {
-        document.documentElement.setAttribute('data-theme', saved);
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 768 && sidebar) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
     }
 });
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}

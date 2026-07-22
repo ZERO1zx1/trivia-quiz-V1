@@ -11,15 +11,14 @@
         <a href="{{ url_for('admin.shop_items') }}" class="btn btn-ghost btn-full mb-2">Shop</a>
         <a href="{{ url_for('admin.achievements') }}" class="btn btn-ghost btn-full mb-2">Achievements</a>
         <a href="{{ url_for('admin.notifications') }}" class="btn btn-ghost btn-full mb-2">Notifications</a>
-        <a href="{{ url_for('admin.shop_items') }}" class="btn btn-ghost btn-full mb-2">Shop</a>
     </nav>
     <div class="admin-content" style="flex:1;">
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for cat, msg in messages %}
-                    <div class="flash flash-{{ cat }}">{{ msg }}</div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
         {% block admin_content %}{% endblock %}
     </div>

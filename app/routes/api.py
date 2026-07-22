@@ -58,7 +58,7 @@ def api_user_stats():
 @api_bp.route('/notifications')
 @login_required
 def get_notifications():
-    notifs = current_user.notifications.limit(20).all()
+    notifs = current_user.notifications.order_by(Notification.created_at.desc()).limit(20).all()
     return jsonify([n.to_dict() for n in notifs])
 
 @api_bp.route('/notifications/unread-count')

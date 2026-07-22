@@ -1,5 +1,6 @@
 """Authentication Routes"""
 import jwt
+import bleach
 import requests
 import secrets
 from urllib.parse import urlparse
@@ -18,8 +19,8 @@ def register():
         return redirect(url_for('dashboard.index'))
 
     if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email = request.form.get('email', '').strip().lower()
+        username = bleach.clean(request.form.get('username', '').strip())
+        email = bleach.clean(request.form.get('email', '').strip().lower())
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
@@ -79,7 +80,7 @@ def login():
 
         if user and user.check_password(password):
             if user.is_banned:
-                flash('Your account has been suspended.', 'danger')
+                flash('Your account has been suspended. Contact support.', 'danger')
                 return render_template('auth/login.html')
 
             login_user(user, remember=remember)

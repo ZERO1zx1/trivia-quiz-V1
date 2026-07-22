@@ -9,13 +9,15 @@ leaderboard_bp = Blueprint('leaderboard', __name__)
 
 @leaderboard_bp.route('/')
 def index():
-    period = request.args.get('period', 'alltime')
     page = request.args.get('page', 1, type=int)
+    period = request.args.get('period', 'alltime')
     valid_periods = ['daily', 'weekly', 'monthly', 'alltime']
     if period not in valid_periods:
         period = 'alltime'
-    entries = LeaderboardEntry.query.filter_by(period=period).order_by(
-        LeaderboardEntry.score.desc()).paginate(page=page, per_page=50, error_out=False)
+
+    query = LeaderboardEntry.query.filter_by(period=period).order_by(LeaderboardEntry.score.desc())
+    entries = query.paginate(page=page, per_page=25, error_out=False)
+
     return render_template('leaderboard/index.html', entries=entries, period=period, valid_periods=valid_periods)
 
 @leaderboard_bp.route('/api/<period>')

@@ -10,9 +10,7 @@ social_bp = Blueprint('social', __name__)
 @social_bp.route('/friends')
 @login_required
 def friends():
-    # Хүлээгдэж буй хүсэлтүүд
     pending_requests = Friend.query.filter_by(friend_id=current_user.id, status='pending').all()
-    # Одоогийн найзууд
     friends = current_user.get_friends()
     return render_template('social/friends.html', friends=friends, friend_requests=pending_requests)
 

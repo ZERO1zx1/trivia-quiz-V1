@@ -1,63 +1,64 @@
-// ==================================
-//  Notification System
-// ==================================
-let notificationsUnread = 0;
+// =============================================
+//  TriviaVerse Notification System
+// =============================================
 
-// Socket холболт (мэдэгдлийн namespace)
+// Socket.IO холболт (notifications namespace)
 const notifSocket = io('/notifications');
 
 notifSocket.on('new_notification', (data) => {
-    // Шинэ мэдэгдэл ирэхэд badge шинэчлэх, toast харуулах
-    notificationsUnread++;
-    updateNotifBadge();
+    // Toast харуулах
     showToast(data.title + ': ' + (data.message || ''), data.type || 'info');
-    // Хэрэв dropdown нээлттэй бол жагсаалтыг дахин татах
-    if (document.getElementById('notifMenu').classList.contains('show')) {
-        loadNotifications();
-    }
+    // Badge шинэчлэх
+    updateNotifBadge();
 });
 
-// Dropdown toggle
+// Уншаагүй мэдэгдлийн тоог серверээс татах
+async function updateNotifBadge() {
+    try {
+        const resp = await fetch('/api/notifications/unread-count');
+        const data = await resp.json();
+        const badge = document.getElementById('notifBadge');
+        if (badge) {
+            if (data.count > 0) {
+                badge.textContent = data.count > 99 ? '99+' : data.count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (e) {
+        console.error('Badge update error:', e);
+    }
+}
+
+// Notification Dropdown toggle
 window.toggleNotifDropdown = () => {
     const menu = document.getElementById('notifMenu');
+    if (!menu) return;
     const isOpen = menu.classList.toggle('show');
     if (isOpen) {
         loadNotifications();
     }
-    // Бусад dropdown-уудыг хаах
     document.querySelectorAll('.dropdown-menu').forEach(d => {
         if (d !== menu) d.classList.remove('show');
     });
 };
 
-// Badge шинэчлэх
-async function updateNotifBadge() {
-    try {
-        const resp = await fetch('/api/notifications/unread-count');
-        const data = await resp.json();
-        notificationsUnread = data.count;
-        const badge = document.getElementById('notifBadge');
-        if (data.count > 0) {
-            badge.textContent = data.count > 99 ? '99+' : data.count;
-            badge.style.display = 'flex';
-        } else {
-            badge.style.display = 'none';
-        }
-    } catch(e) { console.error(e); }
-}
-
-// Мэдэгдлүүдийг татах
+// Мэдэгдлүүдийг ачаалах
 async function loadNotifications() {
     try {
         const resp = await fetch('/api/notifications');
         const notifications = await resp.json();
         renderNotifications(notifications);
-    } catch(e) { console.error(e); }
+    } catch (e) {
+        console.error('Load notifications error:', e);
+    }
 }
 
-// Жагсаалтыг дүрслэх
+// Мэдэгдлийн жагсаалтыг дүрслэх
 function renderNotifications(notifications) {
     const container = document.getElementById('notifItems');
+    if (!container) return;
     if (!notifications.length) {
         container.innerHTML = '<div class="notif-item" style="justify-content:center;color:var(--text-secondary);">No notifications yet</div>';
         return;
@@ -76,14 +77,23 @@ function renderNotifications(notifications) {
     `).join('');
 }
 
-// Туслах функцүүд
 function typeToColor(type) {
-    const colors = { info:'rgba(59,130,246,0.2)', success:'rgba(34,197,94,0.2)', warning:'rgba(250,204,21,0.2)', game_invite:'rgba(139,92,246,0.2)' };
+    const colors = {
+        info: 'rgba(59,130,246,0.2)',
+        success: 'rgba(34,197,94,0.2)',
+        warning: 'rgba(250,204,21,0.2)',
+        game_invite: 'rgba(139,92,246,0.2)'
+    };
     return colors[type] || 'rgba(255,255,255,0.1)';
 }
 
 function typeToIcon(type) {
-    const icons = { info:'💬', success:'✅', warning:'⚠️', game_invite:'🎮' };
+    const icons = {
+        info: '💬',
+        success: '✅',
+        warning: '⚠️',
+        game_invite: '🎮'
+    };
     return `<span>${icons[type] || 'ℹ️'}</span>`;
 }
 
@@ -104,11 +114,12 @@ function formatTime(isoString) {
 async function markAsRead(notifId) {
     try {
         await fetch(`/api/notifications/${notifId}/read`, { method: 'POST' });
-        notifSocket.emit('mark_read', { notif_id: notifId });
         // Дэлгэц шинэчлэх
         loadNotifications();
         updateNotifBadge();
-    } catch(e) { console.error(e); }
+    } catch (e) {
+        console.error('Mark as read error:', e);
+    }
 }
 
 // Бүгдийг уншсан болгох
@@ -117,10 +128,10 @@ async function markAllRead() {
         await fetch('/api/notifications/read-all', { method: 'POST' });
         loadNotifications();
         updateNotifBadge();
-    } catch(e) { console.error(e); }
+    } catch (e) {
+        console.error('Mark all read error:', e);
+    }
 }
 
-// Хуудас ачаалагдах үед badge-г шинэчлэх
-document.addEventListener('DOMContentLoaded', () => {
-    updateNotifBadge();
-});
+// Хуудас ачааллахад badge-г шинэчлэх
+document.addEventListener('DOMContentLoaded', updateNotifBadge);

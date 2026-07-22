@@ -3,6 +3,7 @@ from flask import request
 from flask_socketio import emit
 from flask_login import current_user
 from datetime import datetime, date
+import random
 from app.extensions import db
 from app.models.room import Room, RoomPlayer, Match, Score
 from app.models.question import Question
@@ -28,7 +29,6 @@ def register_game_events(socketio):
             emit('error', {'message': 'Need at least 2 players'})
             return
 
-        # Survival Mode-д амьдралыг оноох
         if room.game_mode == 'survival':
             for p in players:
                 p.survival_lives = room.survival_lives
@@ -84,7 +84,6 @@ def register_game_events(socketio):
         state = game_states[room_code]
         q_idx = state['current_question']
 
-        # Хасагдсан тоглогчийг шалгах (Survival)
         if current_user.id in state.get('eliminated', set()):
             emit('error', {'message': 'You have been eliminated'})
             return
@@ -99,12 +98,16 @@ def register_game_events(socketio):
         if state['game_mode'] == 'time_attack':
             time_limit = room.time_attack_duration
 
+        # ★ ХАРИУЛТУУДЫГ ХОЛИХ (shuffle) ★
+        answers = question['answers'][:]
+        random.shuffle(answers)
+
         question_data = {
             'id': question['id'],
             'question_text': question['question_text'],
             'question_type': question['question_type'],
             'image_url': question.get('image_url'),
-            'answers': [{'id': a['id'], 'answer_text': a['answer_text']} for a in question['answers']],
+            'answers': [{'id': a['id'], 'answer_text': a['answer_text']} for a in answers],
             'question_number': q_idx + 1,
             'total_questions': len(state['questions']),
             'time_limit': time_limit,
@@ -125,7 +128,6 @@ def register_game_events(socketio):
         q_idx = state['current_question']
         question = state['questions'][q_idx]
 
-        # Хасагдсан тоглогч хариулах ёсгүй
         if current_user.id in state.get('eliminated', set()):
             return
 
@@ -141,6 +143,10 @@ def register_game_events(socketio):
         if is_correct:
             question_score = base_score + time_bonus + streak_bonus
             state['streaks'][current_user.id] = state['streaks'].get(current_user.id, 0) + 1
+
+            multiplier = current_user.coin_multiplier if current_user.is_premium else 1
+            coins_earned = 5 * multiplier
+            current_user.add_coins(coins_earned, 'Correct answer')
         else:
             state['streaks'][current_user.id] = 0
 
@@ -155,22 +161,20 @@ def register_game_events(socketio):
             'score': question_score
         }
 
-        # Survival Mode: буруу хариулсан бол амь хасах
         if not is_correct and state['game_mode'] == 'survival':
             state['survival_lives'][current_user.id] = state['survival_lives'].get(current_user.id, 1) - 1
             if state['survival_lives'][current_user.id] <= 0:
                 state['eliminated'].add(current_user.id)
                 emit('player_eliminated', {'user_id': current_user.id}, room=room_code)
-                # Зөвхөн нэг тоглогч үлдсэн бол тоглоомыг дуусгах
                 remaining = [uid for uid in state['survival_lives'] 
                             if uid not in state['eliminated'] and state['survival_lives'][uid] > 0]
                 if len(remaining) <= 1:
                     _end_game(socketio, room_code)
                     return
 
+        # ★ ЗӨВ ХАРИУЛТЫН ID-Г ХУВИЙН ЗУРВАСАНД ИЛГЭЭХГҮЙ ★
         emit('answer_result', {
             'correct': is_correct,
-            'correct_answer_id': correct_answer['id'] if correct_answer else None,
             'score_earned': question_score,
             'total_score': state['scores'][current_user.id],
             'streak': state['streaks'][current_user.id],
@@ -178,11 +182,10 @@ def register_game_events(socketio):
             'survival_lives': state['survival_lives'].get(current_user.id) if state['game_mode'] == 'survival' else None
         })
 
-        # Бүгд хариулсан эсэхийг шалгах (хасагдсангүй тоглогчид)
         players = RoomPlayer.query.filter_by(room_id=room.id).all()
         all_answered = all(
             p.user_id in state.get('eliminated', set()) or
-            (current_user.id in state['answers'] and q_idx in state['answers'].get(p.user_id, {}))
+            (p.user_id in state['answers'] and q_idx in state['answers'].get(p.user_id, {}))
             for p in players
         )
 
@@ -217,6 +220,47 @@ def register_game_events(socketio):
                 'question_number': state['current_question'] + 1
             }, room=room_code)
 
+    # ★ АДМИН КОМАНДУУД (бүрэн ажиллагаатай) ★
+    @socketio.on('skip_question')
+    def handle_skip_question(data):
+        room_code = data.get('room_code')
+        if room_code not in game_states:
+            return
+        if current_user.role not in ('admin', 'moderator', 'owner'):
+            emit('error', {'message': 'Unauthorized'})
+            return
+        state = game_states[room_code]
+        state['current_question'] += 1
+        if state['current_question'] >= len(state['questions']):
+            _end_game(socketio, room_code)
+        else:
+            emit('next_question_ready', {
+                'question_number': state['current_question'] + 1,
+                'skipped_by': current_user.username
+            }, room=room_code)
+
+    @socketio.on('kick_player')
+    def handle_kick_player(data):
+        room_code = data.get('room_code')
+        target_id = data.get('user_id')
+        if current_user.role not in ('admin', 'moderator', 'owner'):
+            emit('error', {'message': 'Unauthorized'})
+            return
+        room = Room.query.filter_by(code=room_code).first()
+        if not room:
+            return
+        player = RoomPlayer.query.filter_by(room_id=room.id, user_id=target_id).first()
+        if player:
+            db.session.delete(player)
+            db.session.commit()
+            emit('player_kicked', {
+                'user_id': target_id,
+                'kicked_by': current_user.username,
+                'players': [p.to_dict() for p in RoomPlayer.query.filter_by(room_id=room.id).all()]
+            }, room=room_code)
+            emit('kicked_from_room', {'room_code': room_code}, room=request.sid)
+
+
 def _end_game(socketio, room_code):
     if room_code not in game_states:
         return
@@ -235,7 +279,6 @@ def _end_game(socketio, room_code):
 
     for p in players:
         user = p.user
-        # Хасагдсан тоглогчид оноо тооцохгүй (хэрэв survival)
         user_answers = state['answers'].get(p.user_id, {})
         correct_count = sum(1 for a in user_answers.values() if a['correct'])
         total_time = sum(a['time_taken'] for a in user_answers.values())
@@ -309,15 +352,12 @@ def _end_game(socketio, room_code):
         'game_mode': state.get('game_mode', 'classic')
     }, room=room_code)
 
-    # Өдөр тутмын даалгаврыг шинэчлэх
     _update_daily_quests(state, players, winner_id)
 
 
 def _update_daily_quests(state, players, winner_id):
-    from datetime import date
     today = date.today()
     for p in players:
-        # play_games даалгавар
         play_quests = DailyQuest.query.filter_by(
             user_id=p.user_id, quest_type='play_games', date_assigned=today, is_completed=False
         ).all()
@@ -327,7 +367,6 @@ def _update_daily_quests(state, players, winner_id):
                 q.is_completed = True
                 q.completed_at = datetime.utcnow()
 
-        # win_games даалгавар
         if p.user_id == winner_id:
             win_quests = DailyQuest.query.filter_by(
                 user_id=p.user_id, quest_type='win_games', date_assigned=today, is_completed=False
@@ -338,7 +377,6 @@ def _update_daily_quests(state, players, winner_id):
                     q.is_completed = True
                     q.completed_at = datetime.utcnow()
 
-        # correct_answers даалгавар
         user_answers = state['answers'].get(p.user_id, {})
         correct_count = sum(1 for a in user_answers.values() if a['correct'])
         answer_quests = DailyQuest.query.filter_by(

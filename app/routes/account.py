@@ -41,6 +41,10 @@ def update_profile():
         flash('An error occurred while updating profile.', 'error')
         current_app.logger.error(f'Profile update failed: {e}')
 
+    current_user.nickname_effect = request.form.get('nickname_effect', current_user.nickname_effect)
+    current_user.profile_theme_music = request.form.get('profile_theme_music', current_user.profile_theme_music)
+    db.session.commit()
+    flash('Profile updated!', 'success')
     return redirect(url_for('account.profile'))
 
 @account_bp.route('/settings/password', methods=['POST'])
@@ -56,3 +60,50 @@ def update_preferences():
     # TODO: бодит тохиргоо хадгалах логик (одоогоор заглуушка)
     flash('Preferences saved (not yet implemented).', 'info')
     return redirect(url_for('account.settings'))
+
+@account_bp.route('/update-discord-settings', methods=['POST'])
+@login_required
+def update_discord_settings():
+    data = request.json
+    if 'rich_presence' in data:
+        current_user.discord_rich_presence = data['rich_presence']
+    if 'dm_notifications' in data:
+        current_user.discord_dm_notifications = data['dm_notifications']
+    db.session.commit()
+    return jsonify({'success': True})
+
+@account_bp.route('/update-showcase-badges', methods=['POST'])
+@login_required
+def update_showcase_badges():
+    data = request.json
+    current_user.showcase_badge_ids = ','.join(data.get('badge_ids', []))
+    db.session.commit()
+    return jsonify({'success': True})
+
+@account_bp.route('/update-profile', methods=['POST'])
+@login_required
+def update_profile_json():
+    data = request.json
+    if 'nickname_effect' in data:
+        if current_user.is_premium:
+            current_user.nickname_effect = data['nickname_effect']
+        else:
+            return jsonify({'error': 'Premium required'}), 403
+    if 'profile_theme_music' in data:
+        if current_user.is_premium:
+            current_user.profile_theme_music = data['profile_theme_music']
+        else:
+            return jsonify({'error': 'Premium required'}), 403
+    db.session.commit()
+    return jsonify({'success': True})
+
+@account_bp.route('/update-game-settings', methods=['POST'])
+@login_required
+def update_game_settings():
+    data = request.json
+    if 'preferred_difficulty' in data:
+        current_user.preferred_difficulty = data['preferred_difficulty']
+    if 'performance_mode' in data:
+        current_user.performance_mode = data['performance_mode']
+    db.session.commit()
+    return jsonify({'success': True})

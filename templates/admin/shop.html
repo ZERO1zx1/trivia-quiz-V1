@@ -1,28 +1,56 @@
 {% extends "admin/base.html" %}
 {% block admin_content %}
-<h2>Shop Items</h2>
+<h2>Shop Management</h2>
+
+<!-- Add New Item -->
+<div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+    <h3>Add New Item</h3>
+    <form method="POST" action="{{ url_for('admin.add_shop_item') }}" style="display:grid; gap:12px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="name" placeholder="Item Name" required
+            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+        <input type="text" name="description" placeholder="Description"
+            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+        <div style="display:flex; gap:12px;">
+            <input type="number" name="price" placeholder="Price (coins)" required
+                style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+            <select name="item_type"
+                style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+                <option value="frame">Frame</option>
+                <option value="badge">Badge</option>
+                <option value="title">Title</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+        <input type="text" name="image_url" placeholder="Image URL"
+            style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
+        <button type="submit" class="btn btn-primary">Add Item</button>
+    </form>
+</div>
+
+<!-- Items Table -->
 <div class="glass" style="padding:24px; border-radius:20px; overflow-x:auto;">
     <table style="width:100%; border-collapse:collapse;">
-        <tr style="border-bottom:1px solid var(--border);">
+        <tr>
             <th>ID</th>
             <th>Name</th>
-            <th>Description</th>
             <th>Price</th>
             <th>Type</th>
             <th>Active</th>
             <th>Actions</th>
         </tr>
         {% for item in items %}
-        <tr style="border-bottom:1px solid var(--border);">
+        <tr>
             <td>{{ item.id }}</td>
             <td>{{ item.name }}</td>
-            <td>{{ item.description }}</td>
-            <td>🪙 {{ item.price }}</td>
+            <td>{{ item.price }}</td>
             <td>{{ item.item_type }}</td>
             <td>{{ 'Yes' if item.is_active else 'No' }}</td>
             <td>
-                <!-- Цаашид засах/устгах товчлуур нэмэх боломжтой -->
-                <button class="btn btn-ghost btn-sm" disabled>Edit</button>
+                <form method="POST" action="{{ url_for('admin.delete_shop_item', item_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-ghost btn-sm" style="color:red;">Delete</button>
+                </form>
             </td>
         </tr>
         {% endfor %}

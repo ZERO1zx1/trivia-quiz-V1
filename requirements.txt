@@ -23,3 +23,9 @@ Pillow==11.3.0
 gunicorn==23.0.0
 gevent==25.5.1
 openai==1.99.9
+
+# Нэмэлт сангууд (хөгжүүлэлт + аюулгүй байдал)
+flask-cors==5.0.0
+Flask-Limiter==3.9.0
+bleach==6.2.0
+APScheduler==3.11.0

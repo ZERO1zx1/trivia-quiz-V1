@@ -1,0 +1,26 @@
+<div id="hoverCard" class="hover-card hidden" style="position:fixed; z-index:9999;">
+    <div class="glass" style="padding:16px; border-radius:16px; min-width:280px;">
+        <!-- Banner -->
+        <div
+            style="height:60px; background:linear-gradient(135deg, var(--primary), var(--accent)); border-radius:8px 8px 0 0; margin:-16px -16px 0 -16px;">
+        </div>
+        <!-- Avatar + Name -->
+        <div style="text-align:center; margin-top:-30px;">
+            <img id="hcAvatar" src="" style="width:56px;height:56px;border-radius:50%;border:3px solid var(--glass);">
+            <div id="hcName" style="font-weight:700; margin-top:8px;"></div>
+            <div id="hcBadge" style="font-size:0.8rem;"></div>
+        </div>
+        <!-- Stats -->
+        <div style="display:flex; gap:12px; margin:12px 0; justify-content:center;">
+            <div>👁️ <span id="hcViews">0</span></div>
+            <div>❤️ <span id="hcRespect">0</span></div>
+            <div>🏆 <span id="hcWinrate">0%</span></div>
+        </div>
+        <!-- Action Buttons -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;" id="hcActions">
+            <button class="btn btn-primary btn-sm" onclick="challengeUser()">⚔️ Challenge</button>
+            <button class="btn btn-ghost btn-sm" onclick="sendGift()">🎁 Gift</button>
+            <button class="btn btn-ghost btn-sm" onclick="giveRespect()">❤️ Respect</button>
+        </div>
+    </div>
+</div>

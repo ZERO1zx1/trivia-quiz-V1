@@ -1,12 +1,12 @@
+"""Notification Socket Events"""
+from flask_login import current_user
+from flask_socketio import join_room
+
 def register_notification_events(socketio):
-    @socketio.on('mark_read', namespace='/notifications')
-    def handle_mark_read(data):
-        from flask_login import current_user
+
+    @socketio.on('connect', namespace='/notifications')
+    def handle_connect():
         if current_user.is_authenticated:
-            notif_id = data.get('notif_id')
-            from app.models.notification import Notification
-            n = Notification.query.get(notif_id)
-            if n and n.user_id == current_user.id:
-                n.is_read = True
-                from app.extensions import db
-                db.session.commit()
+            room = f'user_{current_user.id}'
+            join_room(room)
+            print(f'User {current_user.id} joined notification room {room}')

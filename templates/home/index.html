@@ -1,8 +1,9 @@
 {% extends "layouts/base.html" %}
 
+{# ========== ЗОЧИН ХЭРЭГЛЭГЧ (НЭВТРЭЭГҮЙ) ========== #}
 {% block guest_content %}
 <div class="landing-page">
-    <!-- ===== Animated Background ===== -->
+    <!-- Animated Background -->
     <div class="animated-bg">
         <div class="gradient-orb orb-1"></div>
         <div class="gradient-orb orb-2"></div>
@@ -10,13 +11,14 @@
         <div class="particles" id="particles"></div>
     </div>
 
-    <!-- ===== Navigation ===== -->
+    <!-- Navigation -->
     <nav class="landing-nav">
         <div class="nav-brand">
             <span class="logo-icon">◆</span>
             <span class="logo-text">{{ app_name }}</span>
         </div>
         <div class="nav-links">
+            <a href="#how-to-play">How to Play</a>
             <a href="#features">Features</a>
             <a href="#leaderboard">Leaderboard</a>
             <a href="{{ url_for('auth.login') }}" class="btn btn-ghost">Sign In</a>
@@ -24,7 +26,7 @@
         </div>
     </nav>
 
-    <!-- ===== Hero Section ===== -->
+    <!-- Hero Section -->
     <section class="hero">
         <div class="hero-content">
             <div class="hero-badge">
@@ -73,47 +75,53 @@
         </div>
     </section>
 
-    <!-- ===== Features Section ===== -->
+    <!-- How to Play Section -->
+    <section id="how-to-play" class="landing-section">
+        <div class="section-header">
+            <h2>🎮 How to Play</h2>
+            <p>Getting started is easy! Just follow these simple steps.</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card glass">
+                <div class="feature-icon">1️⃣</div>
+                <h3>Create an Account</h3>
+                <p>Sign up with your email or link your Discord account to get started instantly.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feature-icon">2️⃣</div>
+                <h3>Join or Create a Room</h3>
+                <p>Enter a room code to join friends, or create your own public/private room.</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feature-icon">3️⃣</div>
+                <h3>Answer Questions</h3>
+                <p>You have 20 seconds to choose the correct answer. Earn points for speed and streaks!</p>
+            </div>
+            <div class="feature-card glass">
+                <div class="feature-icon">4️⃣</div>
+                <h3>Climb the Leaderboard</h3>
+                <p>Win matches, earn XP, unlock achievements, and become the trivia champion!</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
     <section id="features" class="landing-section">
         <div class="section-header">
             <h2>Why TriviaVerse?</h2>
             <p>Everything you need for an amazing trivia experience</p>
         </div>
         <div class="features-grid">
-            <div class="feature-card glass">
-                <div class="feature-icon">🎮</div>
-                <h3>Multiplayer Battles</h3>
-                <p>Compete with up to 8 players in real-time trivia matches. Challenge friends or join public rooms.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">🧠</div>
-                <h3>10+ Categories</h3>
-                <p>From General Knowledge to Anime, Science to Gaming – there's something for everyone.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">🏆</div>
-                <h3>Competitive Rankings</h3>
-                <p>Climb the global leaderboard, earn achievements, and prove you're the ultimate trivia master.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">💎</div>
-                <h3>Earn Rewards</h3>
-                <p>Collect coins, unlock exclusive items, and customize your profile with unique cosmetics.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">💬</div>
-                <h3>Discord Integration</h3>
-                <p>Link your Discord account, invite friends directly, and get real-time notifications.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">📊</div>
-                <h3>Detailed Stats</h3>
-                <p>Track your progress with comprehensive statistics, accuracy rates, and performance history.</p>
-            </div>
+            <div class="feature-card glass"><div class="feature-icon">🎮</div><h3>Multiplayer Battles</h3><p>Compete with up to 8 players in real-time trivia matches.</p></div>
+            <div class="feature-card glass"><div class="feature-icon">🧠</div><h3>10+ Categories</h3><p>From General Knowledge to Anime, Science to Gaming – there's something for everyone.</p></div>
+            <div class="feature-card glass"><div class="feature-icon">🏆</div><h3>Competitive Rankings</h3><p>Climb the global leaderboard, earn achievements, and prove you're the ultimate trivia master.</p></div>
+            <div class="feature-card glass"><div class="feature-icon">💎</div><h3>Earn Rewards</h3><p>Collect coins, unlock exclusive items, and customize your profile with unique cosmetics.</p></div>
+            <div class="feature-card glass"><div class="feature-icon">💬</div><h3>Discord Integration</h3><p>Link your Discord account, invite friends directly, and get real-time notifications.</p></div>
+            <div class="feature-card glass"><div class="feature-icon">📊</div><h3>Detailed Stats</h3><p>Track your progress with comprehensive statistics, accuracy rates, and performance history.</p></div>
         </div>
     </section>
 
-    <!-- ===== Leaderboard Section ===== -->
+    <!-- Leaderboard Section -->
     <section id="leaderboard" class="landing-section">
         <div class="section-header">
             <h2>🏆 Global Leaderboard</h2>
@@ -126,21 +134,17 @@
                 <div class="leaderboard-item">
                     <span class="rank">#{{ loop.index }}</span>
                     <img src="{{ entry.user.avatar_url }}" alt="{{ entry.user.username }}" class="leaderboard-avatar"
-                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ entry.user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
+                         onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ entry.user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
                     <div class="leaderboard-info">
                         <span class="leaderboard-name">{{ entry.user.username }}</span>
-                        <span class="leaderboard-stats">
-                            {{ entry.wins }} wins • {{ "%.1f"|format(entry.accuracy) }}% accuracy
-                        </span>
+                        <span class="leaderboard-stats">{{ entry.wins }} wins • {{ "%.1f"|format(entry.accuracy) }}% accuracy</span>
                     </div>
                     <span class="leaderboard-score">{{ entry.score }}</span>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="leaderboard-empty">
-                <p>No players yet. Be the first to join!</p>
-            </div>
+            <div class="leaderboard-empty"><p>No players yet. Be the first to join!</p></div>
             {% endif %}
         </div>
         <div class="section-cta">
@@ -148,12 +152,9 @@
         </div>
     </section>
 
-    <!-- ===== Footer ===== -->
+    <!-- Footer -->
     <footer class="landing-footer">
-        <div class="footer-brand">
-            <span class="logo-icon">◆</span>
-            <span>{{ app_name }}</span>
-        </div>
+        <div class="footer-brand"><span class="logo-icon">◆</span><span>{{ app_name }}</span></div>
         <p>© 2026 TriviaVerse. All rights reserved.</p>
     </footer>
 </div>
@@ -164,18 +165,48 @@ fetch('/api/stats').then(r => r.json()).then(data => {
     document.getElementById('statPlayers').textContent = data.total_players.toLocaleString();
     document.getElementById('statQuestions').textContent = data.total_questions.toLocaleString();
     document.getElementById('statRooms').textContent = data.active_rooms;
-});
+}).catch(() => {});
 
-// Particles animation
+// Particles
 const particles = document.getElementById('particles');
-for(let i=0; i<50; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.top = Math.random() * 100 + '%';
-    p.style.animationDelay = Math.random() * 20 + 's';
-    p.style.animationDuration = (15 + Math.random() * 20) + 's';
-    particles.appendChild(p);
+if (particles) {
+    for (let i = 0; i < 50; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.animationDelay = Math.random() * 20 + 's';
+        p.style.animationDuration = (15 + Math.random() * 20) + 's';
+        particles.appendChild(p);
+    }
 }
 </script>
+{% endblock %}
+
+
+{# ========== НЭВТЭРСЭН ХЭРЭГЛЭГЧ (Нэвтрэлтийн дараа) ========== #}
+{% block content %}
+{% if current_user.is_authenticated %}
+<div style="text-align:center; padding:80px 24px; max-width:700px; margin:0 auto;">
+    <div style="font-size:4rem; margin-bottom:16px;">👋</div>
+    <h1 style="font-size:2.5rem; font-weight:800; margin-bottom:12px;">
+        Welcome back, {{ current_user.display_name or current_user.username }}!
+        {% if current_user.is_premium %} 👑{% endif %}
+    </h1>
+    <p style="color:var(--text-secondary); margin-bottom:32px; font-size:1.1rem;">
+        Ready to test your knowledge today? Jump into a game or check your progress.
+    </p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary btn-lg">📊 Dashboard</a>
+        <a href="{{ url_for('rooms.lobby') }}" class="btn btn-glow btn-lg">🎮 Play Now</a>
+        <a href="{{ url_for('quiz.start_solo') }}" class="btn btn-ghost btn-lg">🎯 Solo Practice</a>
+    </div>
+    {% if not current_user.email or '@discord' in current_user.email %}
+    <div class="glass" style="margin-top:32px; padding:20px; text-align:left;">
+        <p style="color:var(--warning);">⚠️ Your account email is not set. Please update your profile to receive important notifications.</p>
+        <a href="{{ url_for('account.profile') }}" class="btn btn-ghost btn-sm">Update Profile</a>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
 {% endblock %}

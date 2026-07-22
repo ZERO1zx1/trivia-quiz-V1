@@ -1,33 +1,66 @@
 {% extends "admin/base.html" %}
 {% block admin_content %}
 <h2>Question Management</h2>
+
 <!-- AI Generate form -->
-<div class="glass" style="padding:16px; margin-bottom:24px;">
-    <form method="POST" action="{{ url_for('admin.ai_generate') }}">
+<div class="glass" style="padding:24px; margin-bottom:24px;">
+    <h3 style="margin-bottom:16px;">🤖 AI Generate Questions</h3>
+    <form method="POST" action="{{ url_for('admin.ai_generate') }}" style="display:flex; gap:12px; align-items:end; flex-wrap:wrap;">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label>Category: <input name="category" value="General Knowledge"></label>
-        <label>Difficulty: 
-            <select name="difficulty">
+        <div>
+            <label style="display:block; margin-bottom:4px; font-size:0.85rem;">Category</label>
+            <select name="category" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);min-width:180px;">
+                <option value="">All Categories</option>
+                <option value="General Knowledge">General Knowledge</option>
+                <option value="Science">Science</option>
+                <option value="Programming">Programming</option>
+                <option value="Technology">Technology</option>
+                <option value="History">History</option>
+                <option value="Movies">Movies</option>
+                <option value="Anime">Anime</option>
+                <option value="Music">Music</option>
+                <option value="Gaming">Gaming</option>
+                <option value="Sports">Sports</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block; margin-bottom:4px; font-size:0.85rem;">Difficulty</label>
+            <select name="difficulty" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);">
                 <option value="easy">Easy</option>
                 <option value="medium" selected>Medium</option>
                 <option value="hard">Hard</option>
+                <option value="mixed">Mixed</option>
             </select>
-        </label>
-        <label>Count: <input name="count" type="number" value="5"></label>
-        <button class="btn btn-primary">🤖 AI Generate</button>
+        </div>
+        <div>
+            <label style="display:block; margin-bottom:4px; font-size:0.85rem;">Count</label>
+            <input name="count" type="number" value="5" min="1" max="20" style="width:80px; background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);">
+        </div>
+        <button class="btn btn-primary">🤖 Generate</button>
     </form>
+    <div style="margin-top:16px;">
+        <form method="POST" action="{{ url_for('admin.ai_generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="category" value="">
+            <input type="hidden" name="difficulty" value="mixed">
+            <input type="hidden" name="count" value="10">
+            <button class="btn btn-glow">🎲 Generate 10 Mixed Questions (All Categories)</button>
+        </form>
+    </div>
 </div>
 
+<!-- Questions Table -->
 <table style="width:100%; border-collapse:collapse;">
     <tr style="border-bottom:1px solid var(--border);">
-        <th>ID</th><th>Question</th><th>Category</th><th>Difficulty</th><th>Actions</th>
+        <th>ID</th><th>Question</th><th>Category</th><th>Difficulty</th><th>Active</th><th>Actions</th>
     </tr>
     {% for q in questions.items %}
     <tr style="border-bottom:1px solid var(--border);">
         <td>{{ q.id }}</td>
         <td>{{ q.question_text[:60] }}...</td>
-        <td>{{ q.category.name }}</td>
+        <td>{{ q.category.name if q.category else 'N/A' }}</td>
         <td>{{ q.difficulty }}</td>
+        <td>{{ '✅' if q.is_active else '❌' }}</td>
         <td>
             <form method="POST" action="{{ url_for('admin.delete_question', question_id=q.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -37,6 +70,7 @@
     </tr>
     {% endfor %}
 </table>
+
 <!-- Pagination -->
 <div style="margin-top:16px;">
     {% if questions.has_prev %}
