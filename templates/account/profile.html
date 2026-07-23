@@ -1,211 +1,228 @@
 {% extends "layouts/base.html" %}
-{% block title %}Profile - {{ app_name }}{% endblock %}
+{% block title %}{{ user.display_name or user.username }}'s Profile - {{ app_name }}{% endblock %}
 {% block content %}
-<h1 style="font-size:2rem;font-weight:800;margin-bottom:24px;">👤 Profile</h1>
 
-<div style="display:grid; grid-template-columns:1fr 300px; gap:24px;">
-    <!-- Main Card -->
-    <div>
-        <div class="glass" style="padding:32px; border-radius:24px;">
-            <form method="POST" action="{{ url_for('account.update_profile') }}" enctype="multipart/form-data">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div style="text-align:center; margin-bottom:24px;">
-                    <img src="{{ current_user.avatar_url }}"
-                        style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--accent);"
-                        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ current_user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
-                    <div style="margin-top:12px;">
-                        <label for="avatar_upload" class="btn btn-ghost" style="cursor:pointer;">Change Avatar</label>
-                        <input type="file" id="avatar_upload" name="avatar" accept="image/*" style="display:none;">
-                    </div>
-                </div>
+<!-- Banner -->
+<div
+    style="height:180px; background:linear-gradient(135deg, var(--primary), var(--accent)); border-radius:24px; margin-bottom:-60px; position:relative; overflow:hidden;">
+    {% if user.banner_url and user.is_premium %}
+    <img src="{{ user.banner_url }}" style="width:100%; height:100%; object-fit:cover;">
+    {% endif %}
+</div>
 
-                <!-- Display Name & Role Badge -->
-                <div class="form-group" style="margin-bottom:16px;">
-                    <label>Display Name</label>
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <input type="text" name="display_name" value="{{ current_user.display_name or '' }}"
-                            style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
-                        {% if current_user.role != 'user' %}
-                        <span
-                            style="display:inline-block; padding:4px 14px; border-radius:20px; font-size:0.8rem; font-weight:700; color:white; background: {% if current_user.role == 'owner' %}#FFD700{% elif current_user.role == 'developer' %}#FF4500{% elif current_user.role == 'admin' %}#FF3333{% elif current_user.role == 'moderator' %}#33FF33{% elif current_user.role == 'helper' %}#3399FF{% else %}#888{% endif %};">
-                            {{ current_user.role|capitalize }}
-                        </span>
-                        {% endif %}
-                        {% if current_user.is_premium %}
-                        <span style="font-size:1.2rem;" title="Premium Member">👑</span>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="form-group" style="margin-bottom:16px;">
-                    <label>Bio</label>
-                    <textarea name="bio" rows="3"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">{{ current_user.bio or '' }}</textarea>
-                </div>
-                <div class="form-group" style="margin-bottom:24px;">
-                    <label>Country</label>
-                    <select name="country"
-                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
-                        <option value="" {% if not current_user.country %}selected{% endif %}>Select your country
-                        </option>
-                        <option value="MN" {% if current_user.country=='MN' %}selected{% endif %}>Mongolia</option>
-                        <!-- бусад улсууд -->
-                    </select>
-                </div>
-                {% if current_user.is_premium %}
-                <div class="form-group" style="margin-bottom:16px;">
-                    <label>Banner Image (Premium)</label>
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <img src="{{ current_user.banner_url }}" style="height:60px; border-radius:8px;">
-                        <label for="banner_upload" class="btn btn-ghost" style="cursor:pointer;">Change Banner</label>
-                        <input type="file" id="banner_upload" name="banner" accept="image/*" style="display:none;">
-                    </div>
-                </div>
-                {% endif %}
-                <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
-            </form>
-        </div>
+<!-- Avatar + Name -->
+<div style="text-align:center; position:relative; z-index:10;">
+    <img src="{{ user.avatar_url }}" alt="{{ user.username }}"
+        style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:4px solid var(--glass); background:var(--bg);">
+    <h1 style="font-size:2rem; font-weight:800; margin-top:8px;">
+        {{ user.display_name or user.username }}
+        {% if user.is_premium %} <span title="Premium">👑</span>{% endif %}
+        {% if user.equipped_title %}
+        <span class="equipped-title"
+            style="display:inline-block; padding:2px 10px; border-radius:20px; font-size:0.8rem; font-weight:700; background:linear-gradient(135deg, var(--primary), var(--accent)); color:white; margin-left:8px;">{{
+            user.equipped_title }}</span>
+        {% endif %}
+    </h1>
+    <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:4px;">
+        <!-- Role Badge -->
+        {% if user.role != 'user' %}
+        <span
+            style="display:inline-block; padding:4px 14px; border-radius:20px; font-size:0.8rem; font-weight:700; color:white; background:{% if user.role == 'owner' %}#FFD700{% elif user.role == 'developer' %}#FF4500{% elif user.role == 'admin' %}#FF3333{% elif user.role == 'moderator' %}#33FF33{% elif user.role == 'helper' %}#3399FF{% else %}#888{% endif %};">
+            {{ user.role|capitalize }}
+        </span>
+        {% endif %}
+        <!-- Discord Connected -->
+        {% if user.discord_account %}
+        <span
+            style="display:inline-block; padding:4px 14px; border-radius:20px; font-size:0.8rem; background:rgba(88,101,242,0.2); color:#5865F2;">💜
+            Discord</span>
+        {% endif %}
     </div>
+    {% if user.custom_status %}
+    <p style="color:var(--text-secondary); margin-top:8px;">💬 {{ user.custom_status }}</p>
+    {% endif %}
+</div>
 
-    <!-- Sidebar -->
+<!-- Stats Mini Cards -->
+<div style="display:flex; gap:12px; justify-content:center; margin-top:24px; flex-wrap:wrap;">
+    <div class="glass" style="padding:12px 20px; border-radius:16px; text-align:center;">
+        <div style="font-size:1.5rem; font-weight:800;">{{ user.level }}</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Level</div>
+    </div>
+    <div class="glass" style="padding:12px 20px; border-radius:16px; text-align:center;">
+        <div style="font-size:1.5rem; font-weight:800;">{{ user.wins }}</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Wins</div>
+    </div>
+    <div class="glass" style="padding:12px 20px; border-radius:16px; text-align:center;">
+        <div style="font-size:1.5rem; font-weight:800;">{{ "%.1f"|format(user.accuracy) }}%</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Accuracy</div>
+    </div>
+    <div class="glass" style="padding:12px 20px; border-radius:16px; text-align:center;">
+        <div style="font-size:1.5rem; font-weight:800;">{{ user.respect_count }}</div>
+        <div style="font-size:0.8rem; color:var(--text-secondary);">Respect</div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div style="display:grid; grid-template-columns:1fr 300px; gap:24px; margin-top:32px;">
+    <!-- Left -->
     <div>
-        <!-- Discord Settings -->
+        <!-- Bio -->
         <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
-            <h3 style="font-weight:700; margin-bottom:16px;">🎧 Discord</h3>
-            {% if current_user.discord_account %}
-            <div style="margin-bottom:12px; font-size:0.9rem; color:#5865F2;">
-                💜 Connected as <strong>{{ current_user.discord_account.discord_username }}</strong>
-            </div>
-            {% else %}
-            <a href="{{ url_for('auth.discord_login') }}" class="btn btn-discord btn-full"
-                style="margin-bottom:12px;">Link Discord Account</a>
-            {% endif %}
-            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                <input type="checkbox" {% if current_user.discord_rich_presence %}checked{% endif %}
-                    onchange="updateDiscordSetting('rich_presence', this.checked)">
-                <span>Rich Presence</span>
-            </label>
-            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                <input type="checkbox" {% if current_user.discord_dm_notifications %}checked{% endif %}
-                    onchange="updateDiscordSetting('dm_notifications', this.checked)">
-                <span>DM Notifications</span>
-            </label>
+            <h3 style="font-weight:700; margin-bottom:12px;">📝 Bio</h3>
+            <p style="color:var(--text-secondary);">{{ user.bio or 'No bio yet.' }}</p>
         </div>
 
-        <!-- Showcase Badges -->
+        <!-- Achievements -->
+        {% if user.achievements %}
         <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
-            <h3 style="font-weight:700; margin-bottom:16px;">🏅 Showcase Badges</h3>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;" id="badgeContainer">
-                {% set selected = current_user.showcase_badge_ids.split(',') if current_user.showcase_badge_ids else []
-                %}
-                {% for ua in current_user.achievements %}
+            <h3 style="font-weight:700; margin-bottom:16px;">🏆 Achievements</h3>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                {% for ua in user.achievements %}
                 {% if ua.is_unlocked %}
-                <div class="badge-item" data-badge-id="{{ ua.achievement.id }}"
-                    style="text-align:center; cursor:pointer; padding:8px; border-radius:12px; border:2px solid {% if ua.achievement.id|string in selected %}var(--accent){% else %}transparent{% endif %};"
-                    onclick="toggleBadge('{{ ua.achievement.id }}')">
+                <div
+                    style="text-align:center; padding:8px; border-radius:12px; border:1px solid var(--border); min-width:70px;">
                     <div style="font-size:2rem;">{{ ua.achievement.icon }}</div>
-                    <div style="font-size:0.8rem;">{{ ua.achievement.name }}</div>
+                    <div style="font-size:0.75rem;">{{ ua.achievement.name }}</div>
                 </div>
                 {% endif %}
                 {% endfor %}
             </div>
         </div>
+        {% endif %}
 
-        {% if current_user.is_premium %}
-        <!-- Name Effect -->
+        <!-- Inventory -->
         <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
-            <h3 style="font-weight:700; margin-bottom:16px;">✨ Name Effect</h3>
-            <select onchange="updateNicknameEffect(this.value)"
-                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
-                <option value="none" {% if current_user.nickname_effect=='none' %}selected{% endif %}>No Effect</option>
-                <option value="glow" {% if current_user.nickname_effect=='glow' %}selected{% endif %}>Glow</option>
-                <option value="gradient" {% if current_user.nickname_effect=='gradient' %}selected{% endif %}>Rainbow
-                </option>
-            </select>
+            <h3 style="font-weight:700; margin-bottom:16px;">🎒 Inventory</h3>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                {% for inv in user.user_inventory_items.limit(8) %}
+                <div style="text-align:center; padding:8px; border-radius:12px; border:1px solid var(--border);">
+                    <div style="font-size:1.5rem;">📦</div>
+                    <div style="font-size:0.75rem;">{{ inv.item.name }}</div>
+                </div>
+                {% else %}
+                <p style="color:var(--text-secondary);">No items yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div>
+        <!-- Actions (зөвхөн өөрийн профайл дээр харагдах) -->
+        {% if is_owner %}
+        <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
+            <h3 style="font-weight:700; margin-bottom:16px;">✏️ Edit Profile</h3>
+            <button onclick="openEditForm()" class="btn btn-ghost btn-full" style="margin-bottom:8px;">🖼️ Edit
+                Details</button>
+            <a href="{{ url_for('account.settings') }}" class="btn btn-ghost btn-full">⚙️ Settings</a>
         </div>
 
-        <!-- Profile Music -->
+        <!-- Edit Form (эхлээд нуугдмал) -->
+        <div id="editProfileForm" class="glass"
+            style="padding:24px; border-radius:20px; margin-bottom:24px; display:none;">
+            <h3 style="font-weight:700; margin-bottom:16px;">Edit Profile</h3>
+            <form method="POST" action="{{ url_for('account.update_profile') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Display Name</label>
+                    <input type="text" name="display_name" value="{{ user.display_name or '' }}"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Bio</label>
+                    <textarea name="bio" rows="2"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);">{{ user.bio or '' }}</textarea>
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Country</label>
+                    <input type="text" name="country" value="{{ user.country or '' }}"
+                        style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);">
+                </div>
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Avatar</label>
+                    <input type="file" name="avatar" accept="image/*">
+                </div>
+                {% if user.is_premium %}
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label style="font-weight:600;">Banner (Premium)</label>
+                    <input type="file" name="banner" accept="image/*">
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-full">Save Changes</button>
+            </form>
+        </div>
+        {% else %}
+        <!-- Hover Card actions for others -->
         <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
-            <h3 style="font-weight:700; margin-bottom:16px;">🎵 Profile Music</h3>
-            <input type="text" id="profileMusic" value="{{ current_user.profile_theme_music or '' }}"
-                placeholder="SoundCloud URL"
-                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);">
-            <button onclick="saveProfileMusic()" class="btn btn-primary btn-full" style="margin-top:12px;">Save</button>
+            <h3 style="font-weight:700; margin-bottom:16px;">Actions</h3>
+            <button onclick="challengeUser('{{ user.id }}')" class="btn btn-primary btn-full"
+                style="margin-bottom:8px;">⚔️ Challenge</button>
+            <button onclick="sendGift('{{ user.id }}')" class="btn btn-ghost btn-full" style="margin-bottom:8px;">🎁
+                Send Gift</button>
+            <button onclick="giveRespect('{{ user.id }}')" class="btn btn-ghost btn-full" style="margin-bottom:8px;">❤️
+                Respect</button>
+            {% if not is_friend and current_user.id != user.id %}
+            <form method="POST" action="{{ url_for('social.search_friends') }}" style="margin-bottom:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="username" value="{{ user.username }}">
+                <button type="submit" class="btn btn-ghost btn-full">➕ Add Friend</button>
+            </form>
+            {% endif %}
         </div>
         {% endif %}
 
-        <!-- Gameplay Preferences -->
+        <!-- Referral Link (зөвхөн өөрийн профайл) -->
+        {% if is_owner and user.referral_code %}
         <div class="glass" style="padding:24px; border-radius:20px; margin-bottom:24px;">
-            <h3 style="font-weight:700; margin-bottom:16px;">🎮 Gameplay</h3>
-            <label style="font-weight:600;">Difficulty</label>
-            <select onchange="updateGameSetting('preferred_difficulty', this.value)"
-                style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;color:var(--text);margin-bottom:12px;">
-                <option value="mixed" {% if current_user.preferred_difficulty=='mixed' %}selected{% endif %}>Mixed
-                </option>
-                <option value="easy" {% if current_user.preferred_difficulty=='easy' %}selected{% endif %}>Easy</option>
-                <option value="medium" {% if current_user.preferred_difficulty=='medium' %}selected{% endif %}>Medium
-                </option>
-                <option value="hard" {% if current_user.preferred_difficulty=='hard' %}selected{% endif %}>Hard</option>
-            </select>
-            <label class="checkbox" style="display:flex;align-items:center;gap:12px;">
-                <input type="checkbox" {% if current_user.performance_mode %}checked{% endif %}
-                    onchange="updateGameSetting('performance_mode', this.checked)">
-                <span>Performance Mode</span>
-            </label>
+            <h3 style="font-weight:700; margin-bottom:16px;">🔗 Invite Friends</h3>
+            <input type="text" readonly value="{{ request.host_url }}register?ref={{ user.referral_code }}"
+                style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 16px; color:var(--text);">
+            <div style="font-size:0.8rem; margin-top:8px;">Total invites: {{ user.referral_count }}</div>
         </div>
+        {% endif %}
+
+        <!-- Admin Actions (зөвхөн админ, бусдын профайлд) -->
+        {% if current_user.role in ('admin', 'developer', 'owner') and not is_owner %}
+        <div class="glass"
+            style="padding:24px; border-radius:20px; margin-bottom:24px; border:2px solid var(--danger);">
+            <h3 style="font-weight:700; margin-bottom:16px; color:var(--danger);">🛡️ Admin Actions</h3>
+            <form method="POST" action="{{ url_for('admin.toggle_premium', user_id=user.id) }}"
+                style="margin-bottom:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-full">⭐ Toggle Premium</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.toggle_ban', user_id=user.id) }}" style="margin-bottom:8px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-ghost btn-full" style="color:var(--warning);">🚫 Toggle Ban</button>
+            </form>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <script>
-    // --- Helper ---
     const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-    // Discord settings
-    function updateDiscordSetting(key, value) {
-        fetch('/account/update-discord-settings', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ [key]: value })
-        });
+    function openEditForm() {
+        document.getElementById('editProfileForm').style.display = 'block';
     }
 
-    // Badge toggle
-    let selectedBadges = '{{ current_user.showcase_badge_ids or "" }}'.split(',').filter(Boolean);
-    function toggleBadge(badgeId) {
-        const idx = selectedBadges.indexOf(badgeId);
-        if (idx > -1) selectedBadges.splice(idx, 1);
-        else selectedBadges.push(badgeId);
-        document.querySelectorAll('.badge-item').forEach(el => {
-            el.style.borderColor = selectedBadges.includes(el.dataset.badgeId) ? 'var(--accent)' : 'transparent';
-        });
-        fetch('/account/update-profile', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ showcase_badge_ids: selectedBadges })
-        });
+    function challengeUser(userId) {
+        fetch(`/api/user/challenge/${userId}`, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+            .then(r => r.json())
+            .then(d => showToast(d.message || 'Challenge sent!', d.success ? 'success' : 'warning'));
     }
-
-    // Nickname effect
-    function updateNicknameEffect(effect) {
-        fetch('/account/update-profile', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ nickname_effect: effect })
-        });
+    function sendGift(userId) {
+        const gift = prompt('Choose gift: coffee (10), crown (500), xp_boost (200)');
+        if (!gift) return;
+        apiFetch(`/api/user/gift/${userId}`, { method: 'POST', body: JSON.stringify({ gift_type: gift }) })
+            .then(d => showToast(d.message || 'Gift sent!', d.success ? 'success' : 'error'));
     }
-
-    // Profile music
-    function saveProfileMusic() {
-        const url = document.getElementById('profileMusic').value;
-        fetch('/account/update-profile', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ profile_theme_music: url })
-        });
-    }
-
-    // Game settings
-    function updateGameSetting(key, value) {
-        fetch('/account/update-game-settings', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-            body: JSON.stringify({ [key]: value })
-        });
+    function giveRespect(userId) {
+        fetch(`/api/user/respect/${userId}`, { method: 'POST', headers: { 'X-CSRFToken': csrf } })
+            .then(r => r.json())
+            .then(d => showToast(d.message || 'Respect given!', d.success ? 'success' : 'warning'));
     }
 </script>
 {% endblock %}

@@ -231,3 +231,50 @@ function escapeHtml(text) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+let miniChatUser = null;
+
+window.openMiniChat = function(userId, username) {
+    miniChatUser = {id: userId, name: username};
+    document.getElementById('miniChatTitle').textContent = '💬 ' + username;
+    document.getElementById('miniChat').classList.remove('hidden');
+    document.getElementById('miniChatMessages').innerHTML = '';
+};
+
+window.closeMiniChat = function() {
+    document.getElementById('miniChat').classList.add('hidden');
+    miniChatUser = null;
+};
+
+window.toggleMiniChat = function() {
+    document.getElementById('miniChat').classList.toggle('hidden');
+};
+
+window.sendMiniChat = function() {
+    const input = document.getElementById('miniChatInput');
+    const msg = input.value.trim();
+    if (!msg || !miniChatUser) return;
+    socket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
+    // Өөрийн мессежийг нэмэх
+    appendMiniChatMessage('You', msg, true);
+    input.value = '';
+};
+
+function appendMiniChatMessage(sender, message, isSelf) {
+    const container = document.getElementById('miniChatMessages');
+    const div = document.createElement('div');
+    div.style.cssText = `text-align:${isSelf ? 'right' : 'left'}; margin-bottom:8px;`;
+    div.innerHTML = `<div style="display:inline-block; padding:8px 12px; border-radius:12px; background:${isSelf ? 'var(--primary)' : 'var(--surface)'}; max-width:80%;">
+        <div style="font-size:0.8rem; font-weight:600;">${sender}</div>
+        <div>${message}</div>
+    </div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+// Socket event
+socket.on('direct_message', (data) => {
+    if (miniChatUser && data.from_user_id === miniChatUser.id) {
+        appendMiniChatMessage(data.from_username, data.message, false);
+    }
+});

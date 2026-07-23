@@ -70,9 +70,8 @@
                     onchange="updateDiscordSetting('dm_notifications', this.checked)">
                 <span>Receive Discord DM notifications</span>
             </label>
-            <form method="POST" action="{{ url_for('auth.discord_login') }}" style="display:inline;">
-                <button type="submit" class="btn btn-ghost" style="color:#5865F2;">🔄 Reconnect Discord</button>
-            </form>
+            <a href="{{ url_for('auth.discord_login') }}" class="btn btn-ghost" style="color:#5865F2;">🔄 Reconnect
+                Discord</a>
             {% else %}
             <div
                 style="margin-bottom:16px; padding:16px; background:rgba(255,255,255,0.05); border-radius:12px; text-align:center;">
@@ -203,7 +202,6 @@
     function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        // Refresh UI
         document.querySelectorAll('.glass').forEach(el => {
             el.style.transition = 'none';
             setTimeout(() => el.style.transition = '', 50);

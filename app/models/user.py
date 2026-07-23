@@ -4,6 +4,8 @@ from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 import jwt
+import random
+import string
 from time import time
 from flask import current_app
 from app.models.economy import Transaction
@@ -39,11 +41,24 @@ class User(UserMixin, db.Model):
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     last_daily_reward = db.Column(db.DateTime)
     last_fortune_spin = db.Column(db.DateTime, nullable=True)
-    respect_count = db.Column(db.Integer, default=0)          # Нийт авсан Respect
-    do_not_disturb = db.Column(db.Boolean, default=False)    # Завгүй горим
-    last_challenge_at = db.Column(db.DateTime, nullable=True) # Challenge cooldown
 
-    # Role & Premium (нэг л удаа)
+    # Нийгмийн харилцаа
+    respect_count = db.Column(db.Integer, default=0)
+    do_not_disturb = db.Column(db.Boolean, default=False)
+    last_challenge_at = db.Column(db.DateTime, nullable=True)
+
+    # Цол ба статус
+    equipped_title = db.Column(db.String(50), default=None)
+    custom_status = db.Column(db.String(100), default='')
+    unlocked_titles = db.Column(db.Text, default='')
+
+    # Урилга (referral)
+    referral_code = db.Column(db.String(10), unique=True, nullable=True,
+                              default=lambda: ''.join(random.choices(string.ascii_uppercase + string.digits, k=8)))
+    referred_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    referral_count = db.Column(db.Integer, default=0)
+
+    # Role & Premium
     role = db.Column(db.String(20), default='user')
     is_premium = db.Column(db.Boolean, default=False)
     premium_expiry = db.Column(db.DateTime, nullable=True)
@@ -59,7 +74,7 @@ class User(UserMixin, db.Model):
     discord_rich_presence = db.Column(db.Boolean, default=True)
     discord_dm_notifications = db.Column(db.Boolean, default=True)
 
-    # Профайл тохиргоо
+    # Профайл гоёлын тохиргоо
     showcase_badge_ids = db.Column(db.String(200), default='')
     nickname_effect = db.Column(db.String(50), default='none')
     profile_theme_music = db.Column(db.String(500), nullable=True)

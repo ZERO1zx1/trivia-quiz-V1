@@ -17,6 +17,17 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
+    
+    referral_code = request.form.get('referral_code', '').strip()
+    if referral_code:
+        referrer = User.query.filter_by(referral_code=referral_code).first()
+        if referrer:
+            new_user.referred_by = referrer.id
+            referrer.referral_count += 1
+            referrer.add_coins(100, 'Referral bonus')
+            if referrer.referral_count >= 5:
+                # Badge нээх логик
+                pass
 
     if request.method == 'POST':
         username = bleach.clean(request.form.get('username', '').strip())

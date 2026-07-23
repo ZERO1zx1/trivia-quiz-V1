@@ -6,13 +6,11 @@ let socket = null;
 let currentRoom = null;
 
 function initSocket() {
-    // Өмнөх холболтыг цэвэрлэх
     if (socket) {
         socket.disconnect();
         socket = null;
     }
 
-    // Socket.IO холболт
     socket = io({
         reconnection: true,
         reconnectionAttempts: 5,
@@ -31,20 +29,14 @@ function initSocket() {
         console.warn('⚠️ Disconnected:', reason);
         document.body.classList.add('socket-disconnected');
         if (reason === 'io server disconnect') {
-            // Сервер санаатайгаар салгасан – дахин холбогдох
             socket.connect();
         }
         showToast('Connection lost. Reconnecting...', 'warning');
     });
 
-    socket.on('reconnect_attempt', (attempt) => {
-        console.log(`🔄 Reconnect attempt ${attempt}`);
-    });
-
     socket.on('reconnect', () => {
         console.log('🔁 Reconnected');
         showToast('Reconnected!', 'success');
-        // Хэрэв өрөөнд байсан бол дахин нэгдэх
         if (currentRoom) {
             socket.emit('join_room', { room_code: currentRoom });
         }
@@ -68,17 +60,14 @@ function initSocket() {
 
     socket.on('player_left', (data) => {
         updatePlayerList(data.players);
-        if (data.player?.username) {
-            showToast(`${data.player.username} left the room`, 'info');
-        }
     });
 
     socket.on('player_ready_changed', (data) => {
         updatePlayerList(data.players);
         const btn = document.getElementById('readyBtn');
         if (btn && data.user_id === window.currentUserId) {
-            btn.textContent = data.is_ready ? 'Not Ready' : 'Ready';
-            btn.classList.toggle('btn-success', !data.is_ready);
+            btn.textContent = data.is_ready ? '✓ Ready' : 'Ready Up';
+            btn.classList.toggle('btn-success', data.is_ready);
         }
     });
 
@@ -87,7 +76,9 @@ function initSocket() {
     });
 
     socket.on('game_started', (data) => {
-        if (currentRoom) {
+        if (data.redirect_url) {
+            window.location.href = data.redirect_url;
+        } else if (currentRoom) {
             window.location.href = `/quiz/play/${currentRoom}`;
         }
     });
@@ -108,13 +99,8 @@ function joinRoomSocket(roomCode) {
     currentRoom = roomCode;
     if (socket && socket.connected) {
         socket.emit('join_room', { room_code: roomCode });
-    } else if (socket) {
-        // Хэрэв холбогдоогүй бол холбогдсоны дараа нэгдэх
-        socket.once('connect', () => {
-            socket.emit('join_room', { room_code: roomCode });
-        });
     } else {
-        initSocket();
+        if (!socket) initSocket();
         socket.once('connect', () => {
             socket.emit('join_room', { room_code: roomCode });
         });
@@ -154,7 +140,7 @@ function updatePlayerList(players) {
         <div class="player-card ${p.is_ready ? 'ready' : ''} ${p.user_id === window.hostId ? 'host' : ''}">
             ${p.user_id === window.hostId ? '<span class="host-badge">HOST</span>' : ''}
             <img src="${p.avatar || '/static/avatars/default.png'}" alt="${p.username}" onerror="this.src='/static/avatars/default.png'">
-            <div class="player-name">${window.escapeHtml ? escapeHtml(p.username) : p.username}</div>
+            <div class="player-name">${escapeHtml(p.username)}</div>
             <div class="ready-indicator ${p.is_ready ? 'ready' : ''}"></div>
         </div>
     `).join('');
@@ -169,8 +155,8 @@ function addChatMessage(data) {
     messageDiv.className = `chat-message ${isSelf ? 'chat-message-self' : ''}`;
 
     const avatarUrl = data.avatar || '/static/avatars/default.png';
-    const safeUsername = window.escapeHtml ? escapeHtml(data.username) : data.username;
-    const safeMessage = window.escapeHtml ? escapeHtml(data.message) : data.message;
+    const safeUsername = escapeHtml(data.username);
+    const safeMessage = escapeHtml(data.message);
 
     messageDiv.innerHTML = `
         <img src="${avatarUrl}" alt="${safeUsername}" onerror="this.src='/static/avatars/default.png'">
@@ -185,10 +171,21 @@ function addChatMessage(data) {
 }
 
 // ==================================
+//  Escape HTML utility
+// ==================================
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// ==================================
 //  Initialization
 // ==================================
-
-// Хэрэв нэвтэрсэн хэрэглэгч байвал (app-layout класс байгаа эсэхээр шалгах)
 if (document.querySelector('.app-layout')) {
     initSocket();
 }

@@ -87,7 +87,7 @@
 </div>
 
 <script>
-    // Socket.io холболтыг эхлүүлэх
+    // Socket холболтыг эхлүүлээд өрөөнд нэгдэх
     joinRoomSocket('{{ room.code }}');
 
     // Чат мессеж илгээх
@@ -99,16 +99,18 @@
         input.value = '';
     }
 
-    // Код хуулах функц (хэрэв таны скриптэд байхгүй бол)
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-            // Жижигхэн мэдэгдэл харуулах (тоаст)
-            const toast = document.createElement('div');
-            toast.textContent = 'Code copied!';
-            toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--accent);color:white;padding:8px 16px;border-radius:8px;z-index:9999;';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
-        }).catch(err => console.error('Copy failed', err));
+    // Ready up товч
+    function toggleReady(roomCode) {
+        if (typeof socket !== 'undefined' && socket) {
+            socket.emit('toggle_ready', { room_code: roomCode });
+        }
+    }
+
+    // Start game товч
+    function startGame(roomCode) {
+        if (typeof socket !== 'undefined' && socket) {
+            socket.emit('start_game', { room_code: roomCode });
+        }
     }
 </script>
 {% endblock %}
