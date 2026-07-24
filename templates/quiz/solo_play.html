@@ -19,6 +19,13 @@
             <div id="questionText" style="font-size:1.3rem; font-weight:600; margin-bottom:32px;">Loading...</div>
             <div id="optionsContainer" class="options-grid"
                 style="display:grid; grid-template-columns:1fr 1fr; gap:12px;"></div>
+            
+            <div id="lifelinesContainer" style="margin-top:24px; display:flex; gap:10px; justify-content:center;">
+                <button class="btn btn-outline-primary" id="lifeline5050" onclick="useLifeline('5050')">✂️ 50/50</button>
+                <button class="btn btn-outline-primary" id="lifelineFreeze" onclick="useLifeline('freeze')">⏳ Freeze</button>
+                <button class="btn btn-outline-primary" id="lifelineSkip" onclick="useLifeline('skip')">⏭️ Skip</button>
+            </div>
+
             <div style="margin-top:auto; padding-top:24px; display:flex; justify-content:center;">
                 <a href="{{ url_for('dashboard.index') }}" class="btn btn-ghost">🚪 Leave</a>
             </div>

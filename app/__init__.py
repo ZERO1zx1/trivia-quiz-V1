@@ -183,7 +183,7 @@ def create_app(config_name='default'):
     from app.routes.api_v1 import api_v1_bp
     from app.routes.language import lang_bp
     from app.routes.box_api import box_api_bp
-    # from app.routes.search import search_bp   # Одоогоор файл байхгүй тул тайлбарласан
+    from app.routes.search import search_bp
 
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -207,7 +207,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(lang_bp)
     app.register_blueprint(box_api_bp, url_prefix='/box')
-    # app.register_blueprint(search_bp)
+    app.register_blueprint(search_bp, url_prefix='/search')
 
     return app
 

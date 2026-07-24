@@ -11,7 +11,10 @@ class ShopItem(db.Model):
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255))
     price = db.Column(db.Integer, nullable=False)           # coin-оор үнэ
-    item_type = db.Column(db.String(50))                    # avatar_frame, title, role, badge гэх мэт
+    base_price = db.Column(db.Integer, nullable=False, default=100)
+    item_type = db.Column(db.String(50))                    # avatar_frame, title, role, badge, lifeline гэх мэт
+    stock = db.Column(db.Integer, default=-1)               # -1 for infinite
+    total_sold = db.Column(db.Integer, default=0)
     image_url = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

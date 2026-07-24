@@ -217,5 +217,68 @@ class Economy(commands.Cog):
                     ephemeral=True
                 )
 
+    @app_commands.command(name="deposit", description="Deposit coins into your bank")
+    @app_commands.describe(amount="Amount to deposit (or 'all')")
+    async def deposit(self, interaction: discord.Interaction, amount: str):
+        await interaction.response.defer(ephemeral=True)
+        async with self.bot.session.post(f"{self.bot.api_base}/bank/deposit", json={
+            "discord_id": str(interaction.user.id), "amount": amount
+        }) as resp:
+            data = await resp.json()
+            if resp.status == 200:
+                await interaction.followup.send(f"✅ Deposited! Bank: **🪙 {data['bank']}**, Wallet: **🪙 {data['coins']}**", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ Error: {data.get('error')}", ephemeral=True)
+
+    @app_commands.command(name="withdraw", description="Withdraw coins from your bank")
+    @app_commands.describe(amount="Amount to withdraw (or 'all')")
+    async def withdraw(self, interaction: discord.Interaction, amount: str):
+        await interaction.response.defer(ephemeral=True)
+        async with self.bot.session.post(f"{self.bot.api_base}/bank/withdraw", json={
+            "discord_id": str(interaction.user.id), "amount": amount
+        }) as resp:
+            data = await resp.json()
+            if resp.status == 200:
+                await interaction.followup.send(f"✅ Withdrawn! Wallet: **🪙 {data['coins']}**, Bank: **🪙 {data['bank']}**", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ Error: {data.get('error')}", ephemeral=True)
+
+    @app_commands.command(name="coinflip", description="Flip a coin to win or lose coins")
+    @app_commands.describe(bet="Amount to bet", side="Heads or Tails")
+    @app_commands.choices(side=[
+        app_commands.Choice(name="Heads", value="heads"),
+        app_commands.Choice(name="Tails", value="tails")
+    ])
+    async def coinflip(self, interaction: discord.Interaction, bet: int, side: app_commands.Choice[str]):
+        await interaction.response.defer()
+        async with self.bot.session.post(f"{self.bot.api_base}/gamble/coinflip", json={
+            "discord_id": str(interaction.user.id), "bet": bet, "side": side.value
+        }) as resp:
+            data = await resp.json()
+            if resp.status == 200:
+                result_emoji = "🪙" if data['result'] == "heads" else "🦅"
+                embed = discord.Embed(
+                    title=f"{result_emoji} Coinflip Result: {data['result'].capitalize()}",
+                    description=data['message'],
+                    color=0x57F287 if data['win'] else 0xED4245
+                )
+                embed.add_field(name="New Balance", value=f"🪙 {data['new_balance']}")
+                await interaction.followup.send(embed=embed)
+            else:
+                await interaction.followup.send(f"❌ Error: {data.get('error')}", ephemeral=True)
+
+    @app_commands.command(name="rob", description="Try to rob coins from another user")
+    @app_commands.describe(target="User to rob")
+    async def rob(self, interaction: discord.Interaction, target: discord.User):
+        await interaction.response.defer()
+        async with self.bot.session.post(f"{self.bot.api_base}/gamble/rob", json={
+            "discord_id": str(interaction.user.id), "target_id": str(target.id)
+        }) as resp:
+            data = await resp.json()
+            if resp.status == 200:
+                await interaction.followup.send(data['message'])
+            else:
+                await interaction.followup.send(f"❌ Error: {data.get('error')}", ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(Economy(bot))

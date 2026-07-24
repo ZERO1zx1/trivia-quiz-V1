@@ -72,6 +72,17 @@ class User(UserMixin, db.Model):
     daily_coins_earned = db.Column(db.Integer, default=0)
     daily_coins_limit = db.Column(db.Integer, default=1000)
 
+    # Elo & Economy
+    elo_rating = db.Column(db.Integer, default=1200)
+    bank_balance = db.Column(db.Integer, default=0)
+    last_bank_interest = db.Column(db.DateTime, nullable=True)
+    reputation = db.Column(db.Integer, default=0)
+    last_rep_given = db.Column(db.DateTime, nullable=True)
+    spouse_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    # Stats per category (JSON string)
+    category_stats = db.Column(db.Text, default='{}')
+
     # Discord тохиргоо
     discord_rich_presence = db.Column(db.Boolean, default=True)
     discord_dm_notifications = db.Column(db.Boolean, default=True)

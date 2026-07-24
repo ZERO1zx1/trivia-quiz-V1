@@ -32,15 +32,39 @@ def lobby():
 @rooms_bp.route('/create', methods=['POST'])
 @login_required
 def create_room():
-    name = request.form.get('name', 'Trivia Room').strip()
-    is_private = 'is_private' in request.form
-    password = request.form.get('password', '').strip() or None
-    category_id = request.form.get('category_id', type=int)
-    difficulty = request.form.get('difficulty', 'mixed')
-    question_count = request.form.get('question_count', 10, type=int)
-    max_players = request.form.get('max_players', 8, type=int)
-    game_mode = request.form.get('game_mode', 'classic')
-    time_attack_duration = request.form.get('time_attack_duration', 15, type=int)
+    if request.is_json:
+        data = request.json
+        name = data.get('name', 'Trivia Room').strip()
+        is_private = data.get('private', False)
+        password = data.get('password')
+        category_id = data.get('category_id')
+        difficulty = data.get('difficulty', 'mixed')
+        question_count = data.get('question_count', 10)
+        max_players = data.get('max_players', 8)
+        game_mode = data.get('game_mode', 'classic')
+        time_attack_duration = data.get('time_attack_duration', 15)
+        host_discord_id = data.get('host_discord_id')
+        
+        if host_discord_id:
+            from app.models.user import DiscordAccount
+            da = DiscordAccount.query.filter_by(discord_id=host_discord_id).first()
+            if da:
+                host_user = da.user
+            else:
+                return jsonify({'error': 'Host not found'}), 404
+        else:
+            host_user = current_user
+    else:
+        name = request.form.get('name', 'Trivia Room').strip()
+        is_private = 'is_private' in request.form
+        password = request.form.get('password', '').strip() or None
+        category_id = request.form.get('category_id', type=int)
+        difficulty = request.form.get('difficulty', 'mixed')
+        question_count = request.form.get('question_count', 10, type=int)
+        max_players = request.form.get('max_players', 8, type=int)
+        game_mode = request.form.get('game_mode', 'classic')
+        time_attack_duration = request.form.get('time_attack_duration', 15, type=int)
+        host_user = current_user
 
     if not name:
         flash('Room name is required.', 'danger')
@@ -52,7 +76,7 @@ def create_room():
     room = Room(
         code=generate_room_code(),
         name=name,
-        host_id=current_user.id,
+        host_id=host_user.id,
         is_private=is_private,
         password=password,
         category_id=category_id if category_id else None,
@@ -66,9 +90,12 @@ def create_room():
     db.session.add(room)
     db.session.flush()
 
-    room_player = RoomPlayer(room_id=room.id, user_id=current_user.id, is_ready=True)
+    room_player = RoomPlayer(room_id=room.id, user_id=host_user.id, is_ready=True)
     db.session.add(room_player)
     db.session.commit()
+
+    if request.is_json:
+        return jsonify({'success': True, 'code': room.code}), 201
 
     flash(f'Room created! Code: {room.code}', 'success')
     return redirect(url_for('rooms.room', code=room.code))

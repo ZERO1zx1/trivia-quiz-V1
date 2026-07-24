@@ -195,6 +195,12 @@ def check_solo_answer():
     if not question:
         return jsonify({'error': 'Question not found'}), 404
     correct_answer = question.get_correct_answer()
+    
+    if answer_id == -2: # Hint request (50/50)
+        return jsonify({
+            'correct_answer_id': correct_answer.id if correct_answer else None
+        })
+        
     is_correct = (correct_answer and correct_answer.id == answer_id)
     return jsonify({
         'correct': is_correct,

@@ -363,3 +363,51 @@ def delete_shop_item(item_id):
     db.session.commit()
     flash('Item deleted.', 'success')
     return redirect(url_for('admin.shop_items'))
+
+@admin_bp.route('/economy/reset-all', methods=['POST'])
+@role_required('owner')
+def reset_all_economy():
+    """Reset all users' coins to 0 (Season Reset)."""
+    User.query.update({User.coins: 0})
+    db.session.commit()
+    flash('Global economy reset successful!', 'success')
+    return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/server-stats')
+@admin_required
+def server_stats():
+    total_players = User.query.count()
+    total_coins = db.session.query(db.func.sum(User.coins)).scalar() or 0
+    total_questions_answered = db.session.query(db.func.sum(User.total_questions)).scalar() or 0
+    
+    return jsonify({
+        'total_players': total_players,
+        'total_coins': total_coins,
+        'total_questions_answered': total_questions_answered
+    })
+
+@admin_bp.route('/give-item', methods=['POST'])
+@admin_required
+def admin_give_item():
+    from app.models.shop import ShopItem, UserInventory
+    from app.models.user import DiscordAccount
+    data = request.json
+    discord_id = data.get('discord_id')
+    item_id = data.get('item_id')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    user = discord_account.user
+    item = ShopItem.query.get_or_404(item_id)
+    
+    inv = UserInventory.query.filter_by(user_id=user.id, item_id=item.id).first()
+    if inv:
+        inv.quantity += 1
+    else:
+        inv = UserInventory(user_id=user.id, item_id=item.id, quantity=1)
+        db.session.add(inv)
+        
+    db.session.commit()
+    return jsonify({'success': True})

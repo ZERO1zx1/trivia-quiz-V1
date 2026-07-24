@@ -135,15 +135,30 @@ def register_game_events(socketio):
         correct_answer = next((a for a in question['answers'] if a['is_correct']), None)
         is_correct = correct_answer and correct_answer['id'] == answer_id
 
+        # Anti-Cheat Logic: If answer is too fast (e.g., < 0.5s)
+        if time_taken < 0.5:
+            emit('error', {'message': 'Suspiciously fast answer! Anti-cheat triggered.'})
+            return
+
         room = Room.query.filter_by(code=room_code).first()
-        base_score = 100
-        time_bonus = max(0, int((room.time_per_question - time_taken) * 5))
-        streak_bonus = state['streaks'].get(current_user.id, 0) * 10
+        # Decreasing Point Timer Logic
+        # Start with 1000, decrease by 50 per second
+        base_points = 1000
+        time_penalty = int(time_taken * 50)
+        calculated_base = max(100, base_points - time_penalty)
+        
+        # Combo Multiplier System
+        # 1x -> 1.5x -> 2x -> 3x
+        streak = state['streaks'].get(current_user.id, 0)
+        multiplier = 1.0
+        if streak >= 10: multiplier = 3.0
+        elif streak >= 5: multiplier = 2.0
+        elif streak >= 2: multiplier = 1.5
 
         question_score = 0
         if is_correct:
-            question_score = base_score + time_bonus + streak_bonus
-            state['streaks'][current_user.id] = state['streaks'].get(current_user.id, 0) + 1
+            question_score = int(calculated_base * multiplier)
+            state['streaks'][current_user.id] = streak + 1
 
             multiplier = current_user.coin_multiplier if current_user.is_premium else 1
             coins_earned = 5 * multiplier
@@ -344,12 +359,20 @@ def _end_game(socketio, room_code):
         winner = User.query.get(winner_id)
         winner.wins += 1
         match.winner_id = winner_id
+        
+        # Elo Rating System Logic
+        # Simplified: Winner gains 20, Losers lose 10
+        winner.elo_rating += 20
+        for p in players:
+            if p.user_id != winner_id:
+                p.user.elo_rating = max(0, p.user.elo_rating - 10)
+
         from flask import current_app
-        winner.add_coins(current_app.config['WIN_REWARD_COINS'], 'Match Win')
+        winner.add_coins(current_app.config.get('WIN_REWARD_COINS', 100), 'Match Win')
 
         winner_answers = state['answers'].get(winner_id, {})
         if all(a['correct'] for a in winner_answers.values()) and len(winner_answers) == len(state['questions']):
-            winner.add_coins(current_app.config['PERFECT_GAME_BONUS'], 'Perfect Game Bonus')
+            winner.add_coins(current_app.config.get('PERFECT_GAME_BONUS', 50), 'Perfect Game Bonus')
             winner.xp += 100
 
         winner.xp += 50

@@ -30,7 +30,11 @@ def get_user(discord_id):
         'accuracy': user.accuracy,
         'games_played': user.games_played,
         'display_name': user.display_name,
-        'avatar_url': user.avatar_url
+        'avatar_url': user.avatar_url,
+        'elo_rating': user.elo_rating,
+        'reputation': user.reputation,
+        'bank_balance': user.bank_balance,
+        'spouse': User.query.get(user.spouse_id).username if user.spouse_id else None
     })
 
 # ==========================================
@@ -235,3 +239,228 @@ def discord_sync_role():
         return jsonify({'success': True})
     except:
         return jsonify({'error': 'Failed'}), 500
+
+# ==========================================
+#  Economy & Banking
+# ==========================================
+@api_bp.route('/bank/deposit', methods=['POST'])
+def bank_deposit():
+    data = request.json
+    discord_id = data.get('discord_id')
+    amount = data.get('amount')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    if amount == 'all':
+        amount = user.coins
+    else:
+        amount = int(amount)
+        
+    if amount <= 0 or user.coins < amount:
+        return jsonify({'error': 'Invalid amount or insufficient coins'}), 400
+        
+    user.coins -= amount
+    user.bank_balance += amount
+    db.session.commit()
+    return jsonify({'success': True, 'coins': user.coins, 'bank': user.bank_balance})
+
+@api_bp.route('/bank/withdraw', methods=['POST'])
+def bank_withdraw():
+    data = request.json
+    discord_id = data.get('discord_id')
+    amount = data.get('amount')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    if amount == 'all':
+        amount = user.bank_balance
+    else:
+        amount = int(amount)
+        
+    if amount <= 0 or user.bank_balance < amount:
+        return jsonify({'error': 'Invalid amount or insufficient bank balance'}), 400
+        
+    user.bank_balance -= amount
+    user.coins += amount
+    db.session.commit()
+    return jsonify({'success': True, 'coins': user.coins, 'bank': user.bank_balance})
+
+@api_bp.route('/gamble/coinflip', methods=['POST'])
+def gamble_coinflip():
+    data = request.json
+    discord_id = data.get('discord_id')
+    bet = int(data.get('bet', 0))
+    side = data.get('side', 'heads') # heads/tails
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    if bet <= 0 or user.coins < bet:
+        return jsonify({'error': 'Invalid bet'}), 400
+        
+    import random
+    result = random.choice(['heads', 'tails'])
+    win = result == side
+    
+    if win:
+        user.coins += bet
+        msg = f"You won {bet} coins!"
+    else:
+        user.coins -= bet
+        msg = f"You lost {bet} coins."
+        
+    db.session.commit()
+    return jsonify({'success': True, 'win': win, 'result': result, 'message': msg, 'new_balance': user.coins})
+
+@api_bp.route('/gamble/rob', methods=['POST'])
+def gamble_rob():
+    data = request.json
+    discord_id = data.get('discord_id')
+    target_id = data.get('target_id')
+    
+    sender_acc = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    target_acc = DiscordAccount.query.filter_by(discord_id=target_id).first()
+    
+    if not sender_acc or not target_acc:
+        return jsonify({'error': 'User not found'}), 404
+        
+    sender = sender_acc.user
+    target = target_acc.user
+    
+    if target.coins < 100:
+        return jsonify({'error': 'Target is too poor to rob!'}), 400
+        
+    import random
+    success = random.random() < 0.3 # 30% success
+    
+    if success:
+        stolen = int(target.coins * random.uniform(0.1, 0.3))
+        target.coins -= stolen
+        sender.coins += stolen
+        db.session.commit()
+        return jsonify({'success': True, 'stolen': stolen, 'message': f"You successfully robbed {stolen} coins!"})
+    else:
+        fine = int(sender.coins * 0.1)
+        sender.coins -= fine
+        db.session.commit()
+        return jsonify({'success': False, 'fine': fine, 'message': f"You got caught and fined {fine} coins!"})
+
+@api_bp.route('/shop/items')
+def api_shop_items():
+    from app.models.shop import ShopItem
+    items = ShopItem.query.filter_by(is_active=True).all()
+    # Dynamic pricing: price = base_price * (1 + total_sold / 100)
+    for item in items:
+        item.price = int(item.base_price * (1 + item.total_sold / 100))
+    return jsonify([item.to_dict() for item in items])
+
+@api_bp.route('/buy', methods=['POST'])
+def api_buy_item():
+    from app.models.shop import ShopItem, UserInventory
+    data = request.json
+    discord_id = data.get('discord_id')
+    item_id = data.get('item_id')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    item = ShopItem.query.get_or_404(item_id)
+    
+    current_price = int(item.base_price * (1 + item.total_sold / 100))
+    if user.coins < current_price:
+        return jsonify({'error': 'Insufficient coins'}), 402
+        
+    user.coins -= current_price
+    item.total_sold += 1
+    
+    inv = UserInventory.query.filter_by(user_id=user.id, item_id=item.id).first()
+    if inv:
+        inv.quantity += 1
+    else:
+        inv = UserInventory(user_id=user.id, item_id=item.id, quantity=1)
+        db.session.add(inv)
+        
+    db.session.commit()
+    return jsonify({'success': True, 'item_name': item.name, 'coins_left': user.coins})
+
+@api_bp.route('/daily', methods=['POST'])
+def api_daily():
+    from datetime import datetime, timedelta
+    data = request.json
+    discord_id = data.get('discord_id')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+        
+    user = discord_account.user
+    now = datetime.utcnow()
+    
+    if user.last_daily_reward and (now - user.last_daily_reward) < timedelta(hours=20):
+        remaining = timedelta(hours=20) - (now - user.last_daily_reward)
+        return jsonify({'success': False, 'message': f'Wait {int(remaining.total_seconds() // 3600)}h {int((remaining.total_seconds() % 3600) // 60)}m'}), 400
+        
+    reward = 100 * user.coin_multiplier
+    user.coins += reward
+    user.last_daily_reward = now
+    db.session.commit()
+    
+    return jsonify({'success': True, 'reward': reward, 'new_coins': user.coins})
+
+@api_bp.route('/user/rep/give', methods=['POST'])
+def api_give_rep():
+    from datetime import datetime, timedelta
+    data = request.json
+    discord_id = data.get('discord_id')
+    target_id = data.get('target_id')
+    
+    sender_acc = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    target_acc = DiscordAccount.query.filter_by(discord_id=target_id).first()
+    
+    if not sender_acc or not target_acc:
+        return jsonify({'error': 'User not found'}), 404
+        
+    sender = sender_acc.user
+    target = target_acc.user
+    now = datetime.utcnow()
+    
+    if sender.last_rep_given and (now - sender.last_rep_given) < timedelta(hours=24):
+        return jsonify({'error': 'You can only give reputation once every 24 hours'}), 400
+        
+    target.reputation += 1
+    sender.last_rep_given = now
+    db.session.commit()
+    return jsonify({'success': True})
+
+@api_bp.route('/user/marry', methods=['POST'])
+def api_marry():
+    data = request.json
+    discord_id = data.get('discord_id')
+    target_id = data.get('target_id')
+    
+    sender_acc = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    target_acc = DiscordAccount.query.filter_by(discord_id=target_id).first()
+    
+    if not sender_acc or not target_acc:
+        return jsonify({'error': 'User not found'}), 404
+        
+    sender = sender_acc.user
+    target = target_acc.user
+    
+    if sender.spouse_id or target.spouse_id:
+        return jsonify({'error': 'One of the users is already married!'}), 400
+        
+    sender.spouse_id = target.id
+    target.spouse_id = sender.id
+    db.session.commit()
+    return jsonify({'success': True})

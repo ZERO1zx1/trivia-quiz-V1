@@ -23,15 +23,19 @@
 - Solo Practice товч (ганцаарчилсан дасгал)
 
 ### 🕹️ Тоглоомын горимууд
-- **Classic**: Бүгд ижил асуулт, хамгийн өндөр оноотой нь ялна
-- **Time Attack**: Богино хугацаанд хурдан хариулах
-- **Survival**: Буруу хариулвал амь хасагдана
-- **Solo Practice**: Өрөө үүсгэлгүйгээр дасгал хийх
+- **Classic**: Бүгд ижил асуулт, хамгийн өндөр оноотой нь ялна.
+- **Time Attack**: Богино хугацаанд хурдан хариулах.
+- **Survival**: Буруу хариулвал амь хасагдана (Elimination mode).
+- **Quiz Duel (PvP)**: 1v1 бооцоотой тулаан.
+- **Solo Practice**: Өрөө үүсгэлгүйгээр дасгал хийх (50/50, Freeze, Skip тусламжтай).
+- **Advanced Scoring**: Хариулах хугацаанаас хамаарч оноо буурах таймер болон Combo систем.
+- **Elo Rating**: Тоглогчдын чадварыг үнэлэх Elo систем.
 
 ### 🛒 Дэлгүүр, Инвентар
-- Дэлгүүрээс frame, badge, title худалдаж авах
-- Инвентарт цуглуулсан зүйлсээ equip/unequip хийх
-- Авдар (Box) нээх, loot авах
+- **Dynamic Pricing**: Барааны эрэлтээс хамаарч үнэ өөрчлөгдөх систем.
+- Дэлгүүрээс frame, badge, title худалдаж авах.
+- Инвентарт цуглуулсан зүйлсээ equip/unequip хийх.
+- Авдар (Box) нээх, loot авах.
 
 ### 🎡 Fortune Wheel
 - Өдөрт 1 удаа үнэгүй эргүүлэх
@@ -43,11 +47,12 @@
 - Профайл дээр badge хэлбэрээр харагдана
 
 ### 👥 Нийгмийн харилцаа
-- Найзуудын систем (friend request, accept, decline, remove)
-- Challenge (1v1 урилга)
-- Gift илгээх (coffee, crown, xp_boost)
-- Respect өгөх
-- Mini-Chat (хөвөгч чат)
+- **Marriage System**: Өөр хэрэглэгчтэй гэрлэх 💍.
+- **Reputation System**: Бусад тоглогчдод rep өгөх ✨.
+- Найзуудын систем (friend request, accept, decline, remove).
+- Challenge (1v1 урилга).
+- Gift илгээх (coffee, crown, xp_boost).
+- Mini-Chat (хөвөгч чат).
 
 ### 👑 Premium гишүүнчлэл
 - 3x coin multiplier (бүх тоглолтонд)
@@ -69,17 +74,22 @@
 - Staff командууд (skip question, kick player)
 
 ### 🤖 Discord Bot
-- `/profile`, `/daily`, `/spin`, `/shop`, `/inventory` зэрэг тушаалууд
-- Автомат мэдэгдэл (найзын хүсэлт, тоглоомын урилга, level up)
-- Webhook ашиглан серверийн алдааг Discord сувагт мэдэгдэх
-- Premium роль автоматаар олгох/хураах
+- **Advanced Economy**: `/deposit`, `/withdraw`, `/coinflip`, `/rob` (Банк болон мөрийтэй тоглоом).
+- **Social**: `/marry`, `/rep`.
+- **PvP**: `/quiz-duel`, `/survival`.
+- `/profile`, `/daily`, `/spin`, `/shop`, `/inventory` зэрэг үндсэн тушаалууд.
+- Автомат мэдэгдэл (найзын хүсэлт, тоглоомын урилга, level up).
+- Webhook ашиглан серверийн алдааг Discord сувагт мэдэгдэх.
+- Premium роль автоматаар олгох/хураах.
 
 ### 📊 Админ панел
-- Хэрэглэгчдийн удирдлага (role өөрчлөх, ban, premium олгох, coins өгөх)
-- Асуултын удирдлага (нэмэх, устгах, AI Generate)
-- Дэлгүүрийн бараа нэмэх/устгах
-- Амжилт, категори, мэдэгдэл харах
-- Discord Announcement илгээх
+- **Global Reset**: Бүх хэрэглэгчийн эдийн засгийг шинэчлэх (Season Reset).
+- **Server Stats**: Нийт тоглогч, зоос, асуултын статистик харах.
+- **Bot Management**: `/black-list`, `/add-item` (Discord талаас).
+- Хэрэглэгчдийн удирдлага (role өөрчлөх, ban, premium олгох, coins өгөх).
+- Асуултын удирдлага (нэмэх, устгах, AI Generate).
+- Дэлгүүрийн бараа нэмэх/устгах.
+- Discord Announcement илгээх.
 
 ### 🧠 AI асуулт үүсгэгч
 - OpenAI API ашиглан автоматаар trivia асуулт үүсгэх

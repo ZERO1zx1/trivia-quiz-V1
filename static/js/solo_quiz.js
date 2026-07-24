@@ -8,6 +8,7 @@ let score = 0;
 let timerInterval = null;
 let timeLeft = 20;
 let userAnswers = [];
+let usedLifelines = { '5050': false, 'freeze': false, 'skip': false };
 
 // Fisher-Yates Shuffle
 function shuffleArray(arr) {
@@ -56,6 +57,18 @@ function renderQuestion() {
     document.getElementById('questionNumber').textContent = `Question ${currentQuestion + 1}/${questions.length}`;
     document.getElementById('questionText').textContent = q.question_text;
     document.getElementById('categoryLabel').textContent = q.category || 'General';
+
+    // Reset lifeline buttons state
+    document.querySelectorAll('#lifelinesContainer button').forEach(btn => {
+        const type = btn.id.replace('lifeline', '').toLowerCase();
+        if (usedLifelines[type === '5050' ? '5050' : type]) {
+            btn.disabled = true;
+            btn.style.opacity = 0.5;
+        } else {
+            btn.disabled = false;
+            btn.style.opacity = 1;
+        }
+    });
 
     const optionsContainer = document.getElementById('optionsContainer');
     optionsContainer.innerHTML = q.answers.map((a, idx) => `
@@ -148,6 +161,39 @@ async function submitAnswer(answerId) {
         currentQuestion++;
         renderQuestion();
     }
+}
+
+async function useLifeline(type) {
+    if (usedLifelines[type]) return;
+    
+    if (type === '5050') {
+        usedLifelines['5050'] = true;
+        const q = questions[currentQuestion];
+        // Get correct answer ID
+        try {
+            const resp = await apiFetch('/quiz/solo/check_answer', {
+                method: 'POST',
+                body: JSON.stringify({ question_id: q.id, answer_id: -2 }) // -2 for hint request
+            });
+            const { correct_answer_id } = resp;
+            const buttons = Array.from(document.querySelectorAll('.answer-btn'));
+            const wrongButtons = buttons.filter(btn => parseInt(btn.dataset.id) !== correct_answer_id);
+            // Hide 2 wrong answers
+            shuffleArray(wrongButtons).slice(0, 2).forEach(btn => {
+                btn.style.visibility = 'hidden';
+            });
+        } catch(e) {}
+    } else if (type === 'freeze') {
+        usedLifelines['freeze'] = true;
+        clearInterval(timerInterval);
+        document.getElementById('timerDisplay').textContent = timeLeft + 's (Frozen)';
+    } else if (type === 'skip') {
+        usedLifelines['skip'] = true;
+        currentQuestion++;
+        renderQuestion();
+    }
+    
+    document.getElementById(`lifeline${type === '5050' ? '5050' : type.charAt(0).toUpperCase() + type.slice(1)}`).disabled = true;
 }
 
 async function endGame() {

@@ -59,12 +59,12 @@ class Leaderboard(commands.Cog):
 
         await interaction.followup.send(embed=embed)
 
-    @app_commands.command(name="stats", description="View server statistics")
-    async def stats(self, interaction: discord.Interaction):
+    @app_commands.command(name="server-stats", description="View global server statistics")
+    async def server_stats(self, interaction: discord.Interaction):
         await interaction.response.defer()
         
         try:
-            async with self.bot.session.get(f"{self.bot.api_base}/stats") as resp:
+            async with self.bot.session.get(f"{self.bot.api_base}/admin/server-stats") as resp:
                 if resp.status == 200:
                     data = await resp.json()
                 else:

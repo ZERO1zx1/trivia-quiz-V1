@@ -79,6 +79,68 @@ class QuizCog(commands.Cog):
             embed = discord.Embed(title="❌ Error", description=str(e), color=0xED4245)
             await interaction.followup.send(embed=embed, ephemeral=True)
 
+    @app_commands.command(name="quiz-duel", description="Challenge another player to a 1v1 duel")
+    @app_commands.describe(opponent="User to challenge", bet="Coin bet amount")
+    async def quiz_duel(self, interaction: discord.Interaction, opponent: discord.User, bet: int = 100):
+        await interaction.response.defer()
+        
+        if opponent.id == interaction.user.id:
+            await interaction.followup.send("You cannot duel yourself!", ephemeral=True)
+            return
+            
+        embed = discord.Embed(
+            title="⚔️ Quiz Duel Challenge!",
+            description=f"{interaction.user.mention} has challenged {opponent.mention} to a quiz duel for **🪙 {bet} coins**!",
+            color=0xFFA500
+        )
+        
+        view = discord.ui.View(timeout=60)
+        accept_btn = discord.ui.Button(label="Accept", style=discord.ButtonStyle.success)
+        
+        async def accept_callback(inter):
+            if inter.user.id != opponent.id:
+                await inter.response.send_message("Only the challenged player can accept!", ephemeral=True)
+                return
+            
+            # Call backend to create a duel room
+            payload = {
+                "name": f"Duel: {interaction.user.name} vs {opponent.name}",
+                "host_discord_id": str(interaction.user.id),
+                "private": True,
+                "game_mode": "duel",
+                "bet": bet,
+                "opponent_discord_id": str(opponent.id)
+            }
+            async with self.bot.session.post(f"{self.bot.api_base}/rooms/create", json=payload) as resp:
+                if resp.status in (200, 201):
+                    data = await resp.json()
+                    room_code = data.get('code')
+                    await inter.response.send_message(f"Duel accepted! Join here: http://localhost:5000/rooms/{room_code}")
+                else:
+                    await inter.response.send_message("Failed to create duel room.", ephemeral=True)
+        
+        accept_btn.callback = accept_callback
+        view.add_item(accept_btn)
+        
+        await interaction.followup.send(embed=embed, view=view)
+
+    @app_commands.command(name="survival", description="Start a survival mode game (one wrong answer and you're out!)")
+    async def survival(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        # Similar to create-room but forced survival mode
+        payload = {
+            "name": f"{interaction.user.name}'s Survival",
+            "host_discord_id": str(interaction.user.id),
+            "game_mode": "survival",
+            "survival_lives": 1
+        }
+        async with self.bot.session.post(f"{self.bot.api_base}/rooms/create", json=payload) as resp:
+            if resp.status in (200, 201):
+                data = await resp.json()
+                await interaction.followup.send(f"Survival room created! Code: `{data.get('code')}`\nJoin: http://localhost:5000/rooms/{data.get('code')}")
+            else:
+                await interaction.followup.send("Failed to create survival room.", ephemeral=True)
+
     @app_commands.command(name="trivia", description="Quick solo trivia question")
     @app_commands.describe(category="Category (leave empty for random)")
     async def trivia(self, interaction: discord.Interaction, category: str = None):
@@ -245,6 +307,31 @@ class QuizCog(commands.Cog):
                 json={"discord_id": str(user.id), "amount": 10, "reason": "Discord trivia"}
             ) as resp:
                 pass
+
+    @app_commands.command(name="black-list", description="[Admin] Ban a user from using the bot")
+    @app_commands.describe(user="User to blacklist")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def black_list(self, interaction: discord.Interaction, user: discord.Member):
+        await interaction.response.defer(ephemeral=True)
+        async with self.bot.session.post(f"{self.bot.api_base}/admin/users/{user.id}/toggle-ban") as resp:
+            if resp.status == 200:
+                await interaction.followup.send(f"✅ Blacklist status updated for {user.mention}!", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ Failed to update blacklist status.", ephemeral=True)
+
+    @app_commands.command(name="add-item", description="[Admin] Give an item to a user")
+    @app_commands.describe(user="User to give item to", item_id="ID of the item")
+    @app_commands.checks.has_permissions(administrator=True)
+    async def add_item(self, interaction: discord.Interaction, user: discord.Member, item_id: int):
+        await interaction.response.defer(ephemeral=True)
+        # Assuming we can use the buy logic or a new admin endpoint
+        async with self.bot.session.post(f"{self.bot.api_base}/admin/give-item", json={
+            "discord_id": str(user.id), "item_id": item_id
+        }) as resp:
+            if resp.status == 200:
+                await interaction.followup.send(f"✅ Item granted to {user.mention}!", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ Failed to grant item.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(QuizCog(bot))

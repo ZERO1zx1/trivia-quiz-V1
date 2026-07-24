@@ -17,29 +17,32 @@ class Help(commands.Cog):
         commands_info = {
             "🎮 Quiz": [
                 ("`/trivia`", "Quick solo trivia question"),
+                ("`/quiz-duel`", "Challenge a player to 1v1 PvP Duel"),
+                ("`/survival`", "Start an elimination mode game"),
                 ("`/create-room`", "Create a trivia room on the website"),
                 ("`/join-room`", "Join a trivia room by code"),
             ],
-            "👤 Profile": [
+            "👤 Social & Profile": [
                 ("`/profile`", "View your or another user's profile"),
+                ("`/rep`", "Give reputation point to a user"),
+                ("`/marry`", "Propose to another user"),
                 ("`/my-rank`", "Check your leaderboard rank"),
             ],
-            "⭐ Level & XP": [
-                ("`/level`", "Check your or another user's level and XP"),
-                ("`/top`", "View top players by level"),
-                ("`/add-xp`", "[Admin] Add XP to a user"),
-            ],
-            "🏆 Leaderboard": [
-                ("`/leaderboard`", "View global leaderboard (daily/weekly/monthly/alltime)"),
-                ("`/stats`", "View server statistics"),
-            ],
-            "💰 Economy": [
+            "💰 Economy & Gamble": [
                 ("`/daily`", "Claim your daily reward"),
+                ("`/deposit`", "Put coins in bank (safe from robbery)"),
+                ("`/withdraw`", "Take coins from bank"),
+                ("`/coinflip`", "Gamble coins on a coin flip"),
+                ("`/rob`", "Attempt to steal from another user"),
                 ("`/balance`", "Check your coin balance"),
-                ("`/shop`", "Browse the TriviaVerse shop"),
+                ("`/shop`", "Browse the shop (dynamic pricing!)"),
                 ("`/buy`", "Buy an item from the shop"),
                 ("`/inventory`", "View your purchased items"),
                 ("`/equip`", "Equip an item from your inventory"),
+            ],
+            "🏆 Stats": [
+                ("`/leaderboard`", "View global leaderboard"),
+                ("`/server-stats`", "View global server statistics"),
             ],
         }
         
