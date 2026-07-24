@@ -41,22 +41,22 @@
         <div class="dashboard-grid" style="margin-bottom:24px;">
             <div class="stat-card animate-slideUp delay-1">
                 <div class="stat-card-icon blue">🏆</div>
-                <div class="stat-card-value">{{ current_user.wins }}</div>
+                <div class="stat-card-value" id="dashboardWins">{{ current_user.wins }}</div>
                 <div class="stat-card-label">Total Wins</div>
             </div>
             <div class="stat-card animate-slideUp delay-2">
                 <div class="stat-card-icon green">🎯</div>
-                <div class="stat-card-value">{{ "%.1f"|format(current_user.accuracy) }}%</div>
+                <div class="stat-card-value" id="dashboardAccuracy">{{ "%.1f"|format(current_user.accuracy) }}%</div>
                 <div class="stat-card-label">Accuracy</div>
             </div>
             <div class="stat-card animate-slideUp delay-3">
                 <div class="stat-card-icon purple">⭐</div>
-                <div class="stat-card-value">{{ current_user.level }}</div>
+                <div class="stat-card-value" id="dashboardLevel">{{ current_user.level }}</div>
                 <div class="stat-card-label">Level</div>
             </div>
             <div class="stat-card animate-slideUp delay-4">
                 <div class="stat-card-icon yellow">🪙</div>
-                <div class="stat-card-value">{{ current_user.coins }}</div>
+                <div class="stat-card-value" id="dashboardCoins">{{ current_user.coins }}</div>
                 <div class="stat-card-label">Coins</div>
             </div>
         </div>
@@ -126,7 +126,7 @@
                 <div style="background:var(--surface);border-radius:10px;height:10px;overflow:hidden;">
                     {% set xp_for_next = current_user.level * current_user.level * 100 %}
                     {% set progress = (current_user.xp / xp_for_next * 100) if xp_for_next else 0 %}
-                    <div
+                    <div class="xp-progress-fill"
                         style="width:{% if progress > 100 %}100{% else %}{{ progress }}{% endif %}%;height:100%;background:linear-gradient(90deg, var(--primary), var(--accent));border-radius:10px;">
                     </div>
                 </div>

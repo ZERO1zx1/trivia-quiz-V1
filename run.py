@@ -1,6 +1,14 @@
+"""TriviaVerse Application Entry Point"""
+import os
+from dotenv import load_dotenv
 from app import create_app, socketio
 
-app = create_app('development')
+load_dotenv()
+
+config_name = os.environ.get('FLASK_ENV', 'development')
+
+app = create_app(config_name)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    debug = config_name == 'development'
+    socketio.run(app, debug=debug, allow_unsafe_werkzeug=debug)

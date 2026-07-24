@@ -1,9 +1,12 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.user import User, DiscordAccount, Friend
 from app.models.notification import Notification
+from app.models.question import Question
+from app.models.room import Room
 from app.utils.notify import send_notification
+from app.utils.search import search_questions, search_users, search_rooms
 
 api_bp = Blueprint('api', __name__)
 
@@ -12,7 +15,6 @@ api_bp = Blueprint('api', __name__)
 # ==========================================
 @api_bp.route('/user/<discord_id>')
 def get_user(discord_id):
-    # DiscordAccount-с хэрэглэгчийг хайх
     discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
     if not discord_account or not discord_account.user:
         return jsonify({'error': 'User not found'}), 404
@@ -51,6 +53,63 @@ def api_user_stats():
         'is_online': current_user.is_online
     }
     return jsonify(stats)
+
+# ==========================================
+#  Global Search (Chapter 16)
+# ==========================================
+@api_bp.route('/search')
+@login_required
+def global_search():
+    """AJAX global search endpoint for questions, users, and rooms."""
+    query = request.args.get('q', '').strip()
+    search_type = request.args.get('type', 'all')
+    limit = request.args.get('limit', 10, type=int)
+
+    if not query:
+        return jsonify({'results': []})
+
+    results = {}
+
+    if search_type in ('all', 'questions'):
+        questions = search_questions(query, limit=limit)
+        results['questions'] = [
+            {
+                'id': q.id,
+                'text': q.question_text[:100],
+                'category': q.category.name if q.category else None,
+                'difficulty': q.difficulty
+            }
+            for q in questions
+        ]
+
+    if search_type in ('all', 'users'):
+        users = search_users(query, limit=limit)
+        results['users'] = [
+            {
+                'id': u.id,
+                'username': u.username,
+                'display_name': u.display_name,
+                'avatar_url': u.avatar_url,
+                'level': u.level
+            }
+            for u in users
+        ]
+
+    if search_type in ('all', 'rooms'):
+        rooms = search_rooms(query, limit=limit)
+        results['rooms'] = [
+            {
+                'id': r.id,
+                'name': r.name,
+                'code': r.code,
+                'status': r.status,
+                'player_count': r.max_players
+            }
+            for r in rooms
+        ]
+
+    return jsonify(results)
+
 
 # ==========================================
 #  Мэдэгдлүүд
@@ -93,7 +152,6 @@ def api_search_friends():
     discord_id = data.get('discord_id')
     username = data.get('username')
 
-    # Discord ID-аар хэрэглэгчийг олох
     current_user_discord = DiscordAccount.query.filter_by(discord_id=discord_id).first()
     if not current_user_discord or not current_user_discord.user:
         return jsonify({'error': 'Your account not found'}), 404
@@ -117,7 +175,6 @@ def api_search_friends():
     db.session.add(friendship)
     db.session.commit()
 
-    from app.utils.notify import send_notification
     send_notification(
         user_id=target.id,
         title='New Friend Request',

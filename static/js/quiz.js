@@ -14,7 +14,6 @@ function escapeHtml(text) {
 }
 
 function getSocket() {
-    // socket.io глобал socket байгаа эсэхийг шалгах
     if (typeof socket !== 'undefined') return socket;
     console.error('Socket.IO not initialized');
     return null;
@@ -37,7 +36,7 @@ function resetGameState() {
     gameState.totalQuestions = 0;
     gameState.timeLeft = 20;
     if (gameState.timerInterval) {
-        clearInterval(gameState.timerInterval);
+        cancelAnimationFrame(gameState.timerInterval);
         gameState.timerInterval = null;
     }
     gameState.answers = {};
@@ -79,8 +78,19 @@ function initQuiz(roomCode) {
         showGameOver(data);
     });
 
+    sock.off('next_question_ready').on('next_question_ready', (data) => {
+        // Server tells us next question is ready, request it
+        if (sock) {
+            sock.emit('request_question', { room_code: roomCode });
+        }
+    });
+
     sock.off('error').on('error', (err) => {
         showToast(err.message || 'An error occurred', 'error');
+    });
+
+    sock.off('player_eliminated').on('player_eliminated', (data) => {
+        showToast('A player has been eliminated!', 'warning');
     });
 
     // Request first question
@@ -228,7 +238,10 @@ function submitAnswer(answerId) {
         }
     });
 
-    const timeTaken = gameState.timeLeft ? (gameState.endTime ? (gameState.endTime - Date.now()) / 1000 : 0) : 0;
+    // time_taken = seconds elapsed since question started (NOT remaining)
+    const timeTaken = gameState.questionStartTime
+        ? (Date.now() - gameState.questionStartTime) / 1000
+        : 0;
     const sock = getSocket();
     if (sock) {
         sock.emit('submit_answer', {
@@ -243,21 +256,15 @@ function submitAnswer(answerId) {
 function showAnswerResult(data) {
     const popup = document.createElement('div');
     popup.className = 'answer-popup';
+    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);padding:32px 48px;border-radius:16px;z-index:9999;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:opacity 0.3s;';
     popup.innerHTML = `
         <div style="font-size:3rem;margin-bottom:8px;">${data.correct ? '✅' : '❌'}</div>
         <div style="font-size:1.5rem;font-weight:800;">${data.correct ? 'Correct!' : 'Wrong!'}</div>
         <div style="color:var(--text-secondary);margin-top:8px;">+${data.score_earned} points</div>
         <div style="margin-top:16px;font-size:0.9rem;">Streak: ${data.streak} 🔥</div>
+        ${data.survival_lives !== null && data.survival_lives !== undefined ? `<div style="margin-top:8px;font-size:0.9rem;">Lives: ${'❤️'.repeat(data.survival_lives)}</div>` : ''}
     `;
     document.body.appendChild(popup);
-
-    // Highlight correct/incorrect buttons
-    const buttons = document.querySelectorAll('.answer-btn');
-    buttons.forEach(btn => {
-        const btnId = parseInt(btn.dataset.id);
-        if (btnId === data.correct_answer_id) btn.classList.add('correct');
-        else if (btn.classList.contains('selected') && !data.correct) btn.classList.add('incorrect');
-    });
 
     setTimeout(() => {
         popup.style.opacity = '0';
@@ -272,11 +279,11 @@ function showRoundResults(data) {
         <div class="quiz-layout">
             <div class="quiz-main" style="text-align:center;">
                 <h2 style="margin-bottom:24px;">Round Results</h2>
-                <div style="display:flex;flex-direction:column;gap:12px;">
+                <div style="display:flex;flex-direction:column;gap:12px;max-width:500px;margin:0 auto;">
                     ${data.leaderboard.map((p, i) => `
                         <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border-radius:12px;border:${i === 0 ? '2px solid var(--warning)' : '1px solid var(--border)'};">
                             <div style="font-size:1.5rem;font-weight:800;width:40px;">#${i + 1}</div>
-                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:40px;height:40px;border-radius:50%;">
+                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:40px;height:40px;border-radius:50%;" onerror="this.src='/static/avatars/default.png'">
                             <div style="flex:1;text-align:left;">
                                 <div style="font-weight:700;">${escapeHtml(p.username)}</div>
                                 <div style="font-size:0.85rem;color:var(--text-secondary);">Streak: ${p.streak}</div>
@@ -310,7 +317,7 @@ function showGameOver(data) {
                 <div style="display:flex;justify-content:center;gap:32px;margin:32px 0;">
                     ${data.results.slice(0, 3).map((p, i) => `
                         <div style="text-align:center;">
-                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);">
+                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);" onerror="this.src='/static/avatars/default.png'">
                             <div style="font-weight:800;margin-top:8px;">${escapeHtml(p.username)}</div>
                             <div style="font-weight:700;color:var(--warning);">${p.score} pts</div>
                             <div style="font-size:0.85rem;">#${i + 1}</div>
@@ -318,7 +325,7 @@ function showGameOver(data) {
                     `).join('')}
                 </div>
 
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;">
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto;">
                     ${data.results.map((p, i) => `
                         <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-radius:12px;">
                             <span style="font-weight:800;width:30px;">#${i + 1}</span>
@@ -362,79 +369,35 @@ window.confirmLeave = function () {
     if (confirm('Are you sure you want to leave the game?')) {
         const sock = getSocket();
         if (sock) {
-            sock.emit('leave_room', { room_code: window.roomCode });
+            sock.emit('leave_game', { room_code: window.roomCode });
         }
         window.location.href = '/rooms/lobby';
     }
 };
 
-// ---------- Animations & Style ----------
-const quizStyles = document.createElement('style');
-quizStyles.textContent = `
-    @keyframes confettiFall {
-        to { transform: translateY(100vh) rotate(720deg); opacity:0; }
-    }
-    @keyframes scaleIn {
-        from { transform:translate(-50%,-50%) scale(0.8); opacity:0; }
-        to { transform:translate(-50%,-50%) scale(1); opacity:1; }
-    }
-    .answer-popup {
-        position:fixed; top:50%; left:50%;
-        transform:translate(-50%,-50%);
-        background: var(--glass-bg, rgba(255,255,255,0.1));
-        backdrop-filter: blur(16px);
-        padding:32px 48px;
-        border-radius:24px;
-        border:1px solid var(--border);
-        text-align:center;
-        z-index:100;
-        animation:scaleIn 0.3s ease;
-    }
-    .option-btn.correct {
-        background: #22c55e !important;
-        border-color: #22c55e !important;
-        color: white !important;
-    }
-    .option-btn.incorrect {
-        background: #ef4444 !important;
-        border-color: #ef4444 !important;
-        color: white !important;
-    }
-    .option-btn.selected {
-        border-color: var(--accent);
-    }
-`;
-document.head.appendChild(quizStyles);
+// ---------- Toast Notifications ----------
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    const colors = { info: '#5865F2', success: '#22C55E', warning: '#f59e0b', error: '#ef4444' };
+    toast.style.cssText = `
+        position:fixed;bottom:24px;right:24px;
+        background:${colors[type] || colors.info};color:white;
+        padding:12px 24px;border-radius:8px;
+        font-size:0.9rem;font-weight:600;
+        z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);
+        transition:opacity 0.3s;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
 
-// ---------- Error Handling ----------
-window.addEventListener('error', (e) => {
-    console.error('Quiz error:', e.error);
-    if (document.getElementById('quizLoading')) {
-        document.getElementById('quizLoading').style.display = 'none';
-    }
-    if (document.getElementById('quizError')) {
-        document.getElementById('quizError').style.display = 'block';
-    }
-});
-
-// Auto-init if roomCode is set
-if (window.roomCode) {
-    document.addEventListener('DOMContentLoaded', () => {
+// ---------- Auto-init ----------
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.roomCode !== 'undefined' && window.roomCode) {
         initQuiz(window.roomCode);
-    });
-}
-
-socket.on('level_up', (data) => {
-    if (data.user_id === window.currentUserId) {
-        showToast(`🎉 Level Up! You are now level ${data.new_level}!`, 'success');
     }
 });
-
-// quiz.js дотор тоглогчийн жагсаалтад admin товч нэмэх
-function renderPlayers(players) {
-    let adminButtons = '';
-    if (window.currentUserRole && ['admin', 'moderator', 'owner'].includes(window.currentUserRole)) {
-        adminButtons = `<button onclick="skipQuestion()">⏭️ Skip</button>
-                        <button onclick="kickPlayer('${p.user_id}')">👢 Kick</button>`;
-    }
-}

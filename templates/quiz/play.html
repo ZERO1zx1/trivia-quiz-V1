@@ -83,5 +83,12 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    // Global variables needed by quiz.js
+    window.roomCode = '{{ room.code }}';
+    window.currentUserId = {{ current_user.id }};
+    window.currentUserRole = '{{ current_user.role }}';
+    window.currentUsername = '{{ current_user.username }}';
+</script>
 <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
 {% endblock %}

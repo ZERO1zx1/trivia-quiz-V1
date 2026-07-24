@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 version: '3.8'
 services:
   web:
@@ -9,3 +10,80 @@ services:
       - DATABASE_URL=sqlite:///triviaverse.db
     volumes:
       - ./:/app
+=======
+# TriviaVerse Docker Compose (Chapter 22)
+# Full stack: App + MySQL + Nginx
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: triviaverse-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./logs:/app/logs
+      - ./instance:/app/instance
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - triviaverse-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: mysql:8.0
+    container_name: triviaverse-db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password_change_me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-triviaverse}
+      MYSQL_USER: ${MYSQL_USER:-trivia_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-trivia_password_change_me}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - triviaverse-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nginx:
+    image: nginx:alpine
+    container_name: triviaverse-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./static:/var/www/static:ro
+    depends_on:
+      - app
+    networks:
+      - triviaverse-net
+
+networks:
+  triviaverse-net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+>>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be

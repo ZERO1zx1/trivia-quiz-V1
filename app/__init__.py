@@ -176,6 +176,7 @@ def create_app(config_name='default'):
     from app.routes.quests import quests_bp
     from app.routes.user_questions import user_q_bp
     from app.routes.daily_trivia import daily_trivia_bp
+<<<<<<< HEAD
     from app.routes.premium_api import premium_api_bp
     from app.routes.fortune import fortune_bp
     from app.routes.boss_api import boss_api_bp
@@ -183,6 +184,9 @@ def create_app(config_name='default'):
     from app.routes.api_v1 import api_v1_bp
     from app.routes.language import lang_bp
     from app.routes.box_api import box_api_bp
+=======
+    from app.routes.search import search_bp
+>>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be
 
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -199,6 +203,7 @@ def create_app(config_name='default'):
     app.register_blueprint(quests_bp, url_prefix='/quests')
     app.register_blueprint(user_q_bp, url_prefix='/user-questions')
     app.register_blueprint(daily_trivia_bp, url_prefix='/daily-trivia')
+    app.register_blueprint(search_bp)
     app.register_blueprint(premium_api_bp, url_prefix='/premium')
     app.register_blueprint(fortune_bp, url_prefix='/fortune')
     app.register_blueprint(boss_api_bp, url_prefix='/boss')

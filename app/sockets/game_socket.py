@@ -18,6 +18,7 @@ def register_game_events(socketio):
 
     @socketio.on('start_game')
     def handle_start_game(data):
+        """Initialize actual game state from questions and start gameplay."""
         room_code = data.get('room_code')
         room = Room.query.filter_by(code=room_code).first()
         if not room or room.host_id != current_user.id:
@@ -98,7 +99,7 @@ def register_game_events(socketio):
         if state['game_mode'] == 'time_attack':
             time_limit = room.time_attack_duration
 
-        # ★ ХАРИУЛТУУДЫГ ХОЛИХ (shuffle) ★
+        # ХАРИУЛТУУДЫГ ХОЛИХ (shuffle)
         answers = question['answers'][:]
         random.shuffle(answers)
 
@@ -172,7 +173,7 @@ def register_game_events(socketio):
                     _end_game(socketio, room_code)
                     return
 
-        # ★ ЗӨВ ХАРИУЛТЫН ID-Г ХУВИЙН ЗУРВАСАНД ИЛГЭЭХГҮЙ ★
+        # ЗӨВ ХАРИУЛТЫН ID-Г ХУВИЙН ЗУРВАСАНД ИЛГЭЭХГҮЙ
         emit('answer_result', {
             'correct': is_correct,
             'score_earned': question_score,
@@ -220,7 +221,7 @@ def register_game_events(socketio):
                 'question_number': state['current_question'] + 1
             }, room=room_code)
 
-    # ★ АДМИН КОМАНДУУД (бүрэн ажиллагаатай) ★
+    # АДМИН КОМАНДУУД
     @socketio.on('skip_question')
     def handle_skip_question(data):
         room_code = data.get('room_code')
@@ -259,6 +260,29 @@ def register_game_events(socketio):
                 'players': [p.to_dict() for p in RoomPlayer.query.filter_by(room_id=room.id).all()]
             }, room=room_code)
             emit('kicked_from_room', {'room_code': room_code}, room=request.sid)
+
+    @socketio.on('leave_game')
+    def handle_leave_game(data):
+        """Player leaves during an active game."""
+        room_code = data.get('room_code')
+        if room_code not in game_states:
+            return
+
+        state = game_states[room_code]
+        state['eliminated'].add(current_user.id)
+
+        # Check if enough players remain
+        room = Room.query.filter_by(code=room_code).first()
+        players = RoomPlayer.query.filter_by(room_id=room.id).all()
+        remaining = [p.user_id for p in players if p.user_id not in state['eliminated']]
+        
+        if len(remaining) <= 1:
+            _end_game(socketio, room_code)
+        else:
+            emit('player_left_game', {
+                'user_id': current_user.id,
+                'username': current_user.username
+            }, room=room_code)
 
 
 def _end_game(socketio, room_code):

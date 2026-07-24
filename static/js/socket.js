@@ -124,7 +124,7 @@ function sendChat(roomCode, message) {
 
 function startGame(roomCode) {
     if (socket) {
-        socket.emit('start_game', { room_code: roomCode });
+        socket.emit('start_game_lobby', { room_code: roomCode });
     }
 }
 
