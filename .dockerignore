@@ -1,0 +1,16 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.coverage
+htmlcov
+logs/*.log
+instance/*.db
+node_modules
+.venv
+venv
+*.egg-info
+.env
+.DS_Store
+Thumbs.db

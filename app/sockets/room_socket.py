@@ -78,8 +78,13 @@ def register_room_events(socketio):
                 'all_ready': all_ready
             }, room=room_code)
 
-    @socketio.on('start_game')
+    @socketio.on('start_game_lobby')
     def handle_start_game(data):
+        """Host starts the game from the lobby. Redirects players to quiz page.
+        
+        NOTE: Renamed from 'start_game' to avoid conflict with game_socket.py's
+        'start_game' which handles actual game state initialization.
+        """
         room_code = data.get('room_code')
         room = Room.query.filter_by(code=room_code).first()
         if not room or room.host_id != current_user.id:
@@ -147,4 +152,34 @@ def register_room_events(socketio):
                 'user_id': target_id,
                 'kicked_by': current_user.username,
                 'players': [p.to_dict() for p in players]
+            }, room=room_code)
+
+    @socketio.on('leave_room')
+    def handle_leave_room(data):
+        room_code = data.get('room_code')
+        room = Room.query.filter_by(code=room_code).first()
+        if not room:
+            return
+
+        player = RoomPlayer.query.filter_by(room_id=room.id, user_id=current_user.id).first()
+        if player:
+            if room.host_id == current_user.id:
+                # Transfer host or delete room
+                next_player = RoomPlayer.query.filter(
+                    RoomPlayer.room_id == room.id,
+                    RoomPlayer.user_id != current_user.id
+                ).first()
+                if next_player:
+                    room.host_id = next_player.user_id
+                else:
+                    db.session.delete(room)
+            db.session.delete(player)
+            db.session.commit()
+
+            leave_room(room_code)
+            remaining = RoomPlayer.query.filter_by(room_id=room.id).all()
+            emit('player_left', {
+                'user_id': current_user.id,
+                'players': [p.to_dict() for p in remaining],
+                'player_count': len(remaining)
             }, room=room_code)

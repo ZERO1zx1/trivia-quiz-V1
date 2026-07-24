@@ -1,4 +1,4 @@
-"""Authentication Routes"""
+"""Authentication Routes (Chapters 3, 5, 10)"""
 import jwt
 import bleach
 import requests
@@ -7,33 +7,25 @@ from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from app.extensions import db
+from app.extensions import db, mail
 from app.models.user import User, DiscordAccount
 from app.models.achievement import Achievement, UserAchievement
+from app.utils.email import send_password_reset_email
 
 auth_bp = Blueprint('auth', __name__)
+
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard.index'))
-    
-    referral_code = request.form.get('referral_code', '').strip()
-    if referral_code:
-        referrer = User.query.filter_by(referral_code=referral_code).first()
-        if referrer:
-            new_user.referred_by = referrer.id
-            referrer.referral_count += 1
-            referrer.add_coins(100, 'Referral bonus')
-            if referrer.referral_count >= 5:
-                # Badge нээх логик
-                pass
 
     if request.method == 'POST':
         username = bleach.clean(request.form.get('username', '').strip())
         email = bleach.clean(request.form.get('email', '').strip().lower())
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
+        referral_code = request.form.get('referral_code', '').strip()
 
         if not all([username, email, password]):
             flash('All fields are required.', 'danger')
@@ -59,9 +51,20 @@ def register():
         user.set_password(password)
         user.coins = 500
 
-        db.session.add(user)
-        db.session.flush()
+        # Handle referral (after user object is created but before commit)
+        if referral_code:
+            referrer = User.query.filter_by(referral_code=referral_code).first()
+            if referrer:
+                user.referred_by = referrer.id
+                referrer.referral_count += 1
+                referrer.add_coins(100, 'Referral bonus')
+                if referrer.referral_count >= 5:
+                    send_notification_for_referrer(referrer)
 
+        db.session.add(user)
+        db.session.flush()  # Get user.id for achievements
+
+        # Assign all achievements at 0 progress
         achievements = Achievement.query.all()
         for ach in achievements:
             ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
@@ -96,6 +99,7 @@ def login():
 
             login_user(user, remember=remember)
             user.is_online = True
+            user.last_seen = datetime.utcnow()
             db.session.commit()
 
             next_page = request.args.get('next')
@@ -114,6 +118,7 @@ def login():
 @login_required
 def logout():
     current_user.is_online = False
+    current_user.last_seen = datetime.utcnow()
     db.session.commit()
     logout_user()
     flash('You have been logged out.', 'info')
@@ -139,7 +144,6 @@ def discord_callback():
         flash('Discord authentication failed.', 'danger')
         return redirect(url_for('auth.login'))
 
-    # Токен авах
     data = {
         'client_id': current_app.config['DISCORD_CLIENT_ID'],
         'client_secret': current_app.config['DISCORD_CLIENT_SECRET'],
@@ -157,7 +161,6 @@ def discord_callback():
     tokens = token_response.json()
     access_token = tokens.get('access_token')
 
-    # Хэрэглэгчийн мэдээлэл авах
     user_response = requests.get(
         'https://discord.com/api/users/@me',
         headers={'Authorization': f'Bearer {access_token}'}
@@ -202,7 +205,6 @@ def discord_callback():
     if email:
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
-            # Имэйлтэй хэрэглэгч байгаа тул түүнтэй холбох
             if not existing_user.discord_account:
                 discord_account = DiscordAccount(
                     user_id=existing_user.id,
@@ -221,7 +223,6 @@ def discord_callback():
     else:
         user_email = f"{discord_id}@discord.user"
 
-    # Хэрэглэгчийн нэрийг тохируулах
     base_username = discord_username
     username = base_username
     counter = 1
@@ -229,7 +230,6 @@ def discord_callback():
         username = f"{base_username}_{counter}"
         counter += 1
 
-    # Хэрэглэгч үүсгэх
     user = User(
         username=username,
         email=user_email,
@@ -241,7 +241,6 @@ def discord_callback():
     db.session.add(user)
     db.session.flush()
 
-    # DiscordAccount үүсгэх
     discord_account = DiscordAccount(
         user_id=user.id,
         discord_id=discord_id,
@@ -252,7 +251,6 @@ def discord_callback():
     db.session.add(discord_account)
     db.session.commit()
 
-    # Амжилтуудыг оноох
     achievements = Achievement.query.all()
     for ach in achievements:
         ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
@@ -276,19 +274,18 @@ def forgot_password():
         else:
             user = User.query.filter_by(email=email).first()
             if user:
-                pass
+                token = user.get_reset_password_token(expires_in=600)
+                send_password_reset_email(user, token)
             flash('If that email is registered, you will receive a reset link shortly.', 'info')
-            return redirect(url_for('auth.forgot_password'))
+            return redirect(url_for('auth.login'))
 
     return render_template('auth/forgot_password.html')
 
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    try:
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        user = User.query.get(payload['user_id'])
-    except:
+    user = User.verify_reset_password_token(token)
+    if not user:
         flash('Invalid or expired token.', 'danger')
         return redirect(url_for('auth.forgot_password'))
 
@@ -297,12 +294,54 @@ def reset_password(token):
         confirm = request.form.get('confirm_password')
         if password != confirm:
             flash('Passwords do not match.', 'danger')
+            return render_template('auth/reset_password.html', token=token)
         elif len(password) < 6:
             flash('Password must be at least 6 characters.', 'danger')
+            return render_template('auth/reset_password.html', token=token)
         else:
             user.set_password(password)
             db.session.commit()
             flash('Password has been reset! You can now login.', 'success')
             return redirect(url_for('auth.login'))
 
-    return render_template('auth/reset_password.html')
+    return render_template('auth/reset_password.html', token=token)
+
+
+@auth_bp.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Allow logged-in users to change their password from settings page."""
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not current_user.check_password(current_password):
+        flash('Current password is incorrect.', 'danger')
+        return redirect(url_for('account.settings'))
+
+    if new_password != confirm_password:
+        flash('New passwords do not match.', 'danger')
+        return redirect(url_for('account.settings'))
+
+    if len(new_password) < 6:
+        flash('Password must be at least 6 characters.', 'danger')
+        return redirect(url_for('account.settings'))
+
+    current_user.set_password(new_password)
+    db.session.commit()
+    flash('Password changed successfully!', 'success')
+    return redirect(url_for('account.settings'))
+
+
+def send_notification_for_referrer(referrer):
+    """Send notification when referrer reaches 5 referrals."""
+    try:
+        from app.utils.notify import send_notification
+        send_notification(
+            user_id=referrer.id,
+            title='Referral Milestone! 🎉',
+            message=f'You\'ve referred {referrer.referral_count} players! Badge unlocked!',
+            notif_type='success'
+        )
+    except Exception:
+        pass

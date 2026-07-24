@@ -109,7 +109,7 @@
     // Start game товч
     function startGame(roomCode) {
         if (typeof socket !== 'undefined' && socket) {
-            socket.emit('start_game', { room_code: roomCode });
+            socket.emit('start_game_lobby', { room_code: roomCode });
         }
     }
 </script>

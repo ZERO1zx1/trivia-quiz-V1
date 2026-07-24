@@ -1,6 +1,3 @@
-// Socket.IO холболт (notifications namespace)
-const notifSocket = io('/notifications');
-
 // =============================================
 //  TriviaVerse Core Application Script
 // =============================================
@@ -11,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('sidebarToggle');
 
     if (sidebarToggle && sidebar) {
-        // Хадгалагдсан төлөв
         const savedState = localStorage.getItem('sidebarCollapsed');
         if (savedState === 'true') {
             sidebar.classList.add('collapsed');
@@ -30,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sidebar.classList.toggle('open');
         });
 
-        // Гадна дархад хаах
         document.addEventListener('click', (e) => {
             if (window.innerWidth <= 768) {
                 if (!sidebar.contains(e.target) && e.target !== mobileSidebarToggle) {
@@ -40,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Цонхны хэмжээ өөрчлөгдөхөд mobile sidebar хаах
     window.addEventListener('resize', () => {
         if (window.innerWidth > 768 && sidebar) {
             sidebar.classList.remove('open');
@@ -197,7 +191,9 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
-// Mobile Sidebar Toggle
+// ==================================
+//  Mobile Sidebar
+// ==================================
 const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.createElement('div');
@@ -232,49 +228,54 @@ function escapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
+// ==================================
+//  Mini Chat
+// ==================================
 let miniChatUser = null;
 
 window.openMiniChat = function(userId, username) {
     miniChatUser = {id: userId, name: username};
-    document.getElementById('miniChatTitle').textContent = '💬 ' + username;
-    document.getElementById('miniChat').classList.remove('hidden');
-    document.getElementById('miniChatMessages').innerHTML = '';
+    const titleEl = document.getElementById('miniChatTitle');
+    if (titleEl) titleEl.textContent = '💬 ' + username;
+    const chatEl = document.getElementById('miniChat');
+    if (chatEl) chatEl.classList.remove('hidden');
+    const msgEl = document.getElementById('miniChatMessages');
+    if (msgEl) msgEl.innerHTML = '';
 };
 
 window.closeMiniChat = function() {
-    document.getElementById('miniChat').classList.add('hidden');
+    const chatEl = document.getElementById('miniChat');
+    if (chatEl) chatEl.classList.add('hidden');
     miniChatUser = null;
 };
 
 window.toggleMiniChat = function() {
-    document.getElementById('miniChat').classList.toggle('hidden');
+    const chatEl = document.getElementById('miniChat');
+    if (chatEl) chatEl.classList.toggle('hidden');
 };
 
 window.sendMiniChat = function() {
     const input = document.getElementById('miniChatInput');
+    if (!input) return;
     const msg = input.value.trim();
     if (!msg || !miniChatUser) return;
-    socket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
-    // Өөрийн мессежийг нэмэх
+    // Use the global socket if available
+    if (typeof socket !== 'undefined' && socket) {
+        socket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
+    }
     appendMiniChatMessage('You', msg, true);
     input.value = '';
 };
 
 function appendMiniChatMessage(sender, message, isSelf) {
     const container = document.getElementById('miniChatMessages');
+    if (!container) return;
     const div = document.createElement('div');
     div.style.cssText = `text-align:${isSelf ? 'right' : 'left'}; margin-bottom:8px;`;
     div.innerHTML = `<div style="display:inline-block; padding:8px 12px; border-radius:12px; background:${isSelf ? 'var(--primary)' : 'var(--surface)'}; max-width:80%;">
-        <div style="font-size:0.8rem; font-weight:600;">${sender}</div>
-        <div>${message}</div>
+        <div style="font-size:0.8rem; font-weight:600;">${escapeHtml(sender)}</div>
+        <div>${escapeHtml(message)}</div>
     </div>`;
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
 }
-
-// Socket event
-socket.on('direct_message', (data) => {
-    if (miniChatUser && data.from_user_id === miniChatUser.id) {
-        appendMiniChatMessage(data.from_username, data.message, false);
-    }
-});

@@ -1,8 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.user_question import UserQuestion
-from app.models.question import Question, Answer
+from app.models.question import Question, Answer, Category
+from app.models.room import Room
 
 user_q_bp = Blueprint('user_questions', __name__)
 
@@ -37,28 +38,51 @@ def submit_question():
         flash('Question submitted! It will be reviewed by an admin.', 'success')
         return redirect(url_for('dashboard.index'))
 
-    from app.models.question import Category
     categories = Category.query.filter_by(is_active=True).all()
     return render_template('questions/submit.html', categories=categories)
 
 @user_q_bp.route('/create-quiz', methods=['POST'])
 @login_required
 def create_quiz():
+    """Create a custom quiz room from user-submitted questions."""
     data = request.json
-    # Шинэ өрөө үүсгэх, асуултуудыг хадгалах
-    room_code = Room.generate_unique_code()
-    room = Room(name='Custom Quiz', code=room_code, host_id=current_user.id, is_private=True)
+    if not data or 'questions' not in data:
+        return jsonify({'error': 'No questions provided'}), 400
+
+    # Generate unique room code
+    import random, string
+    while True:
+        code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        if not Room.query.filter_by(code=code).first():
+            break
+
+    room = Room(
+        name='Custom Quiz',
+        code=code,
+        host_id=current_user.id,
+        is_private=True,
+        max_players=data.get('max_players', 8),
+        question_count=len(data['questions']),
+        game_mode='classic',
+        status='waiting'
+    )
     db.session.add(room)
     db.session.flush()
-    
+
     for item in data['questions']:
-        q = Question(question_text=item['text'], difficulty='custom', category_id=1)
+        q = Question(
+            question_text=item['text'],
+            difficulty='custom',
+            category_id=item.get('category_id', 1),
+            question_type='multiple_choice',
+            is_active=True
+        )
         db.session.add(q)
         db.session.flush()
         db.session.add(Answer(question_id=q.id, answer_text=item['correct'], is_correct=True))
-        db.session.add(Answer(question_id=q.id, answer_text=item['wrong1'], is_correct=False))
-        # ... wrong2, wrong3
-        # Асуултыг өрөөнд холбох (RoomQuestion загвар хэрэгтэй, эсвэл room.question_count-г тохируулах)
-    
+        db.session.add(Answer(question_id=q.id, answer_text=item.get('wrong1', ''), is_correct=False))
+        db.session.add(Answer(question_id=q.id, answer_text=item.get('wrong2', ''), is_correct=False))
+        db.session.add(Answer(question_id=q.id, answer_text=item.get('wrong3', ''), is_correct=False))
+
     db.session.commit()
-    return jsonify({'quiz_code': room_code})
+    return jsonify({'quiz_code': code})

@@ -85,6 +85,7 @@ def create_app(config_name='default'):
     from app.routes.quests import quests_bp
     from app.routes.user_questions import user_q_bp
     from app.routes.daily_trivia import daily_trivia_bp
+    from app.routes.search import search_bp
 
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -101,6 +102,7 @@ def create_app(config_name='default'):
     app.register_blueprint(quests_bp, url_prefix='/quests')
     app.register_blueprint(user_q_bp, url_prefix='/user-questions')
     app.register_blueprint(daily_trivia_bp, url_prefix='/daily-trivia')
+    app.register_blueprint(search_bp)
     app.register_blueprint(premium_api_bp, url_prefix='/premium')
     app.register_blueprint(fortune_bp, url_prefix='/fortune')
     app.register_blueprint(boss_api_bp, url_prefix='/boss')

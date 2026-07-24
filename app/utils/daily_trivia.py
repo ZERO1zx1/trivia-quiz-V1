@@ -1,9 +1,14 @@
+"""Daily Trivia Utilities (Chapter 21)"""
 from datetime import date
 from app.models.question import Question
 
+
 def get_daily_questions(category_id=None, count=10):
+    """Get questions for today's daily trivia.
+    Uses a deterministic seed based on the date so all users get the same questions.
+    Returns list of Question objects (route handles serialization).
+    """
     today = date.today()
-    # Өдрийн асуултуудыг тодорхой seed-ээр сонгох (өдөр бүр ижил)
     import random
     random.seed(today.toordinal())
     
@@ -11,9 +16,9 @@ def get_daily_questions(category_id=None, count=10):
     if category_id:
         query = query.filter_by(category_id=category_id)
     
-    all_ids = [q.id for q in query.all()]
-    if len(all_ids) < count:
-        count = len(all_ids)
-    selected_ids = random.sample(all_ids, count)
+    all_questions = query.all()
+    if len(all_questions) < count:
+        count = len(all_questions)
     
-    return Question.query.filter(Question.id.in_(selected_ids)).all()
+    selected = random.sample(all_questions, count)
+    return selected

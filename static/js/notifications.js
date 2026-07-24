@@ -7,7 +7,9 @@ const notifSocket = io('/notifications');
 
 notifSocket.on('new_notification', (data) => {
     // Toast харуулах
-    showToast(data.title + ': ' + (data.message || ''), data.type || 'info');
+    if (typeof showToast === 'function') {
+        showToast(data.title + ': ' + (data.message || ''), data.type || 'info');
+    }
     // Badge шинэчлэх
     updateNotifBadge();
 });
@@ -99,22 +101,31 @@ function typeToIcon(type) {
 
 function formatTime(isoString) {
     if (!isoString) return '';
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHrs = Math.floor(diffMins / 60);
-    if (diffHrs < 24) return `${diffHrs}h ago`;
-    return date.toLocaleDateString();
+    try {
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        const diffHrs = Math.floor(diffMins / 60);
+        if (diffHrs < 24) return `${diffHrs}h ago`;
+        return date.toLocaleDateString();
+    } catch {
+        return '';
+    }
 }
 
 // Уншсан болгох
 async function markAsRead(notifId) {
     try {
-        await fetch(`/api/notifications/${notifId}/read`, { method: 'POST' });
-        // Дэлгэц шинэчлэх
+        await fetch(`/api/notifications/${notifId}/read`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
         loadNotifications();
         updateNotifBadge();
     } catch (e) {
@@ -125,12 +136,34 @@ async function markAsRead(notifId) {
 // Бүгдийг уншсан болгох
 async function markAllRead() {
     try {
-        await fetch('/api/notifications/read-all', { method: 'POST' });
+        await fetch('/api/notifications/read-all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
         loadNotifications();
         updateNotifBadge();
     } catch (e) {
         console.error('Mark all read error:', e);
     }
+}
+
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) return meta.getAttribute('content');
+    return '';
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 // Хуудас ачааллахад badge-г шинэчлэх

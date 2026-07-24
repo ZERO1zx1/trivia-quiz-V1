@@ -18,7 +18,7 @@
                 </svg>
                 Change Password
             </h3>
-            <form method="POST" action="{{ url_for('account.change_password') }}">
+            <form method="POST" action="{{ url_for('auth.change_password') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group" style="margin-bottom:16px;">
                     <label style="display:block;margin-bottom:8px;font-weight:600;">Current Password</label>
@@ -93,20 +93,21 @@
                 </svg>
                 Notification Preferences
             </h3>
-            <form method="POST" action="{{ url_for('account.update_preferences') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                    <input type="checkbox" name="email_notifications" {% if
-                        current_user.email_notifications|default(True) %}checked{% endif %}>
-                    <span>Receive email notifications (game invites, friend requests)</span>
-                </label>
-                <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                    <input type="checkbox" name="friend_requests_notifications" {% if
-                        current_user.friend_requests_notifications|default(True) %}checked{% endif %}>
-                    <span>Friend request notifications</span>
-                </label>
-                <button type="submit" class="btn btn-primary btn-full">Save Preferences</button>
-            </form>
+            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <input type="checkbox" id="emailNotifs" {% if
+                    current_user.email_notifications|default(True) %}checked{% endif %}
+                    onchange="updatePrefSetting('email_notifications', this.checked)">
+                <span>Receive email notifications (game invites, friend requests)</span>
+            </label>
+            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                <input type="checkbox" id="friendNotifs" {% if
+                    current_user.friend_requests_notifications|default(True) %}checked{% endif %}
+                    onchange="updatePrefSetting('friend_requests_notifications', this.checked)">
+                <span>Friend request notifications</span>
+            </label>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">
+                Preferences are saved automatically when toggled.
+            </div>
         </div>
     </div>
 
@@ -195,6 +196,17 @@
             body: JSON.stringify({ [key]: value })
         }).then(r => r.json()).then(data => {
             if (data.success) showToast('Setting updated!', 'success');
+        });
+    }
+
+    // Notification preferences
+    function updatePrefSetting(key, value) {
+        fetch('/account/update-game-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+            body: JSON.stringify({ [key]: value })
+        }).then(r => r.json()).then(data => {
+            if (data.success) showToast('Preference updated!', 'success');
         });
     }
 
