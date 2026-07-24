@@ -20,14 +20,13 @@ def create_app(config_name='default'):
     babel = Babel(app)
 
     def get_locale():
-        print("SESSION:", session.get('language'))
-        print("USER:", current_user.language if current_user.is_authenticated else 'not logged in')
-        # Түр хатуу код:
-        # return 'mn'
+        # Сессээс шалгах
         if 'language' in session:
             return session['language']
+        # Нэвтэрсэн хэрэглэгчийн тохиргоо
         if current_user.is_authenticated and current_user.language:
             return current_user.language
+        # Браузерын тохиргоо
         return request.accept_languages.best_match(['en', 'mn'])
 
     def get_timezone():
@@ -37,19 +36,20 @@ def create_app(config_name='default'):
 
     babel.init_app(app, locale_selector=get_locale, timezone_selector=get_timezone)
 
-
     # Jinja2-д _ функцийг глобал болгох
     app.jinja_env.globals['_'] = _
 
     # ================= LOG SETUP =================
     if not os.path.exists('logs'):
         os.makedirs('logs')
-    file_handler = RotatingFileHandler('logs/triviaverse.log', maxBytes=10240, backupCount=10)
-    file_handler.setFormatter(logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    ))
-    file_handler.setLevel(logging.INFO)
-    app.logger.addHandler(file_handler)
+    # Debug горимд лог эргэлт хийхгүй (PermissionError-с зайлсхийх)
+    if not app.debug:
+        file_handler = RotatingFileHandler('logs/triviaverse.log', maxBytes=10240, backupCount=10)
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
 
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.INFO)
@@ -176,7 +176,6 @@ def create_app(config_name='default'):
     from app.routes.quests import quests_bp
     from app.routes.user_questions import user_q_bp
     from app.routes.daily_trivia import daily_trivia_bp
-<<<<<<< HEAD
     from app.routes.premium_api import premium_api_bp
     from app.routes.fortune import fortune_bp
     from app.routes.boss_api import boss_api_bp
@@ -184,9 +183,7 @@ def create_app(config_name='default'):
     from app.routes.api_v1 import api_v1_bp
     from app.routes.language import lang_bp
     from app.routes.box_api import box_api_bp
-=======
-    from app.routes.search import search_bp
->>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be
+    # from app.routes.search import search_bp   # Одоогоор файл байхгүй тул тайлбарласан
 
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -203,7 +200,6 @@ def create_app(config_name='default'):
     app.register_blueprint(quests_bp, url_prefix='/quests')
     app.register_blueprint(user_q_bp, url_prefix='/user-questions')
     app.register_blueprint(daily_trivia_bp, url_prefix='/daily-trivia')
-    app.register_blueprint(search_bp)
     app.register_blueprint(premium_api_bp, url_prefix='/premium')
     app.register_blueprint(fortune_bp, url_prefix='/fortune')
     app.register_blueprint(boss_api_bp, url_prefix='/boss')
@@ -211,6 +207,7 @@ def create_app(config_name='default'):
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(lang_bp)
     app.register_blueprint(box_api_bp, url_prefix='/box')
+    # app.register_blueprint(search_bp)
 
     return app
 

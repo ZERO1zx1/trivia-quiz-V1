@@ -94,7 +94,6 @@
                 </svg>
                 {{ _('Notification Preferences') }}
             </h3>
-<<<<<<< HEAD
             <form method="POST" action="{{ url_for('account.update_preferences') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
@@ -109,23 +108,19 @@
                 </label>
                 <button type="submit" class="btn btn-primary btn-full">{{ _('Save Preferences') }}</button>
             </form>
-=======
             <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <input type="checkbox" id="emailNotifs" {% if
-                    current_user.email_notifications|default(True) %}checked{% endif %}
-                    onchange="updatePrefSetting('email_notifications', this.checked)">
+                <input type="checkbox" id="emailNotifs" {% if current_user.email_notifications|default(True) %}checked{%
+                    endif %} onchange="updatePrefSetting('email_notifications', this.checked)">
                 <span>Receive email notifications (game invites, friend requests)</span>
             </label>
             <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <input type="checkbox" id="friendNotifs" {% if
-                    current_user.friend_requests_notifications|default(True) %}checked{% endif %}
-                    onchange="updatePrefSetting('friend_requests_notifications', this.checked)">
+                <input type="checkbox" id="friendNotifs" {% if current_user.friend_requests_notifications|default(True)
+                    %}checked{% endif %} onchange="updatePrefSetting('friend_requests_notifications', this.checked)">
                 <span>Friend request notifications</span>
             </label>
             <div style="font-size:0.8rem; color:var(--text-secondary);">
                 Preferences are saved automatically when toggled.
             </div>
->>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be
         </div>
     </div>
 
