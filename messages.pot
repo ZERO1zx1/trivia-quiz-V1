@@ -1,0 +1,228 @@
+# Translations template for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-07-24 09:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: templates/account/settings.html:3 templates/account/settings.html:6
+#: templates/layouts/base.html:139 templates/layouts/base.html:235
+msgid "Settings"
+msgstr ""
+
+#: templates/account/settings.html:19
+msgid "Change Password"
+msgstr ""
+
+#: templates/account/settings.html:24
+msgid "Current Password"
+msgstr ""
+
+#: templates/account/settings.html:29
+msgid "New Password"
+msgstr ""
+
+#: templates/account/settings.html:34
+msgid "Confirm New Password"
+msgstr ""
+
+#: templates/account/settings.html:39
+msgid "Update Password"
+msgstr ""
+
+#: templates/account/settings.html:50
+msgid "Discord Integration"
+msgstr ""
+
+#: templates/account/settings.html:58
+msgid "Connected"
+msgstr ""
+
+#: templates/account/settings.html:66
+msgid "Show game activity as Discord Rich Presence"
+msgstr ""
+
+#: templates/account/settings.html:71
+msgid "Receive Discord DM notifications"
+msgstr ""
+
+#: templates/account/settings.html:74
+msgid "Reconnect Discord"
+msgstr ""
+
+#: templates/account/settings.html:79
+msgid ""
+"Link your Discord account for\n"
+"                    additional features"
+msgstr ""
+
+#: templates/account/settings.html:81
+msgid ""
+"Link Discord\n"
+"                    Account"
+msgstr ""
+
+#: templates/account/settings.html:95
+msgid "Notification Preferences"
+msgstr ""
+
+#: templates/account/settings.html:102
+msgid "Receive email notifications (game invites, friend requests)"
+msgstr ""
+
+#: templates/account/settings.html:107
+msgid "Friend request notifications"
+msgstr ""
+
+#: templates/account/settings.html:109
+msgid "Save Preferences"
+msgstr ""
+
+#: templates/account/settings.html:124
+msgid "Gameplay Settings"
+msgstr ""
+
+#: templates/account/settings.html:127
+msgid "Preferred Difficulty"
+msgstr ""
+
+#: templates/account/settings.html:132
+msgid "Mixed"
+msgstr ""
+
+#: templates/account/settings.html:134
+msgid "Easy"
+msgstr ""
+
+#: templates/account/settings.html:136
+msgid "Medium"
+msgstr ""
+
+#: templates/account/settings.html:138
+msgid "Hard"
+msgstr ""
+
+#: templates/account/settings.html:144
+msgid "Performance Mode"
+msgstr ""
+
+#: templates/account/settings.html:147
+msgid "Disables animations and effects for smoother gameplay"
+msgstr ""
+
+#: templates/account/settings.html:160
+msgid "Theme"
+msgstr ""
+
+#: templates/account/settings.html:166
+msgid "Dark Mode"
+msgstr ""
+
+#: templates/account/settings.html:171
+msgid "Light Mode"
+msgstr ""
+
+#: templates/account/settings.html:183
+msgid "Language"
+msgstr ""
+
+#: templates/account/settings.html:205 templates/account/settings.html:216
+msgid "Setting updated!"
+msgstr ""
+
+#: templates/layouts/base.html:39
+msgid "Main"
+msgstr ""
+
+#: templates/layouts/base.html:49
+msgid "Dashboard"
+msgstr ""
+
+#: templates/layouts/base.html:60
+msgid "Play"
+msgstr ""
+
+#: templates/layouts/base.html:73
+msgid "Leaderboard"
+msgstr ""
+
+#: templates/layouts/base.html:79
+msgid "Items"
+msgstr ""
+
+#: templates/layouts/base.html:88 templates/layouts/base.html:234
+msgid "Shop"
+msgstr ""
+
+#: templates/layouts/base.html:99 templates/layouts/base.html:233
+msgid "Inventory"
+msgstr ""
+
+#: templates/layouts/base.html:105
+msgid "Social"
+msgstr ""
+
+#: templates/layouts/base.html:115
+msgid "Friends"
+msgstr ""
+
+#: templates/layouts/base.html:121
+msgid "Account"
+msgstr ""
+
+#: templates/layouts/base.html:129 templates/layouts/base.html:232
+msgid "Profile"
+msgstr ""
+
+#: templates/layouts/base.html:146
+msgid "Admin"
+msgstr ""
+
+#: templates/layouts/base.html:155
+msgid "Admin Panel"
+msgstr ""
+
+#: templates/layouts/base.html:168
+msgid "Level"
+msgstr ""
+
+#: templates/layouts/base.html:192
+msgid "Search players, rooms, questions..."
+msgstr ""
+
+#: templates/layouts/base.html:216
+msgid "Notifications"
+msgstr ""
+
+#: templates/layouts/base.html:217
+msgid "Mark all read"
+msgstr ""
+
+#: templates/layouts/base.html:237
+msgid "Logout"
+msgstr ""
+
+#: templates/layouts/base.html:265
+msgid "Chat"
+msgstr ""
+
+#: templates/layouts/base.html:272
+msgid "Type a message..."
+msgstr ""
+
+#: templates/layouts/base.html:275
+msgid "Send"
+msgstr ""
+

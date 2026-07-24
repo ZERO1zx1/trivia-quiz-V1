@@ -41,6 +41,8 @@ class User(UserMixin, db.Model):
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     last_daily_reward = db.Column(db.DateTime)
     last_fortune_spin = db.Column(db.DateTime, nullable=True)
+    language = db.Column(db.String(5), default='en')   # 'en', 'mn'
+    timezone = db.Column(db.String(50), default='UTC')
 
     # Нийгмийн харилцаа
     respect_count = db.Column(db.Integer, default=0)
@@ -188,6 +190,18 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'display_name': self.display_name,
+            'avatar_url': self.avatar_url,
+            'level': self.level,
+            'coins': self.coins,
+            'role': self.role,
+            'is_premium': self.is_premium
+        }
 
 
 class DiscordAccount(db.Model):

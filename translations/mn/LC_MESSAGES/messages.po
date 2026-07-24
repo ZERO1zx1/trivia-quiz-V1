@@ -1,0 +1,174 @@
+# Mongolian translations for PROJECT.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-07-24 09:29+0800\n"
+"PO-Revision-Date: 2026-07-24 07:48+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: mn\n"
+"Language-Team: mn <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: templates/account/settings.html:3 templates/account/settings.html:6
+#: templates/layouts/base.html:139 templates/layouts/base.html:235
+msgid "Main"
+msgstr "Үндсэн"
+
+msgid "Dashboard"
+msgstr "Хянах самбар"
+
+msgid "Play"
+msgstr "Тоглох"
+
+msgid "Leaderboard"
+msgstr "Тэргүүлэгчид"
+
+msgid "Items"
+msgstr "Зүйлс"
+
+msgid "Shop"
+msgstr "Дэлгүүр"
+
+msgid "Inventory"
+msgstr "Цуглуулга"
+
+msgid "Social"
+msgstr "Нийгмийн"
+
+msgid "Friends"
+msgstr "Найзууд"
+
+msgid "Account"
+msgstr "Бүртгэл"
+
+msgid "Profile"
+msgstr "Профайл"
+
+msgid "Settings"
+msgstr "Тохиргоо"
+
+msgid "Admin"
+msgstr "Админ"
+
+msgid "Admin Panel"
+msgstr "Админ хэсэг"
+
+msgid "Level"
+msgstr "Түвшин"
+
+msgid "Search players, rooms, questions..."
+msgstr "Тоглогч, өрөө, асуулт хайх..."
+
+msgid "Notifications"
+msgstr "Мэдэгдэл"
+
+msgid "Mark all read"
+msgstr "Бүгдийг уншсан"
+
+msgid "Logout"
+msgstr "Гарах"
+
+msgid "Chat"
+msgstr "Чат"
+
+msgid "Type a message..."
+msgstr "Мессеж бичих..."
+
+msgid "Send"
+msgstr "Илгээх"
+
+msgid "Change Password"
+msgstr "Нууц үг солих"
+
+msgid "Current Password"
+msgstr "Одоогийн нууц үг"
+
+msgid "New Password"
+msgstr "Шинэ нууц үг"
+
+msgid "Confirm New Password"
+msgstr "Шинэ нууц үгээ давтах"
+
+msgid "Update Password"
+msgstr "Нууц үг шинэчлэх"
+
+msgid "Discord Integration"
+msgstr "Discord холболт"
+
+msgid "Connected"
+msgstr "Холбогдсон"
+
+msgid "Show game activity as Discord Rich Presence"
+msgstr "Тоглоомын үйл ажиллагааг Discord дээр харуулах"
+
+msgid "Receive Discord DM notifications"
+msgstr "Discord хувийн мессежээр мэдэгдэл авах"
+
+msgid "Reconnect Discord"
+msgstr "Discord-той дахин холбогдох"
+
+msgid "Link your Discord account for additional features"
+msgstr "Нэмэлт боломжуудыг авахын тулд Discord бүртгэлээ холбоно уу"
+
+msgid "Link Discord Account"
+msgstr "Discord бүртгэл холбох"
+
+msgid "Notification Preferences"
+msgstr "Мэдэгдлийн тохиргоо"
+
+msgid "Receive email notifications (game invites, friend requests)"
+msgstr "Имэйл мэдэгдэл авах (тоглоомын урилга, найзын хүсэлт)"
+
+msgid "Friend request notifications"
+msgstr "Найзын хүсэлтийн мэдэгдэл"
+
+msgid "Save Preferences"
+msgstr "Тохиргоог хадгалах"
+
+msgid "Gameplay Settings"
+msgstr "Тоглоомын тохиргоо"
+
+msgid "Preferred Difficulty"
+msgstr "Хүссэн хүндрэл"
+
+msgid "Mixed"
+msgstr "Холимог"
+
+msgid "Easy"
+msgstr "Хялбар"
+
+msgid "Medium"
+msgstr "Дундаж"
+
+msgid "Hard"
+msgstr "Хэцүү"
+
+msgid "Performance Mode"
+msgstr "Гүйцэтгэлийн горим"
+
+msgid "Disables animations and effects for smoother gameplay"
+msgstr "Анимейшн болон эффектүүдийг унтрааж, тоглоомыг жигд болгоно"
+
+msgid "Theme"
+msgstr "Загвар"
+
+msgid "Dark Mode"
+msgstr "Харанхуй горим"
+
+msgid "Light Mode"
+msgstr "Гэрэлтэй горим"
+
+msgid "Language"
+msgstr "Хэл"
+
+msgid "Setting updated!"
+msgstr "Тохиргоо шинэчлэгдлээ!"

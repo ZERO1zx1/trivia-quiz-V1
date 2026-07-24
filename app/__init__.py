@@ -2,25 +2,44 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
-from flask import Flask
+from flask import Flask, request, session, redirect, url_for, flash, render_template
 from config import config
 from .extensions import db, socketio
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.routes.premium_api import premium_api_bp
 from app.utils.scheduler import check_expired_premium
-from app.routes.fortune import fortune_bp
-from app.routes.boss_api import boss_api_bp
-from app.extensions import limiter, cors
-from app.routes.user_api import user_api_bp
 from flask_login import logout_user, current_user
-from flask import Flask, request, redirect, url_for, flash, render_template
+from flask_babel import Babel, _
 
 def create_app(config_name='default'):
     app = Flask(__name__,
                 template_folder='../templates',
                 static_folder='../static')
     app.config.from_object(config[config_name])
-    app.jinja_env.globals.update(min=min, max=max)
+
+    # ================= BABEL (Олон хэл) =================
+    babel = Babel(app)
+
+    def get_locale():
+        print("SESSION:", session.get('language'))
+        print("USER:", current_user.language if current_user.is_authenticated else 'not logged in')
+        # Түр хатуу код:
+        # return 'mn'
+        if 'language' in session:
+            return session['language']
+        if current_user.is_authenticated and current_user.language:
+            return current_user.language
+        return request.accept_languages.best_match(['en', 'mn'])
+
+    def get_timezone():
+        if current_user.is_authenticated and current_user.timezone:
+            return current_user.timezone
+        return 'UTC'
+
+    babel.init_app(app, locale_selector=get_locale, timezone_selector=get_timezone)
+
+
+    # Jinja2-д _ функцийг глобал болгох
+    app.jinja_env.globals['_'] = _
 
     # ================= LOG SETUP =================
     if not os.path.exists('logs'):
@@ -41,17 +60,17 @@ def create_app(config_name='default'):
     # ================= EXTENSIONS INIT =================
     async_mode = app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
     cors_origins = app.config.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config.get('CORS_ORIGINS', '*')}})
-    limiter.init_app(app)
 
-    from app.extensions import db, migrate, login_manager, socketio, csrf
+    from app.extensions import db, migrate, login_manager, socketio, csrf, cors, limiter
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     socketio.init_app(app, async_mode=async_mode, cors_allowed_origins=cors_origins)
     csrf.init_app(app)
+    cors.init_app(app, resources={r"/api/*": {"origins": cors_origins}})
+    limiter.init_app(app)
 
-    # Premium хугацаа дууссан хэрэглэгчдийг шалгах төлөвлөгч
+    # Premium хугацаа шалгах төлөвлөгч
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=lambda: check_expired_premium(app),
@@ -69,7 +88,79 @@ def create_app(config_name='default'):
                 flash('Your account has been suspended.', 'danger')
                 return redirect(url_for('auth.login'))
 
-    # ================= BLUEPRINTS (бүгдийг энд импортлох) =================
+    # ================= MAIL =================
+    from app.extensions import mail
+    mail.init_app(app)
+
+    # ================= SOCKET EVENTS =================
+    from app.sockets.room_socket import register_room_events
+    from app.sockets.game_socket import register_game_events
+    from app.sockets.notification_socket import register_notification_events
+    register_room_events(socketio)
+    register_game_events(socketio)
+    register_notification_events(socketio)
+
+    # ================= DATABASE & SEEDING + OWNER SETUP =================
+    with app.app_context():
+        db.create_all()
+        _seed_categories()
+        _seed_achievements()
+
+        from app.models.user import User, DiscordAccount
+
+        owner_username = app.config.get('OWNER_USERNAME')
+        owner_discord_id = app.config.get('OWNER_DISCORD_ID')
+        owner_email = app.config.get('OWNER_EMAIL')
+
+        user = None
+
+        if owner_username:
+            user = User.query.filter_by(username=owner_username).first()
+        if not user and owner_discord_id:
+            discord_acc = DiscordAccount.query.filter_by(discord_id=owner_discord_id).first()
+            if discord_acc and discord_acc.user:
+                user = discord_acc.user
+        if not user and owner_email:
+            user = User.query.filter_by(email=owner_email).first()
+
+        if user and user.role != 'owner':
+            user.role = 'owner'
+            user.is_admin = True
+            user.is_premium = True
+            db.session.commit()
+            app.logger.info(f"User {user.username} set as owner.")
+
+    # ================= FLASK-LOGIN =================
+    from app.models.user import User
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        flash('Please log in to access this page.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # ================= GLOBAL TEMPLATE VARIABLES =================
+    @app.context_processor
+    def inject_globals():
+        return {
+            'app_name': 'TriviaVerse',
+            'current_year': 2026,
+            'current_user': current_user
+        }
+
+    # ================= ERROR HANDLERS =================
+    @app.errorhandler(404)
+    def not_found(error):
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()
+        return render_template('errors/500.html'), 500
+
+    # ================= BLUEPRINTS =================
     from app.routes.home import home_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
@@ -85,6 +176,13 @@ def create_app(config_name='default'):
     from app.routes.quests import quests_bp
     from app.routes.user_questions import user_q_bp
     from app.routes.daily_trivia import daily_trivia_bp
+    from app.routes.premium_api import premium_api_bp
+    from app.routes.fortune import fortune_bp
+    from app.routes.boss_api import boss_api_bp
+    from app.routes.user_api import user_api_bp
+    from app.routes.api_v1 import api_v1_bp
+    from app.routes.language import lang_bp
+    from app.routes.box_api import box_api_bp
 
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -105,90 +203,9 @@ def create_app(config_name='default'):
     app.register_blueprint(fortune_bp, url_prefix='/fortune')
     app.register_blueprint(boss_api_bp, url_prefix='/boss')
     app.register_blueprint(user_api_bp, url_prefix='/api/user')
-
-
-    # ================= MAIL =================
-    from app.extensions import mail
-    mail.init_app(app)
-
-    # ================= SOCKET EVENTS =================
-    from app.sockets.room_socket import register_room_events
-    from app.sockets.game_socket import register_game_events
-    from app.sockets.notification_socket import register_notification_events
-    register_room_events(socketio)
-    register_game_events(socketio)
-    register_notification_events(socketio)
-
-    # ================= DATABASE & SEEDING + OWNER SETUP =================
-    with app.app_context():
-        db.create_all()
-        _seed_categories()
-        _seed_achievements()
-
-        # ---- Автомат Owner тохиргоо (Username, Discord ID, эсвэл Email-ээр) ----
-        from app.models.user import User, DiscordAccount
-
-        owner_username = app.config.get('OWNER_USERNAME')
-        owner_discord_id = app.config.get('OWNER_DISCORD_ID')
-        owner_email = app.config.get('OWNER_EMAIL')
-
-        user = None
-
-        # 1. Username-аар хайх
-        if owner_username:
-            user = User.query.filter_by(username=owner_username).first()
-
-        # 2. Discord ID-аар хайх (хэрэв олдоогүй бол)
-        if not user and owner_discord_id:
-            discord_acc = DiscordAccount.query.filter_by(discord_id=owner_discord_id).first()
-            if discord_acc and discord_acc.user:
-                user = discord_acc.user
-
-        # 3. Email-ээр хайх (хэрэв олдоогүй бол)
-        if not user and owner_email:
-            user = User.query.filter_by(email=owner_email).first()
-
-        # 4. Олдсон хэрэглэгчийг Owner болгох
-        if user and user.role != 'owner':
-            user.role = 'owner'
-            user.is_admin = True
-            user.is_premium = True
-            db.session.commit()
-            app.logger.info(f"User {user.username} (ID:{user.id}) set as owner via config.")
-
-    # ================= FLASK-LOGIN =================
-    from app.models.user import User
-    @login_manager.user_loader
-    def load_user(user_id):
-        return User.query.get(int(user_id))
-
-    @login_manager.unauthorized_handler
-    def unauthorized():
-        from flask import redirect, url_for, flash
-        flash('Please log in to access this page.', 'warning')
-        return redirect(url_for('auth.login'))
-
-    # ================= GLOBAL TEMPLATE VARIABLES =================
-    @app.context_processor
-    def inject_globals():
-        from flask_login import current_user
-        return {
-            'app_name': 'TriviaVerse',
-            'current_year': 2026,
-            'current_user': current_user
-        }
-
-    # ================= ERROR HANDLERS =================
-    @app.errorhandler(404)
-    def not_found(error):
-        from flask import render_template
-        return render_template('errors/404.html'), 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        from flask import render_template
-        db.session.rollback()
-        return render_template('errors/500.html'), 500
+    app.register_blueprint(api_v1_bp)
+    app.register_blueprint(lang_bp)
+    app.register_blueprint(box_api_bp, url_prefix='/box')
 
     return app
 

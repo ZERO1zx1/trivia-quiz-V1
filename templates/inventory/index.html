@@ -1,30 +1,58 @@
 {% extends "layouts/base.html" %}
 {% block title %}Inventory - {{ app_name }}{% endblock %}
-
 {% block content %}
 <h1 style="font-size:2rem;font-weight:800;margin-bottom:24px;">🎒 Inventory</h1>
 
-<div class="inventory-grid"
-    style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:24px;">
-    {% for inv in items %}
+<!-- Items (UserInventory) -->
+<h2 style="font-weight:700; margin-bottom:12px;">Items</h2>
+<div class="inventory-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:24px;">
+    {% for inv in current_user.user_inventory_items %}
     <div class="glass" style="padding:20px; border-radius:20px; text-align:center; position:relative;">
         {% if inv.is_equipped %}
-        <span
-            style="position:absolute; top:10px; right:10px; background:var(--accent); color:white; padding:2px 8px; border-radius:12px; font-size:0.75rem;">Equipped</span>
+            <span style="position:absolute; top:10px; right:10px; background:var(--accent); color:white; padding:2px 8px; border-radius:12px; font-size:0.75rem;">Equipped</span>
         {% endif %}
-        <img src="{{ inv.item.image_url or '/static/shop/default.png' }}"
-            style="width:60px; height:60px; border-radius:12px; margin-bottom:12px;">
+        <img src="{{ inv.item.image_url or '/static/shop/default.png' }}" style="width:60px; height:60px; border-radius:12px; margin-bottom:12px;">
         <h3 style="font-weight:700;">{{ inv.item.name }}</h3>
         <p style="color:var(--text-secondary);">x{{ inv.quantity }}</p>
         <form method="POST" action="{{ url_for('inventory.equip_item', inv_id=inv.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-ghost btn-full">
-                {{ 'Unequip' if inv.is_equipped else 'Equip' }}
-            </button>
+            <button class="btn btn-ghost btn-full">{{ 'Unequip' if inv.is_equipped else 'Equip' }}</button>
         </form>
     </div>
     {% else %}
-    <p>Your inventory is empty. Visit the shop!</p>
+    <p>No items yet.</p>
     {% endfor %}
 </div>
+
+<!-- Boxes (UserBox) -->
+<h2 style="font-weight:700; margin-bottom:12px; margin-top:32px;">📦 Boxes</h2>
+<div class="inventory-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:24px;">
+    {% for box in current_user.boxes.filter_by(is_opened=False) %}
+    <div class="glass" style="padding:20px; border-radius:20px; text-align:center;">
+        <div style="font-size:3rem;">📦</div>
+        <h3 style="font-weight:700;">{{ box.box.name }}</h3>
+        <p style="color:var(--text-secondary);">{{ box.box.rarity|capitalize }} Box</p>
+        <p style="color:var(--text-secondary);">x{{ box.quantity }}</p>
+        <button onclick="openBox('{{ box.id }}')" class="btn btn-primary btn-full">Open</button>
+    </div>
+    {% else %}
+    <p>No boxes yet.</p>
+    {% endfor %}
+</div>
+
+<script>
+async function openBox(boxId) {
+    try {
+        const data = await apiFetch(`/box/open-box/${boxId}`, { method: 'POST' });
+        if (data.success) {
+            showToast(`You got: ${data.loot.type === 'coins' ? data.loot.amount + ' coins' : data.loot.type === 'xp' ? data.loot.amount + ' XP' : data.loot.name}`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.message, 'error');
+        }
+    } catch (e) {
+        showToast('Failed to open box.', 'error');
+    }
+}
+</script>
 {% endblock %}

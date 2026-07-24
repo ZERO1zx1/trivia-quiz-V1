@@ -38,6 +38,7 @@ class Config:
     OWNER_USERNAME = os.environ.get('OWNER_USERNAME') or None
     OWNER_DISCORD_ID = os.environ.get('OWNER_DISCORD_ID') or None
     OWNER_EMAIL = os.environ.get('OWNER_EMAIL') or None
+    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
 
 class DevelopmentConfig(Config):
     DEBUG = True
