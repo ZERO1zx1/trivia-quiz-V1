@@ -56,6 +56,14 @@ def search_friends():
         message=f'{current_user.username} wants to be your friend!',
         notif_type='info'
     )
+    # Email notification
+    if user.email_notif_social:
+        from app.utils.email import send_email
+        send_email(
+            subject='[TriviaVerse] New Friend Request',
+            recipients=[user.email],
+            body=f"Hello {user.username},\n\n{current_user.username} wants to be your friend on TriviaVerse! Log in to accept the request."
+        )
 
     flash(f'Friend request sent to {user.username}!', 'success')
     return redirect(url_for('social.friends'))

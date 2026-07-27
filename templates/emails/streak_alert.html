@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ff9800; border-radius: 10px; }
+        .header { text-align: center; color: #ff9800; }
+        .streak { font-size: 48px; font-weight: bold; text-align: center; margin: 20px 0; }
+        .footer { font-size: 12px; color: #888; text-align: center; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Don't Lose Your Streak! 🔥</h1>
+        </div>
+        <p>Hello {{ user.username }},</p>
+        <p>You have an impressive <strong>{{ streak }} day streak</strong> going!</p>
+        <div class="streak">
+            🔥 {{ streak }}
+        </div>
+        <p>If you don't play today, your streak will reset to zero. Don't let all that hard work go to waste!</p>
+        <p style="text-align: center;">
+            <a href="{{ url_for('dashboard.index', _external=True) }}" style="background: #ff9800; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Play Now</a>
+        </p>
+        <div class="footer">
+            &copy; 2026 TriviaVerse Team
+        </div>
+    </div>
+</body>
+</html>

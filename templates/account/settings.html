@@ -94,32 +94,24 @@
                 </svg>
                 {{ _('Notification Preferences') }}
             </h3>
-            <form method="POST" action="{{ url_for('account.update_preferences') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                    <input type="checkbox" name="email_notifications" {% if
-                        current_user.email_notifications|default(True) %}checked{% endif %}>
-                    <span>{{ _('Receive email notifications (game invites, friend requests)') }}</span>
+            <div style="margin-bottom: 24px;">
+                <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px; opacity: 0.7;">
+                    <input type="checkbox" checked disabled>
+                    <span>{{ _('Security Alerts (Always enabled)') }}</span>
                 </label>
                 <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                    <input type="checkbox" name="friend_requests_notifications" {% if
-                        current_user.friend_requests_notifications|default(True) %}checked{% endif %}>
-                    <span>{{ _('Friend request notifications') }}</span>
+                    <input type="checkbox" id="socialNotifs" {% if current_user.email_notif_social %}checked{% endif %}
+                        onchange="updatePrefSetting('email_notif_social', this.checked)">
+                    <span>{{ _('Direct Messages & Challenges') }}</span>
                 </label>
-                <button type="submit" class="btn btn-primary btn-full">{{ _('Save Preferences') }}</button>
-            </form>
-            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <input type="checkbox" id="emailNotifs" {% if current_user.email_notifications|default(True) %}checked{%
-                    endif %} onchange="updatePrefSetting('email_notifications', this.checked)">
-                <span>Receive email notifications (game invites, friend requests)</span>
-            </label>
-            <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-                <input type="checkbox" id="friendNotifs" {% if current_user.friend_requests_notifications|default(True)
-                    %}checked{% endif %} onchange="updatePrefSetting('friend_requests_notifications', this.checked)">
-                <span>Friend request notifications</span>
-            </label>
+                <label class="checkbox" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+                    <input type="checkbox" id="promoNotifs" {% if current_user.email_notif_promo %}checked{% endif %}
+                        onchange="updatePrefSetting('email_notif_promo', this.checked)">
+                    <span>{{ _('Promotional & Seasonal News') }}</span>
+                </label>
+            </div>
             <div style="font-size:0.8rem; color:var(--text-secondary);">
-                Preferences are saved automatically when toggled.
+                {{ _('Preferences are saved automatically when toggled.') }}
             </div>
         </div>
     </div>

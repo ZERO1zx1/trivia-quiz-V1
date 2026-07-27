@@ -66,3 +66,53 @@ def send_welcome_email(user):
         )
     except Exception as e:
         current_app.logger.error(f"Failed to send welcome email: {e}")
+
+
+def send_otp_email(user, otp):
+    """Send 6-digit OTP code for account verification."""
+    try:
+        subject = '[TriviaVerse] Verify Your Account'
+        body = f"Hello {user.username},\n\nYour verification code is: {otp}\n\nThis code will expire in 10 minutes."
+        html = render_template('emails/otp.html', user=user, otp=otp)
+        send_email(subject, [user.email], body, html)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send OTP email: {e}")
+
+
+def send_security_alert_email(user, ip_address, location="Unknown"):
+    """Send alert for login from a new device or location."""
+    if not user.email_notif_security:
+        return
+    try:
+        subject = '[TriviaVerse] Security Alert: New Login'
+        body = f"Hello {user.username},\n\nA new login was detected from IP: {ip_address} ({location})."
+        html = render_template('emails/security_alert.html', user=user, ip=ip_address, location=location)
+        send_email(subject, [user.email], body, html)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send security alert email: {e}")
+
+
+def send_duel_invite_email(user, challenger_name, wager):
+    """Send email for a new duel challenge."""
+    if not user.email_notif_social:
+        return
+    try:
+        subject = f'[TriviaVerse] {challenger_name} challenged you to a Duel!'
+        body = f"Hello {user.username},\n\n{challenger_name} has challenged you to a 1v1 Duel for {wager} coins!"
+        html = render_template('emails/duel_invite.html', user=user, challenger=challenger_name, wager=wager)
+        send_email(subject, [user.email], body, html)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send duel invite email: {e}")
+
+
+def send_streak_alert_email(user, streak_days):
+    """Send alert when a user is about to lose their streak."""
+    if not user.email_notif_promo:
+        return
+    try:
+        subject = '[TriviaVerse] Don\'t lose your streak!'
+        body = f"Hello {user.username},\n\nYou are about to lose your {streak_days}-day streak! Play now to protect it."
+        html = render_template('emails/streak_alert.html', user=user, streak=streak_days)
+        send_email(subject, [user.email], body, html)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send streak alert email: {e}")

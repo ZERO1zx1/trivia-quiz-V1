@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; }
+        .header { text-align: center; color: #5865F2; }
+        .wager { font-size: 24px; font-weight: bold; color: #facc15; text-align: center; margin: 20px 0; }
+        .btn { display: inline-block; padding: 12px 24px; background: #5865F2; color: white; text-decoration: none; border-radius: 5px; }
+        .footer { font-size: 12px; color: #888; text-align: center; margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Duel Challenge!</h1>
+        </div>
+        <p>Hello {{ user.username }},</p>
+        <p><strong>{{ challenger }}</strong> has challenged you to a 1v1 Quiz Duel!</p>
+        <div class="wager">
+            🪙 {{ wager }} Coins
+        </div>
+        <p style="text-align: center;">
+            <a href="{{ url_for('dashboard.index', _external=True) }}" class="btn">Accept Challenge</a>
+        </p>
+        <p>Log in now to show them who's the real Trivia Master!</p>
+        <div class="footer">
+            &copy; 2026 TriviaVerse Team
+        </div>
+    </div>
+</body>
+</html>

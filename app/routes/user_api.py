@@ -90,6 +90,12 @@ def challenge_user(user_id):
         f'{current_user.username} challenged you to a 1v1!',
         'game_invite'
     )
+    
+    # Email notification
+    if target.email_notif_social:
+        from app.utils.email import send_duel_invite_email
+        send_duel_invite_email(target, current_user.username, 0) # Wager is 0 for now as per logic
+        
     return jsonify({'success': True, 'challenge_id': challenge.id})
 
 @user_api_bp.route('/challenge/<int:challenge_id>/accept', methods=['POST'])

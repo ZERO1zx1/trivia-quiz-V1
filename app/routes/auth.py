@@ -50,6 +50,7 @@ def register():
         user = User(username=username, email=email, display_name=username)
         user.set_password(password)
         user.coins = 500
+        user.is_verified = False
 
         # Handle referral (after user object is created but before commit)
         if referral_code:
@@ -71,9 +72,15 @@ def register():
             db.session.add(ua)
         db.session.commit()
 
-        flash('Account created successfully! Welcome to TriviaVerse.', 'success')
-        login_user(user, remember=True)
-        return redirect(url_for('dashboard.index'))
+        # Send OTP
+        otp = user.generate_otp()
+        from app.utils.email import send_otp_email
+        send_otp_email(user, otp)
+
+        db.session.commit()
+        flash('Account created! Please check your email for the verification code.', 'success')
+        session['verify_user_id'] = user.id
+        return redirect(url_for('auth.verify'))
 
     return render_template('auth/register.html')
 
@@ -96,6 +103,15 @@ def login():
             if user.is_banned:
                 flash('Your account has been suspended. Contact support.', 'danger')
                 return render_template('auth/login.html')
+            
+            # Security Alert Check
+            client_ip = request.remote_addr
+            if user.last_login_ip and user.last_login_ip != client_ip:
+                from app.utils.email import send_security_alert_email
+                send_security_alert_email(user, client_ip)
+            
+            user.last_login_ip = client_ip
+            user.last_login_at = datetime.utcnow()
 
             login_user(user, remember=remember)
             user.is_online = True
@@ -345,3 +361,43 @@ def send_notification_for_referrer(referrer):
         )
     except Exception:
         pass
+
+@auth_bp.route('/verify', methods=['GET', 'POST'])
+def verify():
+    user_id = session.get('verify_user_id')
+    if not user_id:
+        return redirect(url_for('auth.register'))
+    
+    user = User.query.get(user_id)
+    if not user:
+        return redirect(url_for('auth.register'))
+    
+    if user.is_verified:
+        flash('Account already verified.', 'info')
+        return redirect(url_for('auth.login'))
+
+    if request.method == 'POST':
+        otp = request.form.get('otp', '').strip()
+        if user.verify_otp(otp):
+            session.pop('verify_user_id', None)
+            flash('Account verified successfully! You can now login.', 'success')
+            return redirect(url_for('auth.login'))
+        else:
+            flash('Invalid or expired verification code.', 'danger')
+
+    return render_template('auth/verify.html', email=user.email)
+
+@auth_bp.route('/resend-otp')
+def resend_otp():
+    user_id = session.get('verify_user_id')
+    if not user_id:
+        return redirect(url_for('auth.register'))
+    
+    user = User.query.get(user_id)
+    if user:
+        otp = user.generate_otp()
+        from app.utils.email import send_otp_email
+        send_otp_email(user, otp)
+        flash('New verification code sent to your email.', 'info')
+    
+    return redirect(url_for('auth.verify'))

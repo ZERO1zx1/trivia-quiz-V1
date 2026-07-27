@@ -9,10 +9,13 @@
 
 ### 🔐 Хэрэглэгчийн систем
 - Бүртгэл, нэвтрэлт (имэйл/нууц үг)
-- Discord OAuth2 нэвтрэлт
-- Профайл тохируулга (avatar, banner, bio, country)
-- Role систем (Owner, Developer, Admin, Moderator, Helper, User)
-- Premium гишүүнчлэл (3x coin multiplier, тусгай хүрээ, Discord роль)
+- **Account Verification**: Шинээр бүртгүүлэхэд 6 оронтой OTP код Gmail-ээр баталгаажуулна.
+- **Security Alerts**: Өөр төхөөрөмж эсвэл байршлаас нэвтрэхэд имэйл мэдэгдэл очих.
+- **Password Reset**: Нууц үг сэргээх токен бүхий тусгай линк.
+- Discord OAuth2 нэвтрэлт.
+- Профайл тохируулга (avatar, banner, bio, country).
+- Role систем (Owner, Developer, Admin, Moderator, Helper, User).
+- Premium гишүүнчлэл (3x coin multiplier, тусгай хүрээ, Discord роль).
 
 ### 🏠 Хувийн Dashboard
 - Статистик картууд (Wins, Accuracy, Level, Coins)
@@ -49,6 +52,9 @@
 ### 👥 Нийгмийн харилцаа
 - **Marriage System**: Өөр хэрэглэгчтэй гэрлэх 💍.
 - **Reputation System**: Бусад тоглогчдод rep өгөх ✨.
+- **Email Notifications**: Найзын хүсэлт, Duel урилга имэйлээр очих.
+- **Streak Protection**: Streak тасрах гэж байгаа үед имэйл сануулга очих.
+- **Notification Preferences**: Мэдэгдэл хүлээн авах тохиргоог өөрөө удирдах.
 - Найзуудын систем (friend request, accept, decline, remove).
 - Challenge (1v1 урилга).
 - Gift илгээх (coffee, crown, xp_boost).

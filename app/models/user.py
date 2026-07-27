@@ -83,6 +83,17 @@ class User(UserMixin, db.Model):
     # Stats per category (JSON string)
     category_stats = db.Column(db.Text, default='{}')
 
+    # Security & Verification
+    otp_code = db.Column(db.String(6))
+    otp_expiry = db.Column(db.DateTime)
+    last_login_ip = db.Column(db.String(45))
+    last_login_at = db.Column(db.DateTime)
+
+    # Notification Preferences
+    email_notif_security = db.Column(db.Boolean, default=True)
+    email_notif_social = db.Column(db.Boolean, default=True)
+    email_notif_promo = db.Column(db.Boolean, default=True)
+
     # Discord тохиргоо
     discord_rich_presence = db.Column(db.Boolean, default=True)
     discord_dm_notifications = db.Column(db.Boolean, default=True)
@@ -127,6 +138,27 @@ class User(UserMixin, db.Model):
         except:
             return None
         return User.query.get(id)
+
+    def generate_otp(self):
+        """Generate a 6-digit OTP code valid for 10 minutes."""
+        self.otp_code = ''.join(random.choices(string.digits, k=6))
+        self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+        db.session.commit()
+        return self.otp_code
+
+    def verify_otp(self, code):
+        """Verify OTP code and check expiry."""
+        if not self.otp_code or not self.otp_expiry:
+            return False
+        if datetime.utcnow() > self.otp_expiry:
+            return False
+        if self.otp_code == code:
+            self.otp_code = None
+            self.otp_expiry = None
+            self.is_verified = True
+            db.session.commit()
+            return True
+        return False
 
     def calculate_level(self):
         import math

@@ -116,13 +116,26 @@ def update_game_settings():
         current_user.preferred_difficulty = data['preferred_difficulty']
     if 'performance_mode' in data:
         current_user.performance_mode = data['performance_mode']
+    
+    # Support notification preferences from JS toggles
+    if 'email_notif_security' in data:
+        current_user.email_notif_security = data['email_notif_security']
+    if 'email_notif_social' in data:
+        current_user.email_notif_social = data['email_notif_social']
+    if 'email_notif_promo' in data:
+        current_user.email_notif_promo = data['email_notif_promo']
+        
     db.session.commit()
     return jsonify({'success': True})
 
 @account_bp.route('/update-preferences', methods=['POST'])
 @login_required
 def update_preferences():
-    """Мэдэгдлийн тохиргоог хадгалах"""
-    # Одоогоор заглуушка (хэрэгжүүлээгүй)
-    flash('Preferences saved.', 'success')
+    """Мэдэгдлийн тохиргоог хадгалах (Form submission)"""
+    current_user.email_notif_security = True # Security always True
+    current_user.email_notif_social = 'email_notif_social' in request.form
+    current_user.email_notif_promo = 'email_notif_promo' in request.form
+    
+    db.session.commit()
+    flash('Notification preferences updated!', 'success')
     return redirect(url_for('account.settings'))
