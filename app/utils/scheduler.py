@@ -26,3 +26,27 @@ def check_expired_premium(app):
                 except Exception as e:
                     app.logger.error(f"Discord role removal failed: {e}")
         db.session.commit()
+
+def check_streak_protection(app):
+    """Check users who are about to lose their streak and send email alert."""
+    from datetime import datetime, timedelta
+    from app.utils.email import send_streak_alert_email
+    
+    with app.app_context():
+        # Users who haven't played today but have a streak
+        # (Assuming last_activity is updated on game play)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        warning_threshold = datetime.utcnow() - timedelta(hours=20) # 4 hours before reset
+        
+        potential_losers = User.query.filter(
+            User.streak_count > 0,
+            User.last_activity < yesterday,
+            User.last_activity > (yesterday - timedelta(days=1)),
+            User.email_notif_promo == True # Use promo or create a specific setting
+        ).all()
+        
+        for user in potential_losers:
+            # Check if alert already sent today to avoid spam
+            # (Simplified: assume one alert per streak danger period)
+            send_streak_alert_email(user)
+            app.logger.info(f"Streak alert sent to {user.username}")

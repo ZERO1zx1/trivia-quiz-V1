@@ -94,6 +94,15 @@ def change_password():
 
     current_user.set_password(new_password)
     db.session.commit()
+    
+    # Send email notification for password change
+    from app.utils.email import send_email
+    send_email(
+        subject='[TriviaVerse] Password Changed',
+        recipients=[current_user.email],
+        body=f"Hello {current_user.username},\n\nYour TriviaVerse account password was recently changed. If you did not make this change, please contact support immediately."
+    )
+    
     flash('Password changed successfully!', 'success')
     return redirect(url_for('account.settings'))
 

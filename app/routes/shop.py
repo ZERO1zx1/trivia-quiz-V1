@@ -34,5 +34,15 @@ def buy_item(item_id):
     db.session.add(tx)
 
     db.session.commit()
+    
+    # Send email notification if user has promotional/seasonal news enabled
+    if current_user.email_notif_promo:
+        from app.utils.email import send_email
+        send_email(
+            subject=f'[TriviaVerse] Purchase Confirmation: {item.name}',
+            recipients=[current_user.email],
+            body=f"Hello {current_user.username},\n\nYou have successfully purchased {item.name} for {item.price} coins. Your item is now available in your inventory."
+        )
+        
     flash(f'Successfully purchased {item.name}!', 'success')
     return redirect(url_for('shop.shop'))

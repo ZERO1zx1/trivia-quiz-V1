@@ -6,7 +6,7 @@ from flask import Flask, request, session, redirect, url_for, flash, render_temp
 from config import config
 from .extensions import db, socketio
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.utils.scheduler import check_expired_premium
+from app.utils.scheduler import check_expired_premium, check_streak_protection
 from flask_login import logout_user, current_user
 from flask_babel import Babel, _
 
@@ -76,6 +76,12 @@ def create_app(config_name='default'):
         func=lambda: check_expired_premium(app),
         trigger='interval',
         hours=1
+    )
+    # Check streaks every 4 hours
+    scheduler.add_job(
+        func=lambda: check_streak_protection(app),
+        trigger='interval',
+        hours=4
     )
     scheduler.start()
 
