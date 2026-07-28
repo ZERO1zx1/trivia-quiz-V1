@@ -80,11 +80,6 @@ def register_room_events(socketio):
 
     @socketio.on('start_game_lobby')
     def handle_start_game(data):
-        """Host starts the game from the lobby. Redirects players to quiz page.
-        
-        NOTE: Renamed from 'start_game' to avoid conflict with game_socket.py's
-        'start_game' which handles actual game state initialization.
-        """
         room_code = data.get('room_code')
         room = Room.query.filter_by(code=room_code).first()
         if not room or room.host_id != current_user.id:
@@ -96,6 +91,7 @@ def register_room_events(socketio):
             emit('error', {'message': 'Need at least 2 players.'})
             return
 
+        # Хэрэв бүх хүн Ready болохыг заавал шаардахгүй гэвэл доорх 3 мөрийг сулруулж болно:
         if not all(p.is_ready for p in players):
             emit('error', {'message': 'All players must be ready.'})
             return

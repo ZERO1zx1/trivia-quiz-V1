@@ -14,10 +14,55 @@ function escapeHtml(text) {
 }
 
 function getSocket() {
-    if (typeof socket !== 'undefined') return socket;
+    if (typeof socket !== 'undefined' && socket) return socket;
+    if (typeof io !== 'undefined') {
+        window.socket = io();
+        return window.socket;
+    }
     console.error('Socket.IO not initialized');
     return null;
 }
+
+// ---------- Auto-Reload Logic (ШИНЭ) ----------
+let isReloading = false;
+function handleAutoReload(reason = 'Connection lost') {
+    if (isReloading) return;
+    isReloading = true;
+
+    showToast(`${reason}. Reloading in 5 seconds...`, 'warning');
+
+    const loadingStatus = document.getElementById('loadingStatus');
+    if (loadingStatus) {
+        loadingStatus.textContent = `${reason}. Auto-reloading...`;
+    }
+
+    // 5 секундийн дараа хуудсыг дахин ачаална
+    setTimeout(() => {
+        window.location.reload();
+    }, 5000);
+}
+
+// ---------- Room Management ----------
+window.joinRoomSocket = function (roomCode, playerInfo = {}) {
+    const sock = getSocket();
+    if (!sock) {
+        handleAutoReload('Socket connection failed');
+        return;
+    }
+
+    window.roomCode = roomCode;
+
+    // Өрөө рүү холбогдох хүсэлт илгээх
+    sock.emit('join_room', {
+        room_code: roomCode,
+        ...playerInfo
+    });
+
+    // Асуулт хариултын хэсгийг эхлүүлэх
+    initQuiz(roomCode);
+};
+
+window.joinRoom = window.joinRoomSocket;
 
 // ---------- Game State ----------
 let gameState = {
@@ -49,16 +94,30 @@ function resetGameState() {
 function initQuiz(roomCode) {
     const sock = getSocket();
     if (!sock) {
-        showToast('Connection lost. Please refresh.', 'error');
+        handleAutoReload('Connection lost');
         return;
     }
 
     resetGameState();
 
-    // Show quiz container, hide loading
-    document.getElementById('quizLoading').style.display = 'none';
-    document.getElementById('quizError').style.display = 'none';
-    document.getElementById('quizContainer').style.display = 'block';
+    // UI засах
+    const loadingEl = document.getElementById('quizLoading');
+    const errorEl = document.getElementById('quizError');
+    const containerEl = document.getElementById('quizContainer');
+
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
+    if (containerEl) containerEl.style.display = 'block';
+
+    // Socket Сүлжээний Алдаа / Тасралт Хянах (ШИНЭ)
+    sock.off('connect_error').on('connect_error', () => {
+        handleAutoReload('Server connection error');
+    });
+
+    sock.off('disconnect').on('disconnect', (reason) => {
+        console.warn('Disconnected:', reason);
+        handleAutoReload('Disconnected from live server');
+    });
 
     // Socket event listeners
     sock.off('question').on('question', (data) => {
@@ -78,8 +137,7 @@ function initQuiz(roomCode) {
         showGameOver(data);
     });
 
-    sock.off('next_question_ready').on('next_question_ready', (data) => {
-        // Server tells us next question is ready, request it
+    sock.off('next_question_ready').on('next_question_ready', () => {
         if (sock) {
             sock.emit('request_question', { room_code: roomCode });
         }
@@ -89,14 +147,15 @@ function initQuiz(roomCode) {
         showToast(err.message || 'An error occurred', 'error');
     });
 
-    sock.off('player_eliminated').on('player_eliminated', (data) => {
+    sock.off('player_eliminated').on('player_eliminated', () => {
         showToast('A player has been eliminated!', 'warning');
     });
 
-    // Request first question
+    // Эхний асуултыг хүсэх
     sock.emit('request_question', { room_code: roomCode });
 
-    // Keyboard support (1-4 keys)
+    // Гарны товчлуур сонсох (1-4)
+    document.removeEventListener('keydown', handleKeyboard);
     document.addEventListener('keydown', handleKeyboard);
 }
 
@@ -121,6 +180,8 @@ function renderQuestion(data) {
     gameState.timeLeft = data.time_limit;
 
     const container = document.getElementById('quizContainer');
+    if (!container) return;
+
     container.innerHTML = `
         <div class="quiz-layout">
             <div class="quiz-main">
@@ -187,7 +248,9 @@ function renderScoreboard(scores) {
 
 // ---------- Timer ----------
 function startTimer(seconds) {
-    clearInterval(gameState.timerInterval);
+    if (gameState.timerInterval) {
+        cancelAnimationFrame(gameState.timerInterval);
+    }
     gameState.timeLeft = seconds;
     gameState.questionStartTime = Date.now();
     gameState.endTime = gameState.questionStartTime + seconds * 1000;
@@ -203,7 +266,6 @@ function startTimer(seconds) {
         const displayTime = Math.ceil(gameState.timeLeft);
         timerDisplay.textContent = displayTime + 's';
 
-        // Color changes
         if (gameState.timeLeft <= 5) {
             timerDisplay.style.color = '#ef4444';
         } else if (gameState.timeLeft <= 10) {
@@ -213,8 +275,8 @@ function startTimer(seconds) {
         }
 
         if (remaining <= 0) {
-            clearInterval(gameState.timerInterval);
-            submitAnswer(null); // Time's up
+            gameState.timerInterval = null;
+            submitAnswer(null);
         } else {
             gameState.timerInterval = requestAnimationFrame(update);
         }
@@ -238,7 +300,6 @@ function submitAnswer(answerId) {
         }
     });
 
-    // time_taken = seconds elapsed since question started (NOT remaining)
     const timeTaken = gameState.questionStartTime
         ? (Date.now() - gameState.questionStartTime) / 1000
         : 0;
@@ -249,6 +310,8 @@ function submitAnswer(answerId) {
             answer_id: answerId,
             time_taken: Math.max(0, timeTaken)
         });
+    } else {
+        handleAutoReload('Cannot send answer - connection lost');
     }
 }
 
@@ -275,6 +338,8 @@ function showAnswerResult(data) {
 // ---------- Round Results ----------
 function showRoundResults(data) {
     const container = document.getElementById('quizContainer');
+    if (!container) return;
+
     container.innerHTML = `
         <div class="quiz-layout">
             <div class="quiz-main" style="text-align:center;">
@@ -308,6 +373,8 @@ function nextQuestion() {
 // ---------- Game Over ----------
 function showGameOver(data) {
     const container = document.getElementById('quizContainer');
+    if (!container) return;
+
     container.innerHTML = `
         <div class="quiz-layout">
             <div class="quiz-main" style="text-align:center;">

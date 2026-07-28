@@ -41,10 +41,8 @@ openai==1.99.9
 flask-cors==5.0.0
 Flask-Limiter==3.9.0
 bleach==6.2.0
-<<<<<<< HEAD
 APScheduler==3.11.0
 flask-babel==4.0.0
-=======
 
 # Scheduling
 APScheduler==3.11.0
@@ -52,6 +50,5 @@ APScheduler==3.11.0
 # i18n support
 Flask-Babel==4.0.0
 
-# Elasticsearch (optional)
-# elasticsearch==8.17.0
->>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be
+Elasticsearch (optional)
+elasticsearch==8.17.0

@@ -10,6 +10,7 @@ from time import time
 from flask import current_app
 from app.models.economy import Transaction
 from app.models.shop import UserInventory
+from datetime import datetime, timedelta
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -140,11 +141,8 @@ class User(UserMixin, db.Model):
         return User.query.get(id)
 
     def generate_otp(self):
-        """Generate a 6-digit OTP code valid for 10 minutes."""
-        self.otp_code = ''.join(random.choices(string.digits, k=6))
+        self.otp = str(random.randint(100000, 999999))
         self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
-        db.session.commit()
-        return self.otp_code
 
     def verify_otp(self, code):
         """Verify OTP code and check expiry."""
