@@ -1,4 +1,4 @@
-"""TriviaVerse Application Factory"""
+"""TriviaVerse Application Factory - Enterprise Edition v3.0"""
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -16,17 +16,14 @@ def create_app(config_name='default'):
                 static_folder='../static')
     app.config.from_object(config[config_name])
 
-    # ================= BABEL (Олон хэл) =================
+    # ================= BABEL (Multi-language) =================
     babel = Babel(app)
 
     def get_locale():
-        # Сессээс шалгах
         if 'language' in session:
             return session['language']
-        # Нэвтэрсэн хэрэглэгчийн тохиргоо
         if current_user.is_authenticated and current_user.language:
             return current_user.language
-        # Браузерын тохиргоо
         return request.accept_languages.best_match(['en', 'mn'])
 
     def get_timezone():
@@ -36,13 +33,12 @@ def create_app(config_name='default'):
 
     babel.init_app(app, locale_selector=get_locale, timezone_selector=get_timezone)
 
-    # Jinja2-д _ функцийг глобал болгох
+    # Make _ function available in Jinja2
     app.jinja_env.globals['_'] = _
 
     # ================= LOG SETUP =================
     if not os.path.exists('logs'):
         os.makedirs('logs')
-    # Debug горимд лог эргэлт хийхгүй (PermissionError-с зайлсхийх)
     if not app.debug:
         file_handler = RotatingFileHandler('logs/triviaverse.log', maxBytes=10240, backupCount=10)
         file_handler.setFormatter(logging.Formatter(
@@ -55,7 +51,7 @@ def create_app(config_name='default'):
     stream_handler.setLevel(logging.INFO)
     app.logger.addHandler(stream_handler)
     app.logger.setLevel(logging.INFO)
-    app.logger.info('TriviaVerse startup')
+    app.logger.info('TriviaVerse Enterprise v3.0 startup')
 
     # ================= EXTENSIONS INIT =================
     async_mode = app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
@@ -70,19 +66,10 @@ def create_app(config_name='default'):
     cors.init_app(app, resources={r"/api/*": {"origins": cors_origins}})
     limiter.init_app(app)
 
-    # Premium хугацаа шалгах төлөвлөгч
+    # ================= SCHEDULER =================
     scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        func=lambda: check_expired_premium(app),
-        trigger='interval',
-        hours=1
-    )
-    # Check streaks every 4 hours
-    scheduler.add_job(
-        func=lambda: check_streak_protection(app),
-        trigger='interval',
-        hours=4
-    )
+    scheduler.add_job(func=lambda: check_expired_premium(app), trigger='interval', hours=1)
+    scheduler.add_job(func=lambda: check_streak_protection(app), trigger='interval', hours=4)
     scheduler.start()
 
     # ================= BAN CHECK =================
@@ -102,15 +89,25 @@ def create_app(config_name='default'):
     from app.sockets.room_socket import register_room_events
     from app.sockets.game_socket import register_game_events
     from app.sockets.notification_socket import register_notification_events
+    from app.sockets.chat_socket import register_chat_events
+    from app.sockets.tournament_socket import register_tournament_events
+    from app.sockets.guild_socket import register_guild_events
     register_room_events(socketio)
     register_game_events(socketio)
     register_notification_events(socketio)
+    register_chat_events(socketio)
+    register_tournament_events(socketio)
+    register_guild_events(socketio)
 
     # ================= DATABASE & SEEDING + OWNER SETUP =================
     with app.app_context():
         db.create_all()
         _seed_categories()
         _seed_achievements()
+        _seed_regions()
+        _seed_pet_species()
+        _seed_chat_channels()
+        _seed_forum_categories()
 
         from app.models.user import User, DiscordAccount
 
@@ -166,7 +163,7 @@ def create_app(config_name='default'):
         db.session.rollback()
         return render_template('errors/500.html'), 500
 
-    # ================= BLUEPRINTS =================
+    # ================= BLUEPRINTS - CORE =================
     from app.routes.home import home_bp
     from app.routes.auth import auth_bp
     from app.routes.dashboard import dashboard_bp
@@ -191,6 +188,22 @@ def create_app(config_name='default'):
     from app.routes.box_api import box_api_bp
     from app.routes.search import search_bp
 
+    # ================= BLUEPRINTS - ENTERPRISE =================
+    from app.routes.guild import guild_bp
+    from app.routes.tournament import tournament_bp
+    from app.routes.marketplace import marketplace_bp
+    from app.routes.battle_pass import battle_pass_bp
+    from app.routes.pet import pet_bp
+    from app.routes.craft import craft_bp
+    from app.routes.mail import mail_bp
+    from app.routes.replay import replay_bp
+    from app.routes.chat import chat_bp
+    from app.routes.event import event_bp
+    from app.routes.region import region_bp
+    from app.routes.community import community_bp
+    from app.routes.puzzle import puzzle_bp
+
+    # ================= REGISTER CORE BLUEPRINTS =================
     app.register_blueprint(home_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
@@ -214,6 +227,21 @@ def create_app(config_name='default'):
     app.register_blueprint(lang_bp)
     app.register_blueprint(box_api_bp, url_prefix='/box')
     app.register_blueprint(search_bp, url_prefix='/search')
+
+    # ================= REGISTER ENTERPRISE BLUEPRINTS =================
+    app.register_blueprint(guild_bp, url_prefix='/guild')
+    app.register_blueprint(tournament_bp, url_prefix='/tournament')
+    app.register_blueprint(marketplace_bp, url_prefix='/marketplace')
+    app.register_blueprint(battle_pass_bp, url_prefix='/battle-pass')
+    app.register_blueprint(pet_bp, url_prefix='/pet')
+    app.register_blueprint(craft_bp, url_prefix='/craft')
+    app.register_blueprint(mail_bp, url_prefix='/mail')
+    app.register_blueprint(replay_bp, url_prefix='/replay')
+    app.register_blueprint(chat_bp, url_prefix='/chat')
+    app.register_blueprint(event_bp, url_prefix='/event')
+    app.register_blueprint(region_bp, url_prefix='/region')
+    app.register_blueprint(community_bp, url_prefix='/community')
+    app.register_blueprint(puzzle_bp, url_prefix='/puzzle')
 
     return app
 
@@ -258,4 +286,73 @@ def _seed_achievements():
             requirement_type=req_type, requirement_value=req_val,
             xp_reward=xp, coin_reward=coins, rarity=rarity
         ))
+    db.session.commit()
+
+def _seed_regions():
+    from app.models.region import Region
+    if Region.query.first():
+        return
+    regions = [
+        ('global', 'Global', '🌍', 'Unrestricted'),
+        ('north-america', 'North America', '🌎', 'NA timezone'),
+        ('europe', 'Europe', '🌍', 'EU timezone'),
+        ('asia', 'Asia', '🌏', 'Asia timezone'),
+        ('south-america', 'South America', '🌎', 'SA timezone'),
+        ('oceania', 'Oceania', '🌏', 'Oceania timezone'),
+        ('africa', 'Africa', '🌍', 'Africa timezone'),
+    ]
+    for code, name, flag, description in regions:
+        db.session.add(Region(code=code, name=name, flag=flag, description=description))
+    db.session.commit()
+
+def _seed_pet_species():
+    from app.models.pet import PetSpecies
+    if PetSpecies.query.first():
+        return
+    species_list = [
+        ('Fox', 'common', 'A clever fox companion', 0, None, None),
+        ('Owl', 'common', 'A wise owl companion', 0, None, None),
+        ('Dragon', 'rare', 'A powerful dragon companion', 5, None, 'Elder Dragon'),
+        ('Phoenix', 'epic', 'A mythical phoenix companion', 10, None, 'Immortal Phoenix'),
+        ('Griffin', 'legendary', 'A majestic griffin companion', 15, None, 'Ancient Griffin'),
+    ]
+    for name, rarity, description, evolution_level, evolves_to_name, evo_name in species_list:
+        db.session.add(PetSpecies(name=name, rarity=rarity, description=description,
+                                   evolution_level=evolution_level))
+    db.session.commit()
+
+def _seed_chat_channels():
+    from app.models.chat import ChatChannel
+    if ChatChannel.query.first():
+        return
+    channels = [
+        ('general', 'General Chat', 'General discussion channel', 'text', True),
+        ('announcements', 'Announcements', 'Official game announcements', 'text', True),
+        ('help', 'Help & Support', 'Get help from the community', 'text', True),
+        ('memes', 'Memes', 'Share your best memes', 'text', True),
+        ('guild-recruit', 'Guild Recruitment', 'Find or join a guild', 'text', True),
+        ('tournament-chat', 'Tournament Chat', 'Tournament discussions', 'text', True),
+    ]
+    for slug, name, description, channel_type, is_public in channels:
+        db.session.add(ChatChannel(
+            slug=slug, name=name, description=description,
+            channel_type=channel_type, is_public=is_public
+        ))
+    db.session.commit()
+
+def _seed_forum_categories():
+    from app.models.community import ForumCategory
+    if ForumCategory.query.first():
+        return
+    categories = [
+        ('General Discussion', 'Talk about anything related to TriviaVerse', True),
+        ('Guides & Tips', 'Share your knowledge and strategies', True),
+        ('Bug Reports', 'Report bugs and issues', True),
+        ('Feature Requests', 'Suggest new features', True),
+        ('Trading', 'Trade items and cosmetics', False),
+        ('Guild Recruitment', 'Find members for your guild', True),
+        ('Fan Art', 'Share your creative work', True),
+    ]
+    for name, description, is_public in categories:
+        db.session.add(ForumCategory(name=name, description=description, is_public=is_public))
     db.session.commit()

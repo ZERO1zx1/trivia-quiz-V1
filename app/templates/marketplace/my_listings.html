@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}My Listings - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-white mb-8">🛒 My Listings</h1>
+
+    <div class="space-y-4">
+        {% for listing in listings.items %}
+        <div class="bg-gray-800 rounded-xl p-6 flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-xl">
+                    {% if listing.item_type == 'cosmetic' %}💎
+                    {% elif listing.item_type == 'avatar' %}👤
+                    {% else %}📦{% endif %}
+                </div>
+                <div>
+                    <h3 class="text-white font-bold">{{ listing.item_name }}</h3>
+                    <span class="text-xs px-2 py-0.5 rounded bg-purple-500/20 text-purple-400">{{ listing.rarity }}</span>
+                    <span class="text-gray-400 text-sm ml-2">Qty: {{ listing.quantity }}</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-yellow-400 font-bold text-lg">{{ listing.price }} 🪙</span>
+                <span class="px-2 py-1 rounded text-xs
+                    {{ 'bg-green-500/20 text-green-400' if listing.status == 'active'
+                       else 'bg-yellow-500/20 text-yellow-400' if listing.status == 'sold'
+                       else 'bg-gray-500/20 text-gray-400' }}">
+                    {{ listing.status }}
+                </span>
+                {% if listing.status == 'active' %}
+                <form method="POST" action="{{ url_for('marketplace.cancel', listing_id=listing.id) }}">
+                    <button type="submit" class="btn-danger text-sm">Cancel</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if listings.pages > 1 %}
+    <div class="flex justify-center mt-6 gap-2">
+        {% for page in listings.iter_pages() %}
+        {% if page %}
+        <a href="?page={{ page }}"
+           class="px-4 py-2 rounded-lg {{ 'bg-purple-600 text-white' if page == listings.page else 'bg-gray-700 text-gray-300' }}">
+            {{ page }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

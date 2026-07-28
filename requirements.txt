@@ -44,11 +44,46 @@ bleach==6.2.0
 APScheduler==3.11.0
 flask-babel==4.0.0
 
-# Scheduling
-APScheduler==3.11.0
-
 # i18n support
 Flask-Babel==4.0.0
 
-Elasticsearch (optional)
+# Enterprise Dependencies
+# Rate limiting & caching
+redis==5.2.1
+flask-caching==2.3.0
+
+# Audio processing (voice quiz)
+pydub==0.25.1
+SpeechRecognition==3.12.0
+
+# Image recognition (image quiz)
+# System dependency: sudo apt install tesseract-ocr
+pytesseract==0.3.13
+
+# Video processing (video quiz)
+moviepy==2.1.2
+yt-dlp==2025.6.30
+
+# Search engine (optional but recommended)
 elasticsearch==8.17.0
+
+# Analytics & monitoring
+prometheus-client==0.21.1
+
+# Data validation
+pydantic==2.11.7
+
+# Cryptography (for encryption features)
+cryptography==44.0.2
+
+# PDF generation (replays, reports)
+reportlab==4.3.1
+
+# QR code generation
+qrcode==8.0
+
+# WebPush notifications
+pywebpush==2.0.1
+
+# File handling
+python-magic==0.4.27

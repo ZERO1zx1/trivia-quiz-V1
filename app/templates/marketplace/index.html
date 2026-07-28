@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Marketplace - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-white mb-8">🛒 Marketplace</h1>
+
+    <!-- Filters -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-6 flex flex-wrap gap-4">
+        <div class="flex gap-2">
+            <a href="?type=all" class="px-3 py-1 rounded {{ 'bg-purple-600' if item_type == 'all' else 'bg-gray-700' }} text-white text-sm">All</a>
+            <a href="?type=avatar" class="px-3 py-1 rounded {{ 'bg-purple-600' if item_type == 'avatar' else 'bg-gray-700' }} text-white text-sm">Avatars</a>
+            <a href="?type=background" class="px-3 py-1 rounded {{ 'bg-purple-600' if item_type == 'background' else 'bg-gray-700' }} text-white text-sm">Backgrounds</a>
+            <a href="?type=cosmetic" class="px-3 py-1 rounded {{ 'bg-purple-600' if item_type == 'cosmetic' else 'bg-gray-700' }} text-white text-sm">Cosmetics</a>
+        </div>
+        <div class="flex gap-2 ml-auto">
+            <a href="?sort=newest" class="px-3 py-1 rounded {{ 'bg-blue-600' if sort_by == 'newest' else 'bg-gray-700' }} text-white text-sm">Newest</a>
+            <a href="?sort=price_low" class="px-3 py-1 rounded {{ 'bg-blue-600' if sort_by == 'price_low' else 'bg-gray-700' }} text-white text-sm">Price: Low</a>
+            <a href="?sort=price_high" class="px-3 py-1 rounded {{ 'bg-blue-600' if sort_by == 'price_high' else 'bg-gray-700' }} text-white text-sm">Price: High</a>
+            <a href="?sort=rarity" class="px-3 py-1 rounded {{ 'bg-blue-600' if sort_by == 'rarity' else 'bg-gray-700' }} text-white text-sm">Rarity</a>
+        </div>
+    </div>
+
+    <!-- Listings Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {% for listing in listings.items %}
+        <div class="bg-gray-800 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+            {% if listing.item_image %}
+            <div class="h-32 bg-cover bg-center" style="background-image: url('{{ listing.item_image }}')"></div>
+            {% else %}
+            <div class="h-32 bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+                <span class="text-4xl">📦</span>
+            </div>
+            {% endif %}
+            <div class="p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs px-2 py-0.5 rounded
+                        {{ 'bg-purple-500/20 text-purple-400' if listing.rarity == 'mythic'
+                           else 'bg-yellow-500/20 text-yellow-400' if listing.rarity == 'legendary'
+                           else 'bg-blue-500/20 text-blue-400' if listing.rarity == 'epic'
+                           else 'bg-cyan-500/20 text-cyan-400' if listing.rarity == 'rare'
+                           else 'bg-gray-500/20 text-gray-400' }}">
+                        {{ listing.rarity }}
+                    </span>
+                </div>
+                <h3 class="text-white font-bold text-sm mb-2 truncate">{{ listing.item_name }}</h3>
+                <div class="flex justify-between items-center">
+                    <span class="text-yellow-400 font-bold">{{ listing.price }} 🪙</span>
+                    <span class="text-gray-500 text-xs">{{ listing.seller.username }}</span>
+                </div>
+                {% if current_user.is_authenticated %}
+                <form method="POST" action="{{ url_for('marketplace.buy', listing_id=listing.id) }}" class="mt-3">
+                    <button type="submit" class="btn-primary w-full text-sm py-2">Buy Now</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if listings.pages > 1 %}
+    <div class="flex justify-center mt-8 gap-2">
+        {% for page in listings.iter_pages() %}
+        {% if page %}
+        <a href="?page={{ page }}&type={{ item_type }}&sort={{ sort_by }}"
+           class="px-4 py-2 rounded-lg {{ 'bg-purple-600 text-white' if page == listings.page else 'bg-gray-700 text-gray-300' }}">
+            {{ page }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if current_user.is_authenticated %}
+    <div class="mt-8 text-center">
+        <a href="{{ url_for('marketplace.my_listings') }}" class="btn-secondary">My Listings</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

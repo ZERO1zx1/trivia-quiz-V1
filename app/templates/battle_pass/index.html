@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Battle Pass - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    {% if active_season %}
+    <!-- Season Header -->
+    <div class="bg-gradient-to-r from-purple-900 via-blue-900 to-purple-900 rounded-2xl p-8 mb-8 text-center">
+        <h1 class="text-4xl font-bold text-white mb-2">⚔️ Battle Pass</h1>
+        <h2 class="text-2xl text-purple-300">{{ active_season.name }}</h2>
+        <p class="text-gray-400 mt-2">{{ active_season.description }}</p>
+        <div class="flex justify-center gap-6 mt-4">
+            <div>
+                <span class="text-yellow-400 text-sm">Starts</span>
+                <p class="text-white">{{ active_season.start_date.strftime('%B %d, %Y') if active_season.start_date else 'TBD' }}</p>
+            </div>
+            <div>
+                <span class="text-yellow-400 text-sm">Ends</span>
+                <p class="text-white">{{ active_season.end_date.strftime('%B %d, %Y') if active_season.end_date else 'TBD' }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    {% if progress %}
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <div class="flex justify-between mb-2">
+            <span class="text-white font-bold">Level {{ progress.current_level }}</span>
+            <span class="text-gray-400">{{ progress.xp }}/{{ progress.xp_needed }} XP</span>
+        </div>
+        <div class="w-full bg-gray-700 rounded-full h-4">
+            <div class="bg-gradient-to-r from-purple-500 to-blue-500 h-4 rounded-full"
+                 style="width: {{ (progress.xp / progress.xp_needed * 100) if progress.xp_needed > 0 else 0 }}%"></div>
+        </div>
+        <p class="text-gray-400 text-sm mt-2">{{ progress.xp_needed - progress.xp }} XP to next level</p>
+    </div>
+    {% endif %}
+
+    <!-- Pass Tiers -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Free Pass -->
+        <div class="bg-gray-800 rounded-xl p-6">
+            <h3 class="text-xl font-bold text-white mb-4">🎖️ Free Pass</h3>
+            <div class="space-y-3">
+                {% if free_pass %}
+                {% for reward in free_pass.rewards %}
+                <div class="flex items-center justify-between p-3 rounded-lg {{ 'bg-green-500/10 border border-green-500/30' if progress and reward.level in (progress.claimed_levels or '[]') else 'bg-gray-700/50' }}">
+                    <div class="flex items-center gap-3">
+                        <span class="text-yellow-400 font-bold w-8">Lv.{{ reward.level }}</span>
+                        <span class="text-white text-sm">{{ reward.reward_name }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-gray-600 text-gray-300">{{ reward.rarity }}</span>
+                    </div>
+                    {% if current_user.is_authenticated %}
+                    <form method="POST" action="{{ url_for('battle_pass.claim_reward', pass_id=free_pass.id, level=reward.level) }}">
+                        <button type="submit" class="btn-primary text-xs py-1 px-3">Claim</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Premium Pass -->
+        <div class="bg-gray-800 rounded-xl p-6 border-2 border-purple-500/30">
+            <h3 class="text-xl font-bold text-white mb-4">👑 Premium Pass</h3>
+            {% if not (progress and progress.is_premium) and current_user.is_authenticated %}
+            <div class="text-center p-6">
+                <p class="text-gray-300 mb-4">Unlock exclusive rewards!</p>
+                <form method="POST" action="{{ url_for('battle_pass.upgrade_premium') }}">
+                    <button type="submit" class="btn-primary">Upgrade to Premium (500 coins)</button>
+                </form>
+            </div>
+            {% else %}
+            <div class="space-y-3">
+                {% if premium_pass %}
+                {% for reward in premium_pass.rewards %}
+                <div class="flex items-center justify-between p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                    <div class="flex items-center gap-3">
+                        <span class="text-purple-400 font-bold w-8">Lv.{{ reward.level }}</span>
+                        <span class="text-white text-sm">{{ reward.reward_name }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-purple-600/30 text-purple-300">{{ reward.rarity }}</span>
+                    </div>
+                    {% if current_user.is_authenticated %}
+                    <form method="POST" action="{{ url_for('battle_pass.claim_reward', pass_id=premium_pass.id, level=reward.level) }}">
+                        <button type="submit" class="btn-primary text-xs py-1 px-3">Claim</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center py-20">
+        <span class="text-6xl">🎖️</span>
+        <h2 class="text-2xl font-bold text-white mt-4">No Active Season</h2>
+        <p class="text-gray-400 mt-2">Battle Pass seasons will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

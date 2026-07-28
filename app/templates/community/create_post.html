@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}New Post - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <h1 class="text-3xl font-bold text-white mb-8">📝 New Post</h1>
+
+    <form method="POST" class="bg-gray-800 rounded-xl p-8 space-y-6">
+        <div>
+            <label class="block text-gray-300 mb-2">Category</label>
+            <select name="category_id" class="input-field w-full">
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-gray-300 mb-2">Title</label>
+            <input type="text" name="title" required class="input-field w-full" placeholder="Enter post title...">
+        </div>
+
+        <div>
+            <label class="block text-gray-300 mb-2">Content</label>
+            <textarea name="content" rows="10" required class="input-field w-full font-mono" placeholder="Write your post content..."></textarea>
+        </div>
+
+        <div class="flex gap-4">
+            <label class="flex items-center gap-2 text-gray-300">
+                <input type="checkbox" name="is_guide" class="w-4 h-4"> 📖 This is a Guide
+            </label>
+            <label class="flex items-center gap-2 text-gray-300">
+                <input type="checkbox" name="is_tutorial" class="w-4 h-4"> 🎓 This is a Tutorial
+            </label>
+        </div>
+
+        <button type="submit" class="btn-primary w-full py-3 text-lg">Publish Post</button>
+    </form>
+</div>
+{% endblock %}

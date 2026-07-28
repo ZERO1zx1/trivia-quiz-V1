@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Bracket - {{ tournament.name }} - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <a href="{{ url_for('tournament.detail', tournament_id=tournament.id) }}" class="text-gray-400 hover:text-white mb-6 inline-block">← Back</a>
+    <h1 class="text-3xl font-bold text-white mb-8">🏆 Bracket: {{ tournament.name }}</h1>
+
+    <div class="overflow-x-auto">
+        <div class="flex gap-8 min-w-max">
+            {% for round_num in bracket_data|sort %}
+            <div class="flex flex-col gap-4" style="min-width: 200px;">
+                <h3 class="text-center text-white font-bold text-lg mb-2">Round {{ round_num }}</h3>
+                {% for match in bracket_data[round_num] %}
+                <div class="bg-gray-800 rounded-lg p-3 min-w-[200px]">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-400">Match {{ match.match }}</span>
+                        <span class="text-xs px-2 py-0.5 rounded
+                            {{ 'bg-green-500/20 text-green-400' if match.status == 'completed'
+                               else 'bg-yellow-500/20 text-yellow-400' if match.status == 'in_progress'
+                               else 'bg-gray-500/20 text-gray-400' }}">
+                            {{ match.status }}
+                        </span>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center p-2 rounded
+                                    {{ 'bg-green-500/10 text-green-400 font-bold' if match.status == 'completed' and match.score_a > match.score_b
+                                       else 'text-white bg-gray-700/50' }}">
+                            <span>{{ match.player_a }}</span>
+                            <span>{{ match.score_a or '-' }}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded
+                                    {{ 'bg-green-500/10 text-green-400 font-bold' if match.status == 'completed' and match.score_b > match.score_a
+                                       else 'text-white bg-gray-700/50' }}">
+                            <span>{{ match.player_b }}</span>
+                            <span>{{ match.score_b or '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

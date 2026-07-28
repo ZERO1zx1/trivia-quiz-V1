@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}{{ guild.name }} - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Guild Header -->
+    <div class="bg-gradient-to-r from-purple-900 to-blue-900 rounded-2xl p-8 mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-white">{{ guild.name }}</h1>
+                <span class="text-purple-300 text-lg">[{{ guild.tag }}]</span>
+                <p class="text-gray-300 mt-2">{{ guild.description }}</p>
+            </div>
+            <div class="text-right">
+                <span class="text-4xl font-bold text-yellow-400">Lv.{{ guild.level }}</span>
+                <p class="text-gray-400 mt-1">🪙 {{ guild.coins }} coins</p>
+                <p class="text-gray-400">⚡ {{ guild.xp }} XP</p>
+            </div>
+        </div>
+        <div class="mt-4 flex gap-4">
+            {% if not my_membership and current_user.is_authenticated %}
+            <form method="POST" action="{{ url_for('guild.join', guild_id=guild.id) }}">
+                <button type="submit" class="btn-primary">Join Guild</button>
+            </form>
+            {% elif my_membership %}
+            <a href="{{ url_for('guild.leave', guild_id=guild.id) }}" class="btn-danger"
+               onclick="return confirm('Are you sure you want to leave this guild?')">Leave Guild</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gray-800 rounded-xl p-4 text-center">
+            <span class="text-2xl">👥</span>
+            <p class="text-xl font-bold text-white">{{ guild.member_count }}/{{ guild.max_members }}</p>
+            <p class="text-sm text-gray-400">Members</p>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center">
+            <span class="text-2xl">🏆</span>
+            <p class="text-xl font-bold text-white">{{ guild.wins }}</p>
+            <p class="text-sm text-gray-400">Guild Wars Won</p>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center">
+            <span class="text-2xl">📊</span>
+            <p class="text-xl font-bold text-white">{{ guild.quest_completion_rate }}%</p>
+            <p class="text-sm text-gray-400">Quest Rate</p>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-4 text-center">
+            <span class="text-2xl">🌍</span>
+            <p class="text-xl font-bold text-white">{{ guild.region }}</p>
+            <p class="text-sm text-gray-400">Region</p>
+        </div>
+    </div>
+
+    <!-- Members -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">👥 Members</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="pb-2">Rank</th>
+                        <th class="pb-2">Member</th>
+                        <th class="pb-2">Level</th>
+                        <th class="pb-2">XP Contributed</th>
+                        <th class="pb-2">Coins Contributed</th>
+                        <th class="pb-2">Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                    <tr class="border-b border-gray-700/50">
+                        <td class="py-2">
+                            <span class="px-2 py-1 rounded text-xs font-bold"
+                                  style="background-color: {{ member.rank.color if member.rank else '#999' }}20;
+                                         color: {{ member.rank.color if member.rank else '#999' }}">
+                                {{ member.rank.name if member.rank else 'Member' }}
+                            </span>
+                        </td>
+                        <td class="py-2 text-white">{{ member.user.username if member.user else 'Unknown' }}</td>
+                        <td class="py-2 text-gray-300">{{ member.user.level if member.user else 0 }}</td>
+                        <td class="py-2 text-gray-300">{{ member.xp_contributed }}</td>
+                        <td class="py-2 text-gray-300">{{ member.coins_contributed }}</td>
+                        <td class="py-2 text-gray-400 text-sm">{{ member.joined_at.strftime('%Y-%m-%d') if member.joined_at else '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Active Quests -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">⚔️ Active Quests</h2>
+        {% if quests %}
+        <div class="space-y-3">
+            {% for quest in quests %}
+            <div class="flex justify-between items-center p-4 bg-gray-700/50 rounded-lg">
+                <div>
+                    <span class="text-white font-medium">{{ quest.name }}</span>
+                    <p class="text-sm text-gray-400">{{ quest.description }}</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-yellow-400">+{{ quest.reward_xp }} XP</span>
+                    <span class="text-green-400 ml-2">+{{ quest.reward_coins }} 🪙</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-400">No active quests.</p>
+        {% endif %}
+    </div>
+
+    <!-- Invite -->
+    {% if my_membership %}
+    <div class="bg-gray-800 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-white mb-4">✉️ Invite Member</h2>
+        <form method="POST" action="{{ url_for('guild.invite', guild_id=guild.id) }}" class="flex gap-4">
+            <input type="text" name="username" placeholder="Username" class="input-field flex-1">
+            <button type="submit" class="btn-primary">Send Invite</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
