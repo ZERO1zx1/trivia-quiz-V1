@@ -1,0 +1,75 @@
+{% extends "layouts/base.html" %}
+{% block title %}Playing: {{ puzzle.name }} - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-white">{{ puzzle.name }}</h1>
+        <div class="flex gap-4">
+            <span class="text-yellow-400 font-bold">⏱️ <span id="timer">0</span>s</span>
+            <button onclick="getHint()" class="btn-secondary text-sm">💡 Hint (-50 score)</button>
+        </div>
+    </div>
+
+    <div class="bg-gray-800 rounded-2xl p-8">
+        <div class="text-center mb-8">
+            <h2 class="text-xl text-gray-300 mb-4">{{ puzzle.description }}</h2>
+            <div id="puzzle-content" class="bg-gray-700/50 rounded-xl p-8 min-h-[300px] flex items-center justify-center">
+                <p class="text-gray-400">Puzzle content loads here...</p>
+            </div>
+        </div>
+
+        <div class="flex justify-center gap-4 mt-6">
+            <button onclick="submitAnswer(true)" class="btn-primary px-8 py-3">✅ Submit Answer</button>
+            <button onclick="submitAnswer(false)" class="btn-danger px-8 py-3">❌ Give Up</button>
+        </div>
+
+        <div class="mt-6 text-center text-gray-400 text-sm">
+            <span>💡 Hints used: <span id="hints-used">0</span></span>
+            <span class="ml-6">📊 Score: <span id="current-score">1000</span></span>
+        </div>
+    </div>
+</div>
+
+<script>
+let startTime = Date.now();
+let hintsUsed = 0;
+let score = 1000;
+const attemptId = {{ attempt.id }};
+const puzzleId = {{ puzzle.id }};
+
+// Timer
+setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timer').textContent = elapsed;
+}, 1000);
+
+function getHint() {
+    fetch(`/puzzle/${attemptId}/hint`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            hintsUsed = data.hints_used;
+            score = data.score_penalty;
+            document.getElementById('hints-used').textContent = hintsUsed;
+            document.getElementById('current-score').textContent = Math.max(0, score);
+        });
+}
+
+function submitAnswer(correct) {
+    const completionTime = Math.floor((Date.now() - startTime) / 1000);
+    fetch(`/puzzle/${puzzleId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            correct: correct,
+            completion_time: completionTime,
+            moves: 0,
+            hints_used: hintsUsed
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            window.location.href = '/puzzle/';
+        }
+    });
+}
+</script>
+{% endblock %}

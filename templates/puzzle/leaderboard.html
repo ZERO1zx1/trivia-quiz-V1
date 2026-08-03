@@ -1,0 +1,43 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('Puzzle Leaderboard') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ puzzle.name }} - {{ _('Leaderboard') }}</h1>
+</div>
+
+<div class="table-container glass">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>{{ _('Rank') }}</th>
+                <th>{{ _('Player') }}</th>
+                <th>{{ _('Score') }}</th>
+                <th>{{ _('Time') }}</th>
+                <th>{{ _('Hints') }}</th>
+                <th>{{ _('Date') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in entries %}
+            <tr class="{{ 'highlight' if entry.user_id == current_user.id }}">
+                <td>{{ loop.index }}</td>
+                <td>
+                    <img src="{{ entry.user.avatar_url if entry.user else '' }}" class="avatar-sm"
+                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E?%3C/text%3E%3C/svg%3E';">
+                    {{ entry.user.username if entry.user else 'Unknown' }}
+                </td>
+                <td>{{ entry.score }}</td>
+                <td>{{ entry.completion_time }}s</td>
+                <td>{{ entry.hints_used }}</td>
+                <td>{{ entry.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

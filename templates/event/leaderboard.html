@@ -1,0 +1,23 @@
+{% extends "layouts/base.html" %}
+{% block title %}Leaderboard - {{ event.name }} - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-3xl">
+    <a href="{{ url_for('event.detail', event_id=event.id) }}" class="text-gray-400 hover:text-white mb-6 inline-block">← Back</a>
+    <h1 class="text-3xl font-bold text-white mb-2">{{ event.name }}</h1>
+    <h2 class="text-xl text-purple-400 mb-8">🏆 Leaderboard</h2>
+
+    <div class="bg-gray-800 rounded-xl overflow-hidden">
+        {% for participant in participants %}
+        <div class="flex items-center gap-4 p-4 border-b border-gray-700/50
+                    {{ 'bg-yellow-500/5' if loop.index == 1 else 'bg-gray-700/30' if loop.index == 2 else 'bg-orange-500/5' if loop.index == 3 else '' }}">
+            <span class="text-2xl w-12 text-center">
+                {{ '🥇' if loop.index == 1 else '🥈' if loop.index == 2 else '🥉' if loop.index == 3 else '#' + loop.index|string }}
+            </span>
+            <span class="text-white font-bold flex-1">{{ participant.user.username if participant.user else 'Unknown' }}</span>
+            <span class="text-yellow-400 font-bold">{{ participant.score }} pts</span>
+            <span class="text-gray-400 text-sm">Level {{ participant.level }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

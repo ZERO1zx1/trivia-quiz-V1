@@ -1,0 +1,33 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('Edit Post') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ _('Edit Post') }}</h1>
+</div>
+
+<div class="form-container glass">
+    <form method="POST" action="{{ url_for('community.edit_post', pid=post.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+            <label for="title">{{ _('Title') }}</label>
+            <input type="text" id="title" name="title" value="{{ post.title }}" required maxlength="200">
+        </div>
+        
+        <div class="form-group">
+            <label for="content">{{ _('Content') }}</label>
+            <textarea id="content" name="content" rows="10" required>{{ post.content }}</textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ _('Save Changes') }}</button>
+            <a href="{{ url_for('community.view_post', pid=post.id) }}" class="btn btn-ghost">{{ _('Cancel') }}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

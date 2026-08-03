@@ -1,0 +1,73 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ region.name }} Leaderboard - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex items-center gap-4 mb-8">
+        <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center text-3xl">
+            {{ region.flag or '🌍' }}
+        </div>
+        <div>
+            <h1 class="text-3xl font-bold text-white">{{ region.name }}</h1>
+            <p class="text-gray-400">{{ region.player_count }} players</p>
+        </div>
+    </div>
+
+    <!-- My Rank -->
+    {% if my_rank %}
+    <div class="bg-purple-600/20 border border-purple-500/30 rounded-xl p-4 mb-6">
+        <span class="text-purple-400">Your Rank: <strong class="text-white">#{{ my_rank.rank }}</strong></span>
+        <span class="text-gray-300 ml-4">XP: {{ my_rank.xp }}</span>
+        <span class="text-gray-300 ml-4">Level: {{ my_rank.level }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Leaderboard -->
+    <div class="bg-gray-800 rounded-xl overflow-hidden">
+        <table class="w-full">
+            <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                    <th class="pb-3 text-left px-6">Rank</th>
+                    <th class="pb-3 text-left">Player</th>
+                    <th class="pb-3 text-center">Level</th>
+                    <th class="pb-3 text-center">XP</th>
+                    <th class="pb-3 text-center">Wins</th>
+                    <th class="pb-3 text-center">Accuracy</th>
+                    <th class="pb-3 text-center">ELO</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in leaderboard.items %}
+                <tr class="border-b border-gray-700/50 hover:bg-gray-700/30">
+                    <td class="py-3 px-6">
+                        {% if entry.rank <= 3 %}
+                        <span class="text-xl">{{ ['🥇', '🥈', '🥉'][entry.rank - 1] }}</span>
+                        {% else %}
+                        <span class="text-gray-400">#{{ entry.rank }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-3 text-white font-medium">{{ entry.user.username if entry.user else 'Unknown' }}</td>
+                    <td class="py-3 text-center text-yellow-400">{{ entry.level }}</td>
+                    <td class="py-3 text-center text-purple-400">{{ entry.xp }}</td>
+                    <td class="py-3 text-center text-green-400">{{ entry.wins }}</td>
+                    <td class="py-3 text-center text-gray-300">{{ '%.1f' % entry.accuracy }}%</td>
+                    <td class="py-3 text-center text-blue-400">{{ entry.elo_rating }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if leaderboard.pages > 1 %}
+    <div class="flex justify-center mt-6 gap-2">
+        {% for page in leaderboard.iter_pages() %}
+        {% if page %}
+        <a href="?page={{ page }}"
+           class="px-4 py-2 rounded-lg {{ 'bg-purple-600 text-white' if page == leaderboard.page else 'bg-gray-700 text-gray-300' }}">
+            {{ page }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

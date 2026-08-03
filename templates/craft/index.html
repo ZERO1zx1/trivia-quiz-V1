@@ -1,0 +1,48 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('Crafting') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ _('Crafting') }}</h1>
+    <p class="text-muted">{{ _('Craft items using collected materials') }}</p>
+</div>
+
+<div class="craft-container">
+    <div class="craft-stats glass">
+        <h3>{{ _('Materials') }}</h3>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Available') }}</span>
+                <span class="stat-value">{{ materials }}</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">{{ _('Crafting XP') }}</span>
+                <span class="stat-value">{{ current_user.crafting_xp or 0 }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="recipes-grid">
+        {% for recipe in recipes %}
+        <div class="recipe-card glass">
+            <div class="recipe-icon">{{ recipe.icon or '⚒' }}</div>
+            <h3 class="recipe-name">{{ recipe.name }}</h3>
+            <p class="recipe-desc">{{ recipe.description }}</p>
+            <div class="recipe-cost">
+                <span>{{ recipe.material_cost }} {{ _('materials') }}</span>
+            </div>
+            <form method="POST" action="{{ url_for('craft.craft_item', rid=recipe.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary btn-sm" {% if materials < recipe.material_cost %}disabled{% endif %}>
+                    {{ _('Craft') }}
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

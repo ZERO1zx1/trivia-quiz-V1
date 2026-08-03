@@ -1,0 +1,45 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('My Replays') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ _('My Replays') }}</h1>
+    <p class="text-muted">{{ _('Watch your past game replays') }}</p>
+</div>
+
+<div class="replay-list">
+    {% for replay in replays %}
+    <div class="replay-card glass">
+        <div class="replay-header">
+            <h3><a href="{{ url_for('replay.watch', rid=replay.id) }}">{{ replay.title }}</a></h3>
+            <span class="badge badge-{{ replay.game_mode }}">{{ replay.game_mode }}</span>
+        </div>
+        <div class="replay-meta">
+            <span>{{ replay.category.name if replay.category }}</span>
+            <span>{{ replay.difficulty }}</span>
+            <span>{{ replay.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+        </div>
+        <div class="replay-stats">
+            <span>🎯 {{ replay.correct_answers or 0 }}/{{ replay.total_questions or 0 }}</span>
+            <span>⏱ {{ replay.duration or 0 }}s</span>
+            <span>👁 {{ replay.views or 0 }} views</span>
+        </div>
+        <div class="replay-actions">
+            <a href="{{ url_for('replay.watch', rid=replay.id) }}" class="btn btn-primary btn-sm">{{ _('Watch') }}</a>
+            <form method="POST" action="{{ url_for('replay.share_replay', rid=replay.id) }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-ghost btn-sm">{{ _('Share') }}</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>{{ _('No replays yet') }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

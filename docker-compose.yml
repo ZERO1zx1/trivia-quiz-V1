@@ -1,89 +1,69 @@
-<<<<<<< HEAD
-version: '3.8'
-services:
-  web:
-    build: .
-    ports:
-      - "5000:5000"
-    environment:
-      - FLASK_ENV=production
-      - DATABASE_URL=sqlite:///triviaverse.db
-    volumes:
-      - ./:/app
-=======
-# TriviaVerse Docker Compose (Chapter 22)
-# Full stack: App + MySQL + Nginx
-
+# TriviaVerse Docker Compose
+# Full stack: App + PostgreSQL + Redis + Nginx
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: triviaverse-app
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - FLASK_ENV=production
-    volumes:
-      - ./logs:/app/logs
-      - ./instance:/app/instance
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - triviaverse-net
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
   db:
-    image: mysql:8.0
-    container_name: triviaverse-db
+    image: postgres:15
+    container_name: triviaverse_db
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password_change_me}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-triviaverse}
-      MYSQL_USER: ${MYSQL_USER:-trivia_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-trivia_password_change_me}
-    ports:
-      - "3306:3306"
+      POSTGRES_DB: triviaverse
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - triviaverse-net
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: triviaverse_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: triviaverse_web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/triviaverse
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    command: python run.py
+
   nginx:
     image: nginx:alpine
-    container_name: triviaverse-nginx
+    container_name: triviaverse_nginx
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./static:/var/www/static:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - app
-    networks:
-      - triviaverse-net
-
-networks:
-  triviaverse-net:
-    driver: bridge
+      - web
 
 volumes:
-  mysql_data:
->>>>>>> 17eed4956a9023b91824efa22d88e223085ea1be
+  pgdata:

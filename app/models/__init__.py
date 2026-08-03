@@ -12,24 +12,24 @@ from .boss import Boss
 from .user_question import UserQuestion
 
 # New Enterprise Models
-from .guild import Guild, GuildMember, GuildRank, GuildQuest, GuildInvitation, GuildWar, GuildVault
-from .tournament import Tournament, TournamentParticipant, TournamentMatch, TournamentBracket, TournamentHistory, TournamentReward
-from .battle_pass import BattlePass, BattlePassSeason, BattlePassProgress, BattlePassReward
-from .pet import Pet, PetSpecies, PetEvolutionLog, PetStats, PetAchievement
-from .craft import CraftRecipe, CraftMaterial, CraftingLog, CraftResult
+from .guild import Guild, GuildMember, GuildRank, GuildSkill, GuildQuest, GuildWar, GuildBoss
+from .tournament import Tournament, TournamentParticipant, TournamentMatch, TournamentHistory
+from .battle_pass import Season, BattlePass, BattlePassReward, BattlePassProgress
+from .pet import PetSpecies, Pet, PetEvolution, PetEquipment
+from .craft import CraftRecipe, CraftingMaterial, UserCraftingProgress
 from .mail import Mail, MailAttachment
-from .marketplace import MarketplaceListing, MarketplacePurchase, MarketPriceHistory
-from .replay import Replay, ReplayEvent
-from .chat import ChatChannel, ChatMessage, DirectMessage
-from .event import Event, EventParticipant, EventReward, EventDailyTask
-from .region import Region, RegionLeaderboard, RegionStats
-from .collection import CollectionBook, CollectionItem, CollectionReward
-from .community import ForumCategory, ForumPost, ForumComment, ForumBookmark, ForumUpvote
-from .puzzle import Puzzle, PuzzleAttempt, PuzzleDaily, PuzzleHint, PuzzleScore
-from .learning import LearningPath, LearningModule, LearningProgress, LearningQuiz
-from .analytics import AnalyticsEvent, UserAnalytics
-from .companion import PremiumCosmetic, CompanionPet, CompanionSkin
-from .settings import UserSettings, SecurityLog, TwoFactorSetup
+from .marketplace import MarketplaceListing, MarketplaceTransaction, Auction, AuctionBid
+from .replay import Replay, ReplayEvent, ReplayLike
+from .chat import ChatChannel, ChatMember, ChatMessage, ChatReaction
+from .event import GameEvent, EventReward, EventParticipant
+from .region import Region, RegionLeaderboard
+from .collection import CollectionItem, CollectionProgress, CollectionReward
+from .community import ForumCategory, ForumPost, ForumComment, ForumLike, UserBookmark
+from .puzzle import Puzzle, PuzzleAttempt, PuzzleLeaderboardEntry
+from .learning import Flashcard, StudyNote, ExamAttempt
+from .analytics import PlayerAnalytics, CategoryAnalytics, ServerAnalytics
+from .companion import Cosmetic, UserCosmetic, ProfileTheme, UserProfileTheme
+from .settings import UserSettings, DeviceHistory, TwoFactorAuth, Session, BanAppeal, AuditLog, FeatureToggle
 
 __all__ = [
     # Core models
@@ -46,39 +46,39 @@ __all__ = [
     'Boss',
     'UserQuestion',
     # Guild System
-    'Guild', 'GuildMember', 'GuildRank', 'GuildQuest', 'GuildInvitation', 'GuildWar', 'GuildVault',
+    'Guild', 'GuildMember', 'GuildRank', 'GuildSkill', 'GuildQuest', 'GuildWar', 'GuildBoss',
     # Tournament System
-    'Tournament', 'TournamentParticipant', 'TournamentMatch', 'TournamentBracket', 'TournamentHistory', 'TournamentReward',
+    'Tournament', 'TournamentParticipant', 'TournamentMatch', 'TournamentHistory',
     # Battle Pass
-    'BattlePass', 'BattlePassSeason', 'BattlePassProgress', 'BattlePassReward',
+    'Season', 'BattlePass', 'BattlePassReward', 'BattlePassProgress',
     # Pet System
-    'Pet', 'PetSpecies', 'PetEvolutionLog', 'PetStats', 'PetAchievement',
+    'PetSpecies', 'Pet', 'PetEvolution', 'PetEquipment',
     # Crafting
-    'CraftRecipe', 'CraftMaterial', 'CraftingLog', 'CraftResult',
+    'CraftRecipe', 'CraftingMaterial', 'UserCraftingProgress',
     # Mail
     'Mail', 'MailAttachment',
     # Marketplace
-    'MarketplaceListing', 'MarketplacePurchase', 'MarketPriceHistory',
+    'MarketplaceListing', 'MarketplaceTransaction', 'Auction', 'AuctionBid',
     # Replay
-    'Replay', 'ReplayEvent',
+    'Replay', 'ReplayEvent', 'ReplayLike',
     # Chat
-    'ChatChannel', 'ChatMessage', 'DirectMessage',
+    'ChatChannel', 'ChatMember', 'ChatMessage', 'ChatReaction',
     # Events
-    'Event', 'EventParticipant', 'EventReward', 'EventDailyTask',
+    'GameEvent', 'EventReward', 'EventParticipant',
     # Regions
-    'Region', 'RegionLeaderboard', 'RegionStats',
+    'Region', 'RegionLeaderboard',
     # Collection
-    'CollectionBook', 'CollectionItem', 'CollectionReward',
+    'CollectionItem', 'CollectionProgress', 'CollectionReward',
     # Community
-    'ForumCategory', 'ForumPost', 'ForumComment', 'ForumBookmark', 'ForumUpvote',
+    'ForumCategory', 'ForumPost', 'ForumComment', 'ForumLike', 'UserBookmark',
     # Puzzle
-    'Puzzle', 'PuzzleAttempt', 'PuzzleDaily', 'PuzzleHint', 'PuzzleScore',
+    'Puzzle', 'PuzzleAttempt', 'PuzzleLeaderboardEntry',
     # Learning
-    'LearningPath', 'LearningModule', 'LearningProgress', 'LearningQuiz',
+    'Flashcard', 'StudyNote', 'ExamAttempt',
     # Analytics
-    'AnalyticsEvent', 'UserAnalytics',
+    'PlayerAnalytics', 'CategoryAnalytics', 'ServerAnalytics',
     # Premium Cosmetics
-    'PremiumCosmetic', 'CompanionPet', 'CompanionSkin',
+    'Cosmetic', 'UserCosmetic', 'ProfileTheme', 'UserProfileTheme',
     # Settings
-    'UserSettings', 'SecurityLog', 'TwoFactorSetup',
+    'UserSettings', 'DeviceHistory', 'TwoFactorAuth', 'Session', 'BanAppeal', 'AuditLog', 'FeatureToggle',
 ]

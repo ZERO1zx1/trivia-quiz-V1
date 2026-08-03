@@ -1,0 +1,79 @@
+{% extends "layouts/base.html" %}
+{% block title %}My Pets - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-white mb-8">🐾 My Pets</h1>
+
+    {% if active_pet %}
+    <!-- Active Pet -->
+    <div class="bg-gradient-to-r from-purple-900 to-pink-900 rounded-2xl p-8 mb-8">
+        <div class="flex items-center gap-6">
+            {% if active_pet.species.image_url %}
+            <img src="{{ active_pet.species.image_url }}" alt="{{ active_pet.species.name }}" class="w-32 h-32 rounded-xl">
+            {% else %}
+            <div class="w-32 h-32 bg-purple-700 rounded-xl flex items-center justify-center text-5xl">🐾</div>
+            {% endif %}
+            <div>
+                <h2 class="text-2xl font-bold text-white">{{ active_pet.name or active_pet.species.name }}</h2>
+                <p class="text-purple-300">Level {{ active_pet.level }} | {{ active_pet.species.rarity }}</p>
+                <div class="flex gap-4 mt-2 text-sm">
+                    <span class="text-gray-300">❤️ Happiness: {{ active_pet.happiness }}%</span>
+                    <span class="text-gray-300">⚡ Energy: {{ active_pet.energy }}%</span>
+                    <span class="text-gray-300">⭐ XP: {{ active_pet.xp }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pet Collection -->
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+        {% for pet in pets %}
+        <div class="bg-gray-800 rounded-xl p-4 hover:shadow-lg transition-shadow">
+            {% if pet.species.image_url %}
+            <img src="{{ pet.species.image_url }}" alt="{{ pet.species.name }}" class="w-full h-32 object-cover rounded-lg mb-3">
+            {% else %}
+            <div class="w-full h-32 bg-gray-700 rounded-lg flex items-center justify-center text-4xl mb-3">🐾</div>
+            {% endif %}
+            <h3 class="text-white font-bold">{{ pet.name or pet.species.name }}</h3>
+            <p class="text-gray-400 text-sm">Lv.{{ pet.level }} | {{ pet.species.rarity }}</p>
+            <div class="mt-3 flex gap-2">
+                {% if not pet.is_active %}
+                <form method="POST" action="{{ url_for('pet.equip', pet_id=pet.id) }}">
+                    <button type="submit" class="btn-primary text-xs py-1 px-3">Equip</button>
+                </form>
+                {% else %}
+                <span class="text-green-400 text-xs py-1 px-3">Active</span>
+                {% endif %}
+                <a href="{{ url_for('pet.detail', pet_id=pet.id) }}" class="btn-secondary text-xs py-1 px-3">Details</a>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Empty Slot -->
+        {% for i in range(pets|length, 8) %}
+        <div class="bg-gray-800/50 rounded-xl p-4 border-2 border-dashed border-gray-700 flex items-center justify-center">
+            <span class="text-gray-500 text-4xl">+</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Available Species -->
+    <div class="bg-gray-800 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-white mb-4">🐾 Available Species</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for sp in species %}
+            <div class="bg-gray-700/50 rounded-lg p-3 text-center">
+                {% if sp.image_url %}
+                <img src="{{ sp.image_url }}" alt="{{ sp.name }}" class="w-16 h-16 mx-auto rounded mb-2">
+                {% else %}
+                <div class="w-16 h-16 mx-auto bg-gray-600 rounded flex items-center justify-center text-2xl mb-2">🐾</div>
+                {% endif %}
+                <p class="text-white text-sm font-bold">{{ sp.name }}</p>
+                <p class="text-gray-400 text-xs">{{ sp.rarity }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

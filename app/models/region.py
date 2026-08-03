@@ -8,7 +8,7 @@ class Region(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    code = db.Column(db.String(10), unique=True, nullable=False)  # eu, na, asia, mn, jp, kr, ru
+    code = db.Column(db.String(50), unique=True, nullable=False)  # eu, na, asia, mn, jp, kr, ru, north-america, south-america
     flag_url = db.Column(db.String(500), default='')
     description = db.Column(db.Text, default='')
     player_count = db.Column(db.Integer, default=0)

@@ -1,0 +1,49 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('Daily Puzzle') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ _('Daily Puzzle') }}</h1>
+    <p class="text-muted">{{ puzzle.description }}</p>
+</div>
+
+<div class="puzzle-container glass">
+    <div class="puzzle-info">
+        <div class="puzzle-meta">
+            <span class="badge">{{ puzzle.difficulty }}</span>
+            <span>{{ _('Hints') }}: {{ attempt.hints_used if attempt else 0 }}/3</span>
+        </div>
+        
+        <div class="puzzle-content">
+            <h3>{{ puzzle.title }}</h3>
+            <div class="puzzle-body">
+                {{ puzzle.content|safe }}
+            </div>
+        </div>
+        
+        {% if attempt and attempt.is_solved %}
+        <div class="puzzle-result success">
+            <p>{{ _('Congratulations! Puzzle solved!') }}</p>
+            <p>{{ _('Score') }}: {{ attempt.score }}</p>
+            <p>{{ _('Time') }}: {{ attempt.completion_time }}s</p>
+        </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('puzzle.submit_daily') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+                <label for="answer">{{ _('Your Answer') }}</label>
+                <input type="text" id="answer" name="answer" required>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{{ _('Submit') }}</button>
+                <a href="{{ url_for('puzzle.hint_daily') }}" class="btn btn-ghost">{{ _('Get Hint') }} (50 coins)</a>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

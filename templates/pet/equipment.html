@@ -1,0 +1,36 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ _('Pet Equipment') }} - {{ app_name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ _('Pet Equipment') }}</h1>
+    <p class="text-muted">{{ _('Equip items to enhance your pet') }}</p>
+</div>
+
+<div class="equipment-grid">
+    {% for item in items %}
+    <div class="equipment-card glass">
+        <div class="item-icon">{{ item.icon or '⚔' }}</div>
+        <h3>{{ item.name }}</h3>
+        <p class="item-type">{{ item.item_type }}</p>
+        <div class="item-stats">
+            {% if item.power %}<span>⚡ {{ item.power }}</span>{% endif %}
+            {% if item.speed %}<span>💨 {{ item.speed }}</span>{% endif %}
+            {% if item.defense %}<span>🛡 {{ item.defense }}</span>{% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('pet.equip_item', item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">{{ _('Equip') }}</button>
+        </form>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>{{ _('No equipment available') }}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -302,7 +302,7 @@ def _seed_regions():
         ('africa', 'Africa', '🌍', 'Africa timezone'),
     ]
     for code, name, flag, description in regions:
-        db.session.add(Region(code=code, name=name, flag=flag, description=description))
+        db.session.add(Region(code=code, name=name, flag_url=flag, description=description))
     db.session.commit()
 
 def _seed_pet_species():
@@ -326,17 +326,18 @@ def _seed_chat_channels():
     if ChatChannel.query.first():
         return
     channels = [
-        ('general', 'General Chat', 'General discussion channel', 'text', True),
-        ('announcements', 'Announcements', 'Official game announcements', 'text', True),
-        ('help', 'Help & Support', 'Get help from the community', 'text', True),
-        ('memes', 'Memes', 'Share your best memes', 'text', True),
-        ('guild-recruit', 'Guild Recruitment', 'Find or join a guild', 'text', True),
-        ('tournament-chat', 'Tournament Chat', 'Tournament discussions', 'text', True),
+        ('general', 'General Chat', 'General discussion channel', 'global', False, 0),
+        ('announcements', 'Announcements', 'Official game announcements', 'admin', False, 0),
+        ('help', 'Help & Support', 'Get help from the community', 'global', False, 0),
+        ('memes', 'Memes', 'Share your best memes', 'global', False, 0),
+        ('guild-recruit', 'Guild Recruitment', 'Find or join a guild', 'guild', False, 0),
+        ('tournament-chat', 'Tournament Chat', 'Tournament discussions', 'global', False, 0),
     ]
-    for slug, name, description, channel_type, is_public in channels:
+    for slug, name, description, channel_type, is_private, slowmode in channels:
         db.session.add(ChatChannel(
-            slug=slug, name=name, description=description,
-            channel_type=channel_type, is_public=is_public
+            name=name, description=description,
+            channel_type=channel_type, is_private=is_private,
+            slowmode_seconds=slowmode
         ))
     db.session.commit()
 
@@ -345,14 +346,14 @@ def _seed_forum_categories():
     if ForumCategory.query.first():
         return
     categories = [
-        ('General Discussion', 'Talk about anything related to TriviaVerse', True),
-        ('Guides & Tips', 'Share your knowledge and strategies', True),
-        ('Bug Reports', 'Report bugs and issues', True),
-        ('Feature Requests', 'Suggest new features', True),
-        ('Trading', 'Trade items and cosmetics', False),
-        ('Guild Recruitment', 'Find members for your guild', True),
-        ('Fan Art', 'Share your creative work', True),
+        ('General Discussion', 'Talk about anything related to TriviaVerse'),
+        ('Guides & Tips', 'Share your knowledge and strategies'),
+        ('Bug Reports', 'Report bugs and issues'),
+        ('Feature Requests', 'Suggest new features'),
+        ('Trading', 'Trade items and cosmetics'),
+        ('Guild Recruitment', 'Find members for your guild'),
+        ('Fan Art', 'Share your creative work'),
     ]
-    for name, description, is_public in categories:
-        db.session.add(ForumCategory(name=name, description=description, is_public=is_public))
+    for name, description in categories:
+        db.session.add(ForumCategory(name=name, description=description))
     db.session.commit()

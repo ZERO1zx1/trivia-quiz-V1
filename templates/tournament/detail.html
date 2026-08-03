@@ -1,0 +1,154 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ tournament.name }} - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-white mb-2">{{ tournament.name }}</h1>
+    <p class="text-gray-400 mb-6">{{ tournament.description }}</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Tournament Info -->
+        <div class="lg:col-span-2 bg-gray-800 rounded-xl p-6">
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="text-center">
+                    <span class="text-2xl">🎯</span>
+                    <p class="text-lg font-bold text-white">{{ tournament.type }}</p>
+                    <p class="text-sm text-gray-400">Type</p>
+                </div>
+                <div class="text-center">
+                    <span class="text-2xl">📚</span>
+                    <p class="text-lg font-bold text-white">{{ tournament.category }}</p>
+                    <p class="text-sm text-gray-400">Category</p>
+                </div>
+                <div class="text-center">
+                    <span class="text-2xl">⚡</span>
+                    <p class="text-lg font-bold text-white">{{ tournament.difficulty }}</p>
+                    <p class="text-sm text-gray-400">Difficulty</p>
+                </div>
+                <div class="text-center">
+                    <span class="text-2xl">👥</span>
+                    <p class="text-lg font-bold text-white">{{ participants|length }}/{{ tournament.max_participants }}</p>
+                    <p class="text-sm text-gray-400">Players</p>
+                </div>
+                <div class="text-center">
+                    <span class="text-2xl">🏆</span>
+                    <p class="text-lg font-bold text-yellow-400">{{ tournament.prize_pool }} 🪙</p>
+                    <p class="text-sm text-gray-400">Prize Pool</p>
+                </div>
+                <div class="text-center">
+                    <span class="text-2xl">🌍</span>
+                    <p class="text-lg font-bold text-white">{{ tournament.region }}</p>
+                    <p class="text-sm text-gray-400">Region</p>
+                </div>
+            </div>
+
+            {% if tournament.start_time %}
+            <div class="mt-4 p-4 bg-gray-700/50 rounded-lg">
+                <p class="text-gray-300"><strong>Start:</strong> {{ tournament.start_time }}</p>
+                {% if tournament.end_time %}
+                <p class="text-gray-300"><strong>End:</strong> {{ tournament.end_time }}</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if tournament.is_ranked %}
+            <div class="mt-2 text-yellow-400 font-bold">⚔️ Ranked Tournament</div>
+            {% endif %}
+        </div>
+
+        <!-- Registration Panel -->
+        <div class="bg-gray-800 rounded-xl p-6">
+            <h3 class="text-lg font-bold text-white mb-4">Registration</h3>
+            {% if my_participation %}
+            <div class="text-green-400 text-center py-4">
+                <span class="text-2xl">✅</span>
+                <p>You are registered!</p>
+                <p class="text-sm text-gray-400">Seed: #{{ my_participation.seed }}</p>
+            </div>
+            {% elif current_user.is_authenticated and tournament.status == 'upcoming' %}
+            <div class="text-center">
+                {% if tournament.entry_fee > 0 %}
+                <p class="text-gray-400 mb-2">Entry Fee: <span class="text-yellow-400">{{ tournament.entry_fee }} 🪙</span></p>
+                {% endif %}
+                <form method="POST" action="{{ url_for('tournament.register', tournament_id=tournament.id) }}">
+                    <button type="submit" class="btn-primary w-full">Register Now</button>
+                </form>
+            </div>
+            {% elif tournament.status != 'upcoming' %}
+            <p class="text-gray-400 text-center">Registration closed.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Participants -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">Participants</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="pb-2 text-left">Seed</th>
+                        <th class="pb-2 text-left">Player</th>
+                        <th class="pb-2 text-center">W/L</th>
+                        <th class="pb-2 text-center">Score</th>
+                        <th class="pb-2 text-center">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in participants %}
+                    <tr class="border-b border-gray-700/50">
+                        <td class="py-2 text-gray-400">#{{ p.seed }}</td>
+                        <td class="py-2 text-white">{{ p.user.username if p.user else 'TBD' }}</td>
+                        <td class="py-2 text-center text-gray-300">{{ p.wins }}W / {{ p.losses }}L</td>
+                        <td class="py-2 text-center text-gray-300">{{ p.score }}</td>
+                        <td class="py-2 text-center">
+                            {% if p.eliminated %}
+                            <span class="text-red-400 text-sm">Eliminated</span>
+                            {% else %}
+                            <span class="text-green-400 text-sm">Active</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Matches -->
+    {% if matches %}
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">Matches</h2>
+        <div class="space-y-4">
+            {% for match in matches %}
+            <div class="flex items-center justify-between p-4 bg-gray-700/50 rounded-lg">
+                <div class="flex-1 text-right {{ 'text-green-400 font-bold' if match.winner and match.winner == match.player_a else 'text-white' }}">
+                    {{ match.player_a.user.username if match.player_a and match.player_a.user else 'TBD' }}
+                    <span class="text-gray-400 ml-1">{{ match.score_a or 0 }}</span>
+                </div>
+                <div class="px-4 text-gray-500 font-bold">VS</div>
+                <div class="flex-1 text-left {{ 'text-green-400 font-bold' if match.winner and match.winner == match.player_b else 'text-white' }}">
+                    <span class="text-gray-400 mr-1">{{ match.score_b or 0 }}</span>
+                    {{ match.player_b.user.username if match.player_b and match.player_b.user else 'TBD' }}
+                </div>
+                <div class="ml-4">
+                    <span class="text-xs px-2 py-1 rounded
+                        {{ 'bg-green-500/20 text-green-400' if match.status == 'completed'
+                           else 'bg-yellow-500/20 text-yellow-400' if match.status == 'in_progress'
+                           else 'bg-gray-500/20 text-gray-400' }}">
+                        Round {{ match.round_number }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- History Link -->
+    {% if tournament.status == 'completed' %}
+    <div class="text-center">
+        <a href="{{ url_for('tournament.history', tournament_id=tournament.id) }}" class="btn-primary">View Final Results</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "layouts/base.html" %}
+{% block title %}Tournaments - TriviaVerse{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-white">🏆 Tournaments</h1>
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a href="{{ url_for('tournament.create') }}" class="btn-primary">+ Create Tournament</a>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="flex gap-4 mb-6">
+        <a href="?status=all" class="px-4 py-2 rounded-lg {{ 'bg-purple-600' if request.args.get('status') == 'all' else 'bg-gray-700' }} text-white">All</a>
+        <a href="?status=upcoming" class="px-4 py-2 rounded-lg {{ 'bg-purple-600' if request.args.get('status') == 'upcoming' else 'bg-gray-700' }} text-white">Upcoming</a>
+        <a href="?status=active" class="px-4 py-2 rounded-lg {{ 'bg-purple-600' if request.args.get('status') == 'active' else 'bg-gray-700' }} text-white">Active</a>
+        <a href="?status=completed" class="px-4 py-2 rounded-lg {{ 'bg-purple-600' if request.args.get('status') == 'completed' else 'bg-gray-700' }} text-white">Completed</a>
+    </div>
+
+    <!-- Tournament Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for tournament in tournaments.items %}
+        <div class="bg-gray-800 rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+            <div class="h-2 {{ 'bg-green-500' if tournament.status == 'active' else 'bg-yellow-500' if tournament.status == 'upcoming' else 'bg-gray-500' }}"></div>
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="text-xl font-bold text-white">{{ tournament.name }}</h3>
+                    <span class="px-2 py-1 rounded text-xs font-bold
+                        {{ 'bg-green-500/20 text-green-400' if tournament.status == 'active'
+                           else 'bg-yellow-500/20 text-yellow-400' if tournament.status == 'upcoming'
+                           else 'bg-gray-500/20 text-gray-400' }}">
+                        {{ tournament.status }}
+                    </span>
+                </div>
+                <p class="text-gray-400 text-sm mb-4">{{ tournament.description[:100] }}...</p>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Type:</span>
+                        <span class="text-white">{{ tournament.type }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Category:</span>
+                        <span class="text-white">{{ tournament.category }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Difficulty:</span>
+                        <span class="text-white">{{ tournament.difficulty }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Players:</span>
+                        <span class="text-white">{{ tournament.participants.count() }}/{{ tournament.max_participants }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Prize Pool:</span>
+                        <span class="text-yellow-400 font-bold">{{ tournament.prize_pool }} 🪙</span>
+                    </div>
+                    {% if tournament.entry_fee > 0 %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Entry Fee:</span>
+                        <span class="text-red-400">{{ tournament.entry_fee }} 🪙</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="mt-4">
+                    <a href="{{ url_for('tournament.detail', tournament_id=tournament.id) }}" class="btn-primary w-full block text-center">View Tournament</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if tournaments.pages > 1 %}
+    <div class="flex justify-center mt-8 gap-2">
+        {% for page in tournaments.iter_pages() %}
+        {% if page %}
+        <a href="?page={{ page }}&status={{ request.args.get('status', 'all') }}"
+           class="px-4 py-2 rounded-lg {{ 'bg-purple-600 text-white' if page == tournaments.page else 'bg-gray-700 text-gray-300' }}">
+            {{ page }}
+        </a>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
