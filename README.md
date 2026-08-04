@@ -10,58 +10,23 @@
 
 ---
 
-## ✨ Онцлох боломжууд (Features)
+## ✨ Үндсэн боломжууд (Core Features)
 
 ### 🔗 Веб & Discord Hybrid Систем
 * **Нэгдсэн Бааз:** Вебсайт болон Discord сервер дээрх зоос (Coins), инвентарь, XP зэрэг нь хоорондоо бодит цагт синхрончлогдоно.
 * **OAuth2 Нэвтрэлт:** Discord хаягаараа нэг товшилтоор бүртгэл үүсгэж, нэвтрэх боломж.
 * **Premium Sync:** Вэбээс Premium авахад Discord дээр автоматаар Role олгогдоно.
 
-### 🕹️ Тоглоомын Горимууд (Live Modes)
+### 🕹️ Тоглоомын Горимууд (Game Modes)
 * **Classic & Time Attack:** Бодит цагийн өрсөлдөөн, цагтай уралдах систем.
-* **Survival Mode:** Буруу хариулбал амь хасагдах (Elimination) хатуу горим.
+* **Survival Mode:** Буруу хариулвал амь хасагдах (Elimination) хатуу горим.
 * **Quiz Duel (PvP):** 1v1 бооцоотой тулаан болон Elo Rating эрэмбэ.
+* **World Boss:** Сервер даяарх тоглогчид нэгдэн хүчирхэг Boss-ыг ялах горим.
 
-### 💰 Эдийн Засаг & RPG (Economy)
-* **Дэлгүүр & Инвентарь:** Avatar хүрээ, цол, хөдөлгөөнт эффект худалдаж авах.
-* **Fortune Wheel & Rewards:** Өдөр тутмын азын хүрд болон Daily Quest систем.
-* **Сошиал Харилцаа:** Marriage (гэрлэх), Respect өгөх, Найзууд нэмэх, Бэлэг илгээх.
-
----
-
-## 🚀 Хөгжүүлэлтийн Замнал (Roadmap)
-
-Бид төслийн архитектурыг дараах **4 үе шаттайгаар (Phases)** хөгжүүлж байна:
-
-### ✅ Phase 0: Үндсэн Цөм (Completed)
-- [x] OTP & Discord OAuth бүртгэлийн систем
-- [x] Socket.IO бодит цагийн холболт
-- [x] Classic, Time Attack, Solo горимууд
-- [x] AI Асуулт үүсгэгч (OpenAI интеграци)
-- [x] Олон хэлний дэмжлэг (EN, MN)
-- [x] Docker & Docker Compose тохиргоо
-
-### ✅ Phase 1: Тоглоомын Контент (Completed)
-- [x] **Multimedia Quiz:** Voice (дуу таах), Image (зураг таах), Video горимууд.
-- [x] **Puzzle & Learning:** Санах ойн дасгал, үгийн сүлжээ, тайлбартай сургалтын горим.
-- [x] **AI Coach:** Тоглогчийн алдаан дээр дүн шинжилгээ хийх туслах.
-
-### ✅ Phase 2: Өрсөлдөөн ба Сошиал (Completed)
-- [x] **Guild System 2.0:** Бүлгэм байгуулж, Guild Wars болон Guild Boss-д оролцох.
-- [x] **Tournament System:** Bracket, Swiss хэлбэрийн шагналт тэмцээнүүд.
-- [x] **Battle Pass & Events:** Улирлын чанартай шагналын систем, тусгай эвентүүд.
-- [x] **Advanced Chat:** Global, Guild, Private чат болон Community Forum.
-
-### ✅ Phase 3: Эдийн Засаг ба RPG элементүүд (Completed)
-- [x] **Marketplace:** Тоглогчид хоорондоо айтем зарах, солилцох (ACID transactions).
-- [x] **Crafting & Pets:** Илүүдэл зүйлсийг нэгтгэж шинийг урлах, туслах амьтан дагуулах.
-- [x] **Collection Book:** Цуглуулсан ховор зүйлсээ хадгалах визуал сан.
-
-### ✅ Phase 4: Enterprise Дэд Бүтэц (Completed)
-- [x] **Security 2.0:** 2FA, Ban Appeal, Төхөөрөмжийн түүх.
-- [x] **Spectator & Replay:** Тоглолтын бичлэг ухрааж үзэх, шууд дамжуулалт хянах.
-- [x] **DevOps Analytics:** Prometheus, Grafana, CI/CD автоматжуулалт.
-- [x] **Anti-Cheat System:** Тоглолтын хурд болон ботыг тодорхойлох систем.
+### 💰 Эдийн Засаг & RPG (Economy & RPG)
+* **Marketplace:** Тоглогчид хоорондоо айтем зарах, солилцох (ACID transactions).
+* **Crafting & Pets:** Илүүдэл зүйлсийг нэгтгэж шинийг урлах, туслах амьтан дагуулах.
+* **Fortune Wheel:** Өдөр тутмын азын хүрд болон Daily Quest систем.
 
 ---
 
@@ -70,21 +35,33 @@
 | Төрөл | Технологи |
 | --- | --- |
 | **Backend** | Python 3.12+, Flask, Flask-SocketIO |
-| **Database** | PostgreSQL 14+ (Production), SQLite (Dev), Redis (Cache/Queue) |
-| **Frontend** | HTML5, CSS3 (Glassmorphism, Dark Theme), Vanilla JS, Jinja2 |
+| **Database** | PostgreSQL 14+, Redis (Cache/Queue) |
+| **Frontend** | Jinja2, Glassmorphism UI, Vanilla JS |
 | **Bot System** | discord.py 2.6+ |
-| **AI Integration**| OpenAI API (GPT-3.5/4) |
-| **DevOps** | Docker, Docker Compose, Nginx, GitHub Actions |
+| **AI Integration**| OpenAI API (GPT-4), Gemini, Claude |
+| **DevOps** | Docker, Nginx, GitHub Actions, Prometheus, Grafana |
 
 ---
 
-## 🎨 UI / UX Загвар (Design System)
+## 🚀 Хөгжүүлэлтийн Замнал (Roadmap)
 
-Төсөл нь **AAA Gaming Style** буюу орчин үеийн бараан өнгөний хослол дээр суурилсан.
-* **Theme:** Dark Theme (`#09090B`) + Glassmorphism (Frosted Cards)
-* **Accents:** Purple (`#7C3AED`) & Blue Gradient, Neon гэрэлтэлт.
-* **Typography:** Space Grotesk (Гарчиг), Inter (Бичвэр), JetBrains Mono (Тооцоолол).
-* **Animations:** Smooth transitions, Hover Glow, Particle backgrounds.
+### ✅ Phase 0-2: Суурь ба Сошиал (Completed)
+- [x] OTP & Discord OAuth бүртгэл
+- [x] Socket.IO бодит цагийн холболт
+- [x] Guild System & Tournament System
+- [x] Advanced Chat & Forum
+
+### ✅ Phase 3-4: Эдийн засаг ба Дэд бүтэц (Completed)
+- [x] Marketplace & Crafting
+- [x] Security 2.0 (2FA, Audit Logs)
+- [x] Spectator & Replay System
+- [x] Anti-Cheat System
+
+---
+
+## 📂 Төслийн бүтэц (Project Structure)
+
+Төслийн дэлгэрэнгүй бүтэц болон техникийн баримт бичгийг [DOCUMENTATION.md](./DOCUMENTATION.md) файлаас харна уу.
 
 ---
 
@@ -92,92 +69,37 @@
 
 ### 1. Репозиторийг хуулах
 ```bash
-git clone [https://github.com/ZERO1zx1/trivia-quiz-V1.git](https://github.com/ZERO1zx1/trivia-quiz-V1.git)
+git clone https://github.com/ZERO1zx1/trivia-quiz-V1.git
 cd trivia-quiz-V1
-
 ```
 
-### 2. Python Виртуал орчин үүсгэх (Virtual Environment)
-
+### 2. Docker ашиглан ажиллуулах (Санал болгож буй)
 ```bash
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Mac/Linux:
-source .venv/bin/activate
-
+docker-compose up --build
 ```
 
-### 3. Сангуудыг суулгах
-
-```bash
-pip install -r requirements.txt
-
-```
-
-### 4. Орчны хувьсагч тохируулах (.env)
-
-Үндсэн хавтаст `.env` файл үүсгээд дараах тохиргоог хийнэ үү:
-
-```env
-SECRET_KEY=your-super-secret-key
-DISCORD_CLIENT_ID=your_discord_client_id
-DISCORD_CLIENT_SECRET=your_discord_client_secret
-DISCORD_BOT_TOKEN=your_discord_bot_token
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-OPENAI_API_KEY=sk-your-openai-api-key
-
-```
-
-### 5. Сервер болон Ботыг ажиллуулах
-
-Веб серверийг эхлүүлэх (Өгөгдлийн сан автоматаар үүснэ):
-
-```bash
-python run.py
-
-```
-
-*Хөтөч дээр: `http://localhost:5000*`
-
-Discord Ботыг асаах (Шинэ терминал дээр):
-
-```bash
-python discord_bot/bot.py
-
-```
+### 3. Гараар ажиллуулах
+1. `.env` файлыг тохируулах (Жишээг `.env.example`-аас харна уу).
+2. `pip install -r requirements.txt`
+3. `python run.py` (Вэб сервер)
+4. `python discord_bot/bot.py` (Discord бот)
 
 ---
 
 ## 🤖 Discord Bot Командууд
 
-| Команд | Тайлбар | Эрх |
-| --- | --- | --- |
-| `/profile [user]` | Профайл болон статистикаа харах | Хүн бүр |
-| `/daily` & `/spin` | Өдрийн шагнал авах, Азын хүрд эргүүлэх | Хүн бүр |
-| `/quiz-duel @user` | 1v1 бооцоот тулаанд дуудах | Хүн бүр |
-| `/shop` & `/buy` | Дэлгүүрээс айтем харах, худалдаж авах | Хүн бүр |
-| `/marry @user` | Өөр тоглогчтой гэрлэх 💍 | Хүн бүр |
-| `/rep @user` | Тоглогчид хүндэтгэл (Respect) илэрхийлэх | Хүн бүр |
-| `/attack` | World Boss руу дайралт хийх | Хүн бүр |
-| `/ban`, `/kick` | Тоглогчийг серверээс хөөх, хориглох | Модератор |
-| `/add-xp` | Хэрэглэгчид туршлагын оноо өгөх | Админ |
+| Команд | Тайлбар |
+| --- | --- |
+| `/profile` | Өөрийн статистик харах |
+| `/quiz-duel` | 1v1 тулаанд дуудах |
+| `/shop` | Дэлгүүр нээх |
+| `/attack` | World Boss руу дайрах |
 
 ---
-
-## 🤝 Хамтран Ажиллах (Contributing)
-
-Хэрэв та энэхүү төсөлд хувь нэмрээ оруулахыг хүсвэл `Pull Request` илгээх эсвэл `Issue` үүсгэж бидэнтэй нэгдээрэй.
 
 ## 📄 Лиценз (License)
 
-Энэхүү төсөл нь **MIT License**-ийн дагуу түгээгддэг. Дэлгэрэнгүйг `LICENSE` файлаас харна уу.
+Энэхүү төсөл нь **MIT License**-ийн дагуу түгээгддэг.
 
 ---
-
 *© 2026 TriviaVerse. Бүх эрх хуулиар хамгаалагдсан.*
-
-```
-
-```
