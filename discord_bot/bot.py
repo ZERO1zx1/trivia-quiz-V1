@@ -40,17 +40,16 @@ class TriviaVerseBot(commands.Bot):
             headers={"User-Agent": "TriviaVerseBot/1.0"}
         )
 
-        cogs = [
-            'economy', 'help', 'leaderboard',
-            'level', 'profile', 'quiz', 'social'
-        ]
-
-        for cog in cogs:
-            try:
-                await self.load_extension(cog)
-                logger.info(f"Loaded cog: {cog}")
-            except Exception as e:
-                logger.error(f"Failed to load cog {cog}: {e}")
+        # Load all cogs from the cogs directory
+        cogs_dir = os.path.join(os.path.dirname(__file__), 'cogs')
+        for filename in os.listdir(cogs_dir):
+            if filename.endswith('.py') and not filename.startswith('__'):
+                cog_name = f'cogs.{filename[:-3]}'
+                try:
+                    await self.load_extension(cog_name)
+                    logger.info(f"Loaded cog: {cog_name}")
+                except Exception as e:
+                    logger.error(f"Failed to load cog {cog_name}: {e}")
 
         guild_id = os.getenv('DISCORD_GUILD_ID')
         try:
