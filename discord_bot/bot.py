@@ -3,11 +3,11 @@ import os
 import logging
 import signal
 import sys
-
-import aiohttp
 import discord
+import aiohttp
 from discord.ext import commands
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
