@@ -3,7 +3,7 @@
 // =============================================
 
 // Socket.IO холболт (notifications namespace)
-const notifSocket = io('/notifications');
+window.notifSocket = io('/notifications');
 
 notifSocket.on('new_notification', (data) => {
     // Toast харуулах
@@ -12,6 +12,20 @@ notifSocket.on('new_notification', (data) => {
     }
     // Badge шинэчлэх
     updateNotifBadge();
+});
+
+// Direct Message listener for mini-chat
+notifSocket.on('direct_message', (data) => {
+    if (typeof appendMiniChatMessage === 'function') {
+        appendMiniChatMessage(data.from_username, data.message, false);
+        // If mini-chat is hidden, show a notification
+        const chatEl = document.getElementById('miniChat');
+        if (chatEl && chatEl.classList.contains('hidden')) {
+            if (typeof showToast === 'function') {
+                showToast(`New message from ${data.from_username}`, 'info');
+            }
+        }
+    }
 });
 
 // Уншаагүй мэдэгдлийн тоог серверээс татах

@@ -1,18 +1,17 @@
-# Mongolian translations for PROJECT.
+# Translations template for PROJECT.
 # Copyright (C) 2026 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
 "POT-Creation-Date: 2026-08-04 15:50+0000\n"
-"PO-Revision-Date: 2026-07-24 07:48+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language: mn\n"
-"Language-Team: mn <LL@li.org>\n"
-"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -21,65 +20,63 @@ msgstr ""
 #: app/templates/account/settings.html:3 app/templates/account/settings.html:6
 #: app/templates/layouts/base.html:176 app/templates/layouts/base.html:272
 msgid "Settings"
-msgstr "Тохиргоо"
+msgstr ""
 
 #: app/templates/account/settings.html:19
 msgid "Change Password"
-msgstr "Нууц үг солих"
+msgstr ""
 
 #: app/templates/account/settings.html:24
 msgid "Current Password"
-msgstr "Одоогийн нууц үг"
+msgstr ""
 
 #: app/templates/account/settings.html:29
 msgid "New Password"
-msgstr "Шинэ нууц үг"
+msgstr ""
 
 #: app/templates/account/settings.html:34
 msgid "Confirm New Password"
-msgstr "Шинэ нууц үгээ давтах"
+msgstr ""
 
 #: app/templates/account/settings.html:39
 msgid "Update Password"
-msgstr "Нууц үг шинэчлэх"
+msgstr ""
 
 #: app/templates/account/settings.html:50
 msgid "Discord Integration"
-msgstr "Discord холболт"
+msgstr ""
 
 #: app/templates/account/settings.html:58
 msgid "Connected"
-msgstr "Холбогдсон"
+msgstr ""
 
 #: app/templates/account/settings.html:66
 msgid "Show game activity as Discord Rich Presence"
-msgstr "Тоглоомын үйл ажиллагааг Discord дээр харуулах"
+msgstr ""
 
 #: app/templates/account/settings.html:71
 msgid "Receive Discord DM notifications"
-msgstr "Discord хувийн мессежээр мэдэгдэл авах"
+msgstr ""
 
 #: app/templates/account/settings.html:74
 msgid "Reconnect Discord"
-msgstr "Discord-той дахин холбогдох"
+msgstr ""
 
 #: app/templates/account/settings.html:79
-#, fuzzy
 msgid ""
 "Link your Discord account for\n"
 "                    additional features"
-msgstr "Нэмэлт боломжуудыг авахын тулд Discord бүртгэлээ холбоно уу"
+msgstr ""
 
 #: app/templates/account/settings.html:81
-#, fuzzy
 msgid ""
 "Link Discord\n"
 "                    Account"
-msgstr "Discord бүртгэл холбох"
+msgstr ""
 
 #: app/templates/account/settings.html:95
 msgid "Notification Preferences"
-msgstr "Мэдэгдлийн тохиргоо"
+msgstr ""
 
 #: app/templates/account/settings.html:100
 msgid "Security Alerts (Always enabled)"
@@ -99,56 +96,56 @@ msgstr ""
 
 #: app/templates/account/settings.html:129
 msgid "Gameplay Settings"
-msgstr "Тоглоомын тохиргоо"
+msgstr ""
 
 #: app/templates/account/settings.html:132
 msgid "Preferred Difficulty"
-msgstr "Хүссэн хүндрэл"
+msgstr ""
 
 #: app/templates/account/settings.html:137
 msgid "Mixed"
-msgstr "Холимог"
+msgstr ""
 
 #: app/templates/account/settings.html:139
 msgid "Easy"
-msgstr "Хялбар"
+msgstr ""
 
 #: app/templates/account/settings.html:141
 msgid "Medium"
-msgstr "Дундаж"
+msgstr ""
 
 #: app/templates/account/settings.html:143
 msgid "Hard"
-msgstr "Хэцүү"
+msgstr ""
 
 #: app/templates/account/settings.html:149
 msgid "Performance Mode"
-msgstr "Гүйцэтгэлийн горим"
+msgstr ""
 
 #: app/templates/account/settings.html:152
 msgid "Disables animations and effects for smoother gameplay"
-msgstr "Анимейшн болон эффектүүдийг унтрааж, тоглоомыг жигд болгоно"
+msgstr ""
 
 #: app/templates/account/settings.html:165
 msgid "Theme"
-msgstr "Загвар"
+msgstr ""
 
 #: app/templates/account/settings.html:171
 msgid "Dark Mode"
-msgstr "Харанхуй горим"
+msgstr ""
 
 #: app/templates/account/settings.html:176
 msgid "Light Mode"
-msgstr "Гэрэлтэй горим"
+msgstr ""
 
 #: app/templates/account/settings.html:188
 msgid "Language"
-msgstr "Хэл"
+msgstr ""
 
 #: app/templates/account/settings.html:210
 #: app/templates/account/settings.html:221
 msgid "Setting updated!"
-msgstr "Тохиргоо шинэчлэгдлээ!"
+msgstr ""
 
 #: app/templates/admin/user_questions.html:10
 msgid "User Submitted Questions"
@@ -167,9 +164,8 @@ msgid "Category"
 msgstr ""
 
 #: app/templates/admin/user_questions.html:20
-#, fuzzy
 msgid "Difficulty"
-msgstr "Хүссэн хүндрэл"
+msgstr ""
 
 #: app/templates/admin/user_questions.html:21
 msgid "Submitted By"
@@ -180,9 +176,8 @@ msgid "Status"
 msgstr ""
 
 #: app/templates/admin/user_questions.html:23
-#, fuzzy
 msgid "Actions"
-msgstr "Мэдэгдэл"
+msgstr ""
 
 #: app/templates/admin/user_questions.html:44
 msgid "Approve"
@@ -209,23 +204,20 @@ msgid "Enter username or email"
 msgstr ""
 
 #: app/templates/auth/login.html:46
-#, fuzzy
 msgid "Password"
-msgstr "Шинэ нууц үг"
+msgstr ""
 
 #: app/templates/auth/login.html:53
-#, fuzzy
 msgid "Enter password"
-msgstr "Шинэ нууц үг"
+msgstr ""
 
 #: app/templates/auth/login.html:60
 msgid "Remember me"
 msgstr ""
 
 #: app/templates/auth/login.html:62
-#, fuzzy
 msgid "Forgot password?"
-msgstr "Одоогийн нууц үг"
+msgstr ""
 
 #: app/templates/auth/login.html:65 app/templates/home/index.html:24
 msgid "Sign In"
@@ -233,11 +225,11 @@ msgstr ""
 
 #: app/templates/chat/channel.html:22 app/templates/layouts/base.html:309
 msgid "Type a message..."
-msgstr "Мессеж бичих..."
+msgstr ""
 
 #: app/templates/chat/channel.html:23 app/templates/layouts/base.html:312
 msgid "Send"
-msgstr "Илгээх"
+msgstr ""
 
 #: app/templates/community/bookmarks.html:2
 msgid "Bookmarks"
@@ -280,9 +272,8 @@ msgid "comments"
 msgstr ""
 
 #: app/templates/community/category.html:32
-#, fuzzy
 msgid "likes"
-msgstr "Зүйлс"
+msgstr ""
 
 #: app/templates/community/category.html:36
 msgid "No posts in this category yet."
@@ -294,14 +285,12 @@ msgid "Edit Post"
 msgstr ""
 
 #: app/templates/community/edit_post.html:18
-#, fuzzy
 msgid "Title"
-msgstr "Зүйлс"
+msgstr ""
 
 #: app/templates/community/edit_post.html:23
-#, fuzzy
 msgid "Content"
-msgstr "Холбогдсон"
+msgstr ""
 
 #: app/templates/community/edit_post.html:28
 msgid "Save Changes"
@@ -336,9 +325,8 @@ msgid "materials"
 msgstr ""
 
 #: app/templates/craft/index.html:41
-#, fuzzy
 msgid "Craft"
-msgstr "Чат"
+msgstr ""
 
 #: app/templates/dashboard/index.html:6
 msgid "Welcome back"
@@ -370,12 +358,11 @@ msgstr ""
 
 #: app/templates/dashboard/index.html:55 app/templates/layouts/base.html:205
 msgid "Level"
-msgstr "Түвшин"
+msgstr ""
 
 #: app/templates/dashboard/index.html:60
-#, fuzzy
 msgid "Coins"
-msgstr "Мэдэгдэл"
+msgstr ""
 
 #: app/templates/home/index.html:21 app/templates/home/index.html:80
 msgid "How to Play"
@@ -388,7 +375,7 @@ msgstr ""
 #: app/templates/home/index.html:23 app/templates/layouts/base.html:74
 #: app/templates/puzzle/leaderboard.html:10
 msgid "Leaderboard"
-msgstr "Тэргүүлэгчид"
+msgstr ""
 
 #: app/templates/home/index.html:25
 msgid "Get Started"
@@ -417,9 +404,8 @@ msgid "Play Now Free"
 msgstr ""
 
 #: app/templates/home/index.html:50
-#, fuzzy
 msgid "Login with Discord"
-msgstr "Discord-той дахин холбогдох"
+msgstr ""
 
 #: app/templates/home/index.html:81
 msgid "Getting started is easy! Just follow these simple steps."
@@ -454,9 +440,8 @@ msgid ""
 msgstr ""
 
 #: app/templates/home/index.html:101
-#, fuzzy
 msgid "Climb the Leaderboard"
-msgstr "Тэргүүлэгчид"
+msgstr ""
 
 #: app/templates/home/index.html:102
 msgid "Win matches, earn XP, unlock achievements, and become the trivia champion!"
@@ -464,35 +449,35 @@ msgstr ""
 
 #: app/templates/layouts/base.html:40
 msgid "Main"
-msgstr "Үндсэн"
+msgstr ""
 
 #: app/templates/layouts/base.html:50
 msgid "Dashboard"
-msgstr "Хянах самбар"
+msgstr ""
 
 #: app/templates/layouts/base.html:61
 msgid "Play"
-msgstr "Тоглох"
+msgstr ""
 
 #: app/templates/layouts/base.html:80
 msgid "Items"
-msgstr "Зүйлс"
+msgstr ""
 
 #: app/templates/layouts/base.html:89 app/templates/layouts/base.html:271
 msgid "Shop"
-msgstr "Дэлгүүр"
+msgstr ""
 
 #: app/templates/layouts/base.html:100 app/templates/layouts/base.html:270
 msgid "Inventory"
-msgstr "Цуглуулга"
+msgstr ""
 
 #: app/templates/layouts/base.html:106
 msgid "Social"
-msgstr "Нийгмийн"
+msgstr ""
 
 #: app/templates/layouts/base.html:116
 msgid "Friends"
-msgstr "Найзууд"
+msgstr ""
 
 #: app/templates/layouts/base.html:123
 msgid "Guilds"
@@ -507,9 +492,8 @@ msgid "Global Chat"
 msgstr ""
 
 #: app/templates/layouts/base.html:145
-#, fuzzy
 msgid "Community"
-msgstr "Бүртгэл"
+msgstr ""
 
 #: app/templates/layouts/base.html:152
 msgid "Marketplace"
@@ -517,39 +501,39 @@ msgstr ""
 
 #: app/templates/layouts/base.html:158
 msgid "Account"
-msgstr "Бүртгэл"
+msgstr ""
 
 #: app/templates/layouts/base.html:166 app/templates/layouts/base.html:269
 msgid "Profile"
-msgstr "Профайл"
+msgstr ""
 
 #: app/templates/layouts/base.html:183
 msgid "Admin"
-msgstr "Админ"
+msgstr ""
 
 #: app/templates/layouts/base.html:192
 msgid "Admin Panel"
-msgstr "Админ хэсэг"
+msgstr ""
 
 #: app/templates/layouts/base.html:229
 msgid "Search players, rooms, questions..."
-msgstr "Тоглогч, өрөө, асуулт хайх..."
+msgstr ""
 
 #: app/templates/layouts/base.html:253
 msgid "Notifications"
-msgstr "Мэдэгдэл"
+msgstr ""
 
 #: app/templates/layouts/base.html:254
 msgid "Mark all read"
-msgstr "Бүгдийг уншсан"
+msgstr ""
 
 #: app/templates/layouts/base.html:274
 msgid "Logout"
-msgstr "Гарах"
+msgstr ""
 
 #: app/templates/layouts/base.html:302
 msgid "Chat"
-msgstr "Чат"
+msgstr ""
 
 #: app/templates/pet/equipment.html:2 app/templates/pet/equipment.html:10
 msgid "Pet Equipment"
@@ -572,9 +556,8 @@ msgid "Daily Puzzle"
 msgstr ""
 
 #: app/templates/puzzle/daily.html:18 app/templates/puzzle/leaderboard.html:21
-#, fuzzy
 msgid "Hints"
-msgstr "Зүйлс"
+msgstr ""
 
 #: app/templates/puzzle/daily.html:30
 msgid "Congratulations! Puzzle solved!"
@@ -585,9 +568,8 @@ msgid "Score"
 msgstr ""
 
 #: app/templates/puzzle/daily.html:32 app/templates/puzzle/leaderboard.html:20
-#, fuzzy
 msgid "Time"
-msgstr "Загвар"
+msgstr ""
 
 #: app/templates/puzzle/daily.html:38
 msgid "Your Answer"
@@ -602,18 +584,16 @@ msgid "Get Hint"
 msgstr ""
 
 #: app/templates/puzzle/leaderboard.html:2
-#, fuzzy
 msgid "Puzzle Leaderboard"
-msgstr "Тэргүүлэгчид"
+msgstr ""
 
 #: app/templates/puzzle/leaderboard.html:17
 msgid "Rank"
 msgstr ""
 
 #: app/templates/puzzle/leaderboard.html:18
-#, fuzzy
 msgid "Player"
-msgstr "Тоглох"
+msgstr ""
 
 #: app/templates/puzzle/leaderboard.html:22
 msgid "Date"
@@ -633,20 +613,10 @@ msgid "Watch"
 msgstr ""
 
 #: app/templates/replay/my_replays.html:35
-#, fuzzy
 msgid "Share"
-msgstr "Хэцүү"
+msgstr ""
 
 #: app/templates/replay/my_replays.html:41
 msgid "No replays yet"
 msgstr ""
-
-#~ msgid "Receive email notifications (game invites, friend requests)"
-#~ msgstr "Имэйл мэдэгдэл авах (тоглоомын урилга, найзын хүсэлт)"
-
-#~ msgid "Friend request notifications"
-#~ msgstr "Найзын хүсэлтийн мэдэгдэл"
-
-#~ msgid "Save Preferences"
-#~ msgstr "Тохиргоог хадгалах"
 

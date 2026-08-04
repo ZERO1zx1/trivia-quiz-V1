@@ -259,8 +259,11 @@ window.sendMiniChat = function() {
     if (!input) return;
     const msg = input.value.trim();
     if (!msg || !miniChatUser) return;
-    // Use the global socket if available
-    if (typeof socket !== 'undefined' && socket) {
+    // Use the notifSocket for direct messages
+    if (window.notifSocket) {
+        window.notifSocket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
+    } else if (typeof socket !== 'undefined' && socket) {
+        // Fallback (though it might not work if namespace is required)
         socket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
     }
     appendMiniChatMessage('You', msg, true);

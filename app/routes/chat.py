@@ -63,7 +63,12 @@ def send_message():
     """Send a chat message"""
     data = request.get_json() if request.is_json else request.form
 
-    channel_id = data.get('channel_id', type=int)
+    channel_id = data.get('channel_id')
+    if channel_id:
+        try:
+            channel_id = int(channel_id)
+        except (ValueError, TypeError):
+            channel_id = None
     content = data.get('content', '').strip()
 
     if not channel_id or not content:

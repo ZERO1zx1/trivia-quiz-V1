@@ -44,6 +44,7 @@
                            class="input-field flex-1" maxlength="2000">
                     <button type="submit" class="btn-primary">Send</button>
                 </form>
+                <div id="typing-indicator" class="text-xs text-muted mt-1" style="display:none;"></div>
             </div>
             {% else %}
             <div class="p-4 border-t border-gray-700 text-center">
@@ -54,63 +55,16 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const socket = io();
-    const chatMessages = document.getElementById('chat-messages');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-
-    if (socket && chatForm) {
-        // Load recent messages
-        fetch('/chat/api/1/messages?limit=50')
-            .then(r => r.json())
-            .then(data => {
-                chatMessages.innerHTML = '';
-                (data.messages || []).forEach(msg => {
-                    appendMessage(msg);
-                });
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            });
-
-        // Send message
-        chatForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const content = chatInput.value.trim();
-            if (!content) return;
-
-            socket.emit('send_message', {
-                channel_id: 1,
-                content: content
-            });
-            chatInput.value = '';
-        });
-
-        // Receive message
-        socket.on('new_message', function(data) {
-            appendMessage(data);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
-
-        // Typing indicator
-        chatInput.addEventListener('input', function() {
-            socket.emit('typing', { channel_id: 1, is_typing: true });
-            clearTimeout(this._typingTimeout);
-            this._typingTimeout = setTimeout(() => {
-                socket.emit('typing', { channel_id: 1, is_typing: false });
-            }, 2000);
-        });
-    }
-
-    function appendMessage(msg) {
-        const div = document.createElement('div');
-        div.className = 'flex gap-3';
-        div.innerHTML = `
-            <span class="text-purple-400 font-bold text-sm">${msg.username}</span>
-            <span class="text-white text-sm">${msg.content}</span>
-        `;
-        chatMessages.appendChild(div);
-    }
+document.addEventListener('DOMContentLoaded', () => {
+    ChatSystem.init({
+        channelId: 1,
+        userId: {{ current_user.id }},
+        username: "{{ current_user.username }}"
+    });
 });
 </script>
 {% endblock %}

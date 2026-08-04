@@ -27,7 +27,7 @@ const ChatSystem = {
         if (!this.socket) return;
 
         // Join channel
-        this.socket.emit('join_channel', { channel_id: this.channelId });
+        this.socket.emit('join_chat', { channel_id: this.channelId });
 
         // New message
         this.socket.on('new_message', (data) => {
@@ -41,7 +41,7 @@ const ChatSystem = {
         });
 
         // User joined
-        this.socket.on('user_joined', (data) => {
+        this.socket.on('joined', (data) => {
             this.addSystemMessage(`${data.username} joined the chat`);
         });
 
@@ -118,10 +118,16 @@ const ChatSystem = {
             });
         } else {
             // Fallback to HTTP
-            fetch(`/chat/api/${this.channelId}/messages`, {
+            fetch(`/chat/send`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: content.trim() })
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content
+                },
+                body: JSON.stringify({ 
+                    channel_id: this.channelId,
+                    content: content.trim() 
+                })
             });
         }
     },
@@ -192,10 +198,10 @@ const ChatSystem = {
     },
 
     updateMessage(data) {
-        const el = document.getElementById(`msg-${data.id}`);
+        const el = document.getElementById(`msg-${data.message_id}`);
         if (el) {
             const content = el.querySelector('.chat-content');
-            if (content) content.textContent = data.content;
+            if (content) content.textContent = data.new_content;
         }
     },
 

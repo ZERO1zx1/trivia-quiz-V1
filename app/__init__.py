@@ -4,7 +4,7 @@ import os
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session, redirect, url_for, flash, render_template
 from config import config
-from .extensions import db, socketio
+from .extensions import db, socketio, babel
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.utils.scheduler import check_expired_premium, check_streak_protection
 from flask_login import logout_user, current_user
@@ -15,8 +15,6 @@ def create_app(config_name='default'):
     app.config.from_object(config[config_name])
 
     # ================= BABEL (Multi-language) =================
-    babel = Babel(app)
-
     def get_locale():
         if 'language' in session:
             return session['language']

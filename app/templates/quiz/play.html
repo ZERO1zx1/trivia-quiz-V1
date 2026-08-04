@@ -74,17 +74,12 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-
 <script>
     // Global variables needed by quiz.js
     window.roomCode = '{{ room.code }}';
     window.currentUserId = parseInt('{{ current_user.id }}');
     window.currentUserRole = '{{ current_user.role }}';
     window.currentUsername = '{{ current_user.username }}';
-
-    // Socket.io глобал сервер холболт үүсгэх
-    window.socket = io();
 
     function connectToGame() {
         document.getElementById('quizLoading').style.display = 'block';
