@@ -13,25 +13,39 @@
 </div>
 
 <div class="filter-bar">
-    <a href="{{ url_for('community.category_view', cid=category.id, sort='newest') }}" class="btn {{ 'btn-primary' if sort_by == 'newest' else 'btn-ghost' }}">{{ _('Newest') }}</a>
-    <a href="{{ url_for('community.category_view', cid=category.id, sort='popular') }}" class="btn {{ 'btn-primary' if sort_by == 'popular' else 'btn-ghost' }}">{{ _('Popular') }}</a>
-    <a href="{{ url_for('community.category_view', cid=category.id, sort='active') }}" class="btn {{ 'btn-primary' if sort_by == 'active' else 'btn-ghost' }}">{{ _('Active') }}</a>
+    <a href="{{ url_for('community.category', category_id=category.id, sort='newest') }}" class="btn {{ 'btn-primary' if sort_by == 'newest' else 'btn-ghost' }}">{{ _('Newest') }}</a>
+    <a href="{{ url_for('community.category', category_id=category.id, sort='popular') }}" class="btn {{ 'btn-primary' if sort_by == 'popular' else 'btn-ghost' }}">{{ _('Popular') }}</a>
+    <a href="{{ url_for('community.category', category_id=category.id, sort='active') }}" class="btn {{ 'btn-primary' if sort_by == 'active' else 'btn-ghost' }}">{{ _('Active') }}</a>
 </div>
 
 <div class="post-list">
-    {% for post in posts %}
+    {% for post in posts.items %}
     <div class="post-card glass">
         <div class="post-header">
-            <a href="{{ url_for('community.view_post', pid=post.id) }}" class="post-title">{{ post.title }}</a>
+            <a href="{{ url_for('community.view_post', post_id=post.id) }}" class="post-title">{{ post.title }}</a>
             {% if post.is_pinned %}<span class="badge badge-info">{{ _('Pinned') }}</span>{% endif %}
         </div>
         <div class="post-meta">
-            <span class="author">{{ post.author.username if post.author }}</span>
+            <span class="author">{{ post.user.username if post.user else 'Unknown' }}</span>
             <span class="date">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-            <span class="comments">{{ post.comments.count() }} {{ _('comments') }}</span>
-            <span class="likes">{{ post.likes.count() }} {{ _('likes') }}</span>
+            <span class="comments">{{ post.comment_count }} {{ _('comments') }}</span>
+            <span class="likes">{{ post.like_count }} {{ _('likes') }}</span>
         </div>
     </div>
+    {% else %}
+    <div class="alert alert-info">{{ _('No posts in this category yet.') }}</div>
     {% endfor %}
 </div>
+
+{% if posts.pages > 1 %}
+<div class="pagination">
+    {% for page_num in posts.iter_pages() %}
+        {% if page_num %}
+            <a href="{{ url_for('community.category', category_id=category.id, page=page_num, sort=sort_by) }}" class="btn {{ 'btn-primary' if page_num == posts.page else 'btn-ghost' }}">{{ page_num }}</a>
+        {% else %}
+            <span>...</span>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
 {% endblock %}

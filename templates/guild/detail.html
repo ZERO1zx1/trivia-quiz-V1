@@ -22,8 +22,10 @@
                 <button type="submit" class="btn-primary">Join Guild</button>
             </form>
             {% elif my_membership %}
-            <a href="{{ url_for('guild.leave', guild_id=guild.id) }}" class="btn-danger"
-               onclick="return confirm('Are you sure you want to leave this guild?')">Leave Guild</a>
+            <form method="POST" action="{{ url_for('guild.leave', guild_id=guild.id) }}" onsubmit="return confirm('Are you sure you want to leave this guild?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn-danger">Leave Guild</button>
+            </form>
             {% endif %}
         </div>
     </div>

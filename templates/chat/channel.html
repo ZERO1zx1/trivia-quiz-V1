@@ -14,26 +14,20 @@
 <div class="chat-container glass">
     <div class="chat-messages" id="chatMessages">
         {% for msg in messages %}
-        <div class="chat-message {% if msg.user_id == current_user.id %}mine{% endif %}">
+        <div class="chat-message {% if msg.user_id == current_user.id %}mine{% endif %}" id="msg-{{ msg.id }}">
             <div class="msg-header">
                 <strong>{{ msg.user.username if msg.user else 'Unknown' }}</strong>
                 <span class="msg-time">{{ msg.created_at.strftime('%H:%M') }}</span>
             </div>
             <div class="msg-content">{{ msg.content }}</div>
-            {% if msg.reactions %}
-            <div class="msg-reactions">
-                {% for reaction, count in msg.reactions.items() %}
-                <span class="reaction">{{ reaction }} {{ count }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
         </div>
         {% endfor %}
     </div>
 
     <div class="chat-input-area">
-        <form id="sendMessageForm" method="POST" action="{{ url_for('chat.send_message', channel_slug=channel.slug) }}">
+        <form id="sendMessageForm" method="POST" action="{{ url_for('chat.send_message') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="channel_id" value="{{ channel.id }}">
             <input type="text" name="content" id="messageInput" placeholder="{{ _('Type a message...') }}" required maxlength="2000">
             <button type="submit" class="btn btn-primary">{{ _('Send') }}</button>
         </form>
@@ -45,17 +39,24 @@ document.getElementById('sendMessageForm').addEventListener('submit', function(e
     e.preventDefault();
     const form = this;
     const input = form.querySelector('#messageInput');
+    const channel_id = form.querySelector('input[name="channel_id"]').value;
+    
     fetch(form.action, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+            'Content-Type': 'application/json',
+            'X-CSRFToken': "{{ csrf_token() }}"
         },
-        body: 'content=' + encodeURIComponent(input.value)
+        body: JSON.stringify({
+            content: input.value,
+            channel_id: channel_id
+        })
     }).then(r => r.json()).then(data => {
         if (data.success) {
             input.value = '';
             location.reload();
+        } else {
+            alert(data.error || 'Failed to send message');
         }
     });
 });

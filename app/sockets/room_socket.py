@@ -179,3 +179,19 @@ def register_room_events(socketio):
                 'players': [p.to_dict() for p in remaining],
                 'player_count': len(remaining)
             }, room=room_code)
+
+    @socketio.on('invite_to_room')
+    def handle_invite(data):
+        room_code = data.get('room_code')
+        friend_id = data.get('friend_id')
+        if not room_code or not friend_id:
+            return
+            
+        send_notification(
+            user_id=friend_id,
+            title='Game Invitation',
+            message=f'{current_user.username} invited you to join a game!',
+            notif_type='info',
+            link=f'/rooms/lobby?join={room_code}'
+        )
+        emit('invite_sent', {'success': True})

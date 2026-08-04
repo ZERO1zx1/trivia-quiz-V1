@@ -115,6 +115,42 @@
                         </svg>
                         <span>{{ _('Friends') }}</span>
                     </a>
+                    <a href="{{ url_for('guild.index') }}"
+                        class="nav-item {% if request.endpoint and request.endpoint.startswith('guild') %}active{% endif %}">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                        <span>{{ _('Guilds') }}</span>
+                    </a>
+                </div>
+
+                <!-- Enterprise Features -->
+                <div class="nav-section">
+                    <span class="nav-label">{{ _('Enterprise') }}</span>
+                    <a href="{{ url_for('chat.index') }}"
+                        class="nav-item {% if request.endpoint and request.endpoint.startswith('chat') %}active{% endif %}">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span>{{ _('Global Chat') }}</span>
+                    </a>
+                    <a href="{{ url_for('community.index') }}"
+                        class="nav-item {% if request.endpoint and request.endpoint.startswith('community') %}active{% endif %}">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>{{ _('Community') }}</span>
+                    </a>
+                    <a href="{{ url_for('marketplace.index') }}"
+                        class="nav-item {% if request.endpoint and request.endpoint.startswith('marketplace') %}active{% endif %}">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 3h18v18H3zM3 9h18M9 3v18"/>
+                        </svg>
+                        <span>{{ _('Marketplace') }}</span>
+                    </a>
                 </div>
 
                 <!-- Account -->
@@ -289,6 +325,7 @@
     <!-- Scripts -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/socket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 

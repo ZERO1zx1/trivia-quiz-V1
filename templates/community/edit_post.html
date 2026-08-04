@@ -11,7 +11,7 @@
 </div>
 
 <div class="form-container glass">
-    <form method="POST" action="{{ url_for('community.edit_post', pid=post.id) }}">
+    <form method="POST" action="{{ url_for('community.edit_post', post_id=post.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         
         <div class="form-group">
@@ -26,7 +26,7 @@
         
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ _('Save Changes') }}</button>
-            <a href="{{ url_for('community.view_post', pid=post.id) }}" class="btn btn-ghost">{{ _('Cancel') }}</a>
+            <a href="{{ url_for('community.view_post', post_id=post.id) }}" class="btn btn-ghost">{{ _('Cancel') }}</a>
         </div>
     </form>
 </div>
