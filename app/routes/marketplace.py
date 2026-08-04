@@ -108,30 +108,36 @@ def buy(listing_id):
         flash('Not enough coins.', 'danger')
         return redirect(url_for('marketplace.index'))
 
-    # Transaction
+    # ACID Transaction - atomic buy operation
     tax = int(listing.price * 0.05)  # 5% marketplace tax
     net_amount = listing.price - tax
 
-    current_user.coins -= listing.price
-    seller = listing.seller
-    seller.coins += net_amount
+    try:
+        current_user.coins -= listing.price
+        seller = listing.seller
+        seller.coins += net_amount
 
-    listing.status = 'sold'
-    listing.sold_at = datetime.utcnow()
-    listing.buyer_id = current_user.id
+        listing.status = 'sold'
+        listing.sold_at = datetime.utcnow()
+        listing.buyer_id = current_user.id
 
-    transaction = MarketplaceTransaction(
-        listing_id=listing.id,
-        buyer_id=current_user.id,
-        seller_id=listing.seller_id,
-        price=listing.price,
-        tax=tax,
-        net_seller_amount=net_amount
-    )
-    db.session.add(transaction)
-    db.session.commit()
+        transaction = MarketplaceTransaction(
+            listing_id=listing.id,
+            buyer_id=current_user.id,
+            seller_id=listing.seller_id,
+            price=listing.price,
+            tax=tax,
+            net_seller_amount=net_amount
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        flash(f'Purchased {listing.item_name} for {listing.price} coins!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.error(f'Marketplace buy error: {e}')
+        flash('Transaction failed. Please try again.', 'danger')
 
-    flash(f'Purchased {listing.item_name} for {listing.price} coins!', 'success')
     return redirect(url_for('marketplace.index'))
 
 

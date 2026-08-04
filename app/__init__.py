@@ -202,6 +202,10 @@ def create_app(config_name='default'):
     from app.routes.region import region_bp
     from app.routes.community import community_bp
     from app.routes.puzzle import puzzle_bp
+    from app.routes.ai_coach import ai_coach_bp
+    from app.routes.two_factor import two_factor_bp
+    from app.routes.guild_war import guild_war_bp
+    from app.routes.tournament_replay import tournament_replay_bp
 
     # ================= REGISTER CORE BLUEPRINTS =================
     app.register_blueprint(home_bp)
@@ -242,6 +246,10 @@ def create_app(config_name='default'):
     app.register_blueprint(region_bp, url_prefix='/region')
     app.register_blueprint(community_bp, url_prefix='/community')
     app.register_blueprint(puzzle_bp, url_prefix='/puzzle')
+    app.register_blueprint(ai_coach_bp, url_prefix='/ai-coach')
+    app.register_blueprint(two_factor_bp, url_prefix='/two-factor')
+    app.register_blueprint(guild_war_bp, url_prefix='/guild-war')
+    app.register_blueprint(tournament_replay_bp, url_prefix='/tournament-replay')
 
     return app
 

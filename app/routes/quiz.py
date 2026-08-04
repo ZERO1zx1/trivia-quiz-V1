@@ -92,10 +92,40 @@ def submit_answer():
 
     is_correct = (int(answer_id) == correct_answer.id)
 
+    # Anti-cheat: check for suspicious speed
+    time_taken = data.get('time_taken', 0)
+    suspicious = False
+    try:
+        from app.utils.anti_cheat import AntiCheatTracker
+        if time_taken and is_correct:
+            suspicious = AntiCheatTracker.record_answer(
+                current_user, question_id, answer_id, float(time_taken), is_correct
+            )
+            if suspicious:
+                AntiCheatTracker.check_user_for_ban(current_user)
+    except Exception as e:
+        current_app.logger.warning(f'Anti-cheat check failed: {e}')
+
     xp_earned = 0
     level_up = False
     old_lvl = current_user.level
     new_lvl = current_user.level
+
+    if suspicious and is_correct:
+        # If flagged as suspicious, reduce rewards
+        xp_earned = 0
+        current_user.total_questions = (current_user.total_questions or 0) + 1
+        db.session.commit()
+        return jsonify({
+            'correct': is_correct,
+            'xp_earned': 0,
+            'level_up': False,
+            'old_level': old_lvl,
+            'new_level': new_lvl,
+            'total_coins': current_user.coins,
+            'flagged': True,
+            'message': 'Answer speed was suspicious. Rewards reduced for verification.'
+        })
 
     if is_correct:
         xp_earned = 10

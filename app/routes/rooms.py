@@ -25,7 +25,7 @@ def lobby():
     query = Room.query.filter_by(status='waiting')
     if request.args.get('private') == 'false':
         query = query.filter_by(is_private=False)
-    rooms = query.order_by(db.desc('created_at')).paginate(page=page, per_page=12, error_out=False)
+    rooms = query.order_by(db.desc(Room.created_at)).paginate(page=page, per_page=12, error_out=False)
     categories = Category.query.filter_by(is_active=True).all()
     return render_template('rooms/lobby.html', rooms=rooms, categories=categories)
 

@@ -26,7 +26,6 @@ class Guild(db.Model):
     # Relationships
     members = db.relationship('GuildMember', back_populates='guild', lazy='dynamic')
     ranks = db.relationship('GuildRank', back_populates='guild', lazy='dynamic')
-    members_list = db.relationship('GuildMember', back_populates='guild', lazy='dynamic')
 
     def to_dict(self):
         return {
@@ -171,3 +170,22 @@ class GuildBoss(db.Model):
 
     def __repr__(self):
         return f'<GuildBoss {self.name} HP={self.hp}/{self.max_hp}>'
+
+
+class GuildBossDamage(db.Model):
+    """Tracks damage dealt to guild boss by guild members."""
+    __tablename__ = 'guild_boss_damage'
+
+    id = db.Column(db.Integer, primary_key=True)
+    boss_id = db.Column(db.Integer, db.ForeignKey('guild_bosses.id'), nullable=False)
+    guild_id = db.Column(db.Integer, db.ForeignKey('guilds.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    damage = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    boss = db.relationship('GuildBoss', backref='damage_log')
+    guild = db.relationship('Guild', backref='boss_damage_log')
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f'<GuildBossDamage boss={self.boss_id} user={self.user_id} dmg={self.damage}>'

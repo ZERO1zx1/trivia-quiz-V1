@@ -141,7 +141,7 @@ class User(UserMixin, db.Model):
         return User.query.get(id)
 
     def generate_otp(self):
-        self.otp = str(random.randint(100000, 999999))
+        self.otp_code = str(random.randint(100000, 999999))
         self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
 
     def verify_otp(self, code):

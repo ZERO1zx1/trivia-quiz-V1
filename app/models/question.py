@@ -37,6 +37,8 @@ class Question(db.Model):
     question_text = db.Column(db.Text, nullable=False)
     question_type = db.Column(db.String(50), default='multiple_choice')
     image_url = db.Column(db.String(500))
+    media_url = db.Column(db.String(500))  # For video/audio quiz
+    media_type = db.Column(db.String(20))  # 'image', 'audio', 'video', None
     difficulty = db.Column(db.String(20), default='medium')
     explanation = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
@@ -58,6 +60,8 @@ class Question(db.Model):
             'question_text': self.question_text,
             'question_type': self.question_type,
             'image_url': self.image_url,
+            'media_url': self.media_url,
+            'media_type': self.media_type,
             'difficulty': self.difficulty,
             'explanation': self.explanation,
             'category': self.category.name if self.category else None

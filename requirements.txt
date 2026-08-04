@@ -80,7 +80,8 @@ cryptography==44.0.2
 # PDF generation (replays, reports)
 reportlab==4.3.1
 
-# QR code generation
+# QR code generation & 2FA
+pyotp==2.10.0
 qrcode==8.0
 
 # WebPush notifications
