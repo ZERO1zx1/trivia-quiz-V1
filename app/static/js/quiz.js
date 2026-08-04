@@ -1,223 +1,470 @@
-/**
- * TriviaVerse Quiz Engine
- * Version 3.0 - Full Game Logic
- */
+// =============================================
+//  TriviaVerse Quiz Game Logic
+// =============================================
 
-const QuizEngine = {
-    // Game State
-    state: {
-        currentQuestion: null,
-        questionIndex: 0,
-        totalQuestions: 0,
-        score: 0,
-        combo: 0,
-        maxCombo: 0,
-        correctAnswers: 0,
-        wrongAnswers: 0,
-        startTime: null,
-        timer: null,
-        timeLeft: 0,
-        timePerQuestion: 30,
-        isLocked: false,
-        difficulty: 'medium',
-        category: 'general',
-        mode: 'classic',
-        bonusMultiplier: 1,
-        lifelines: {
-            fiftyFifty: true,
-            timeBonus: true,
-            skip: false
+// ---------- Helper Functions ----------
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function getSocket() {
+    if (typeof socket !== 'undefined' && socket) return socket;
+    if (typeof io !== 'undefined') {
+        window.socket = io();
+        return window.socket;
+    }
+    console.error('Socket.IO not initialized');
+    return null;
+}
+
+// ---------- Auto-Reload Logic (ШИНЭ) ----------
+let isReloading = false;
+function handleAutoReload(reason = 'Connection lost') {
+    if (isReloading) return;
+    isReloading = true;
+
+    showToast(`${reason}. Reloading in 5 seconds...`, 'warning');
+
+    const loadingStatus = document.getElementById('loadingStatus');
+    if (loadingStatus) {
+        loadingStatus.textContent = `${reason}. Auto-reloading...`;
+    }
+
+    // 5 секундийн дараа хуудсыг дахин ачаална
+    setTimeout(() => {
+        window.location.reload();
+    }, 5000);
+}
+
+// ---------- Room Management ----------
+window.joinRoomSocket = function (roomCode, playerInfo = {}) {
+    const sock = getSocket();
+    if (!sock) {
+        handleAutoReload('Socket connection failed');
+        return;
+    }
+
+    window.roomCode = roomCode;
+
+    // Өрөө рүү холбогдох хүсэлт илгээх
+    sock.emit('join_room', {
+        room_code: roomCode,
+        ...playerInfo
+    });
+
+    // Асуулт хариултын хэсгийг эхлүүлэх
+    initQuiz(roomCode);
+};
+
+window.joinRoom = window.joinRoomSocket;
+
+// ---------- Game State ----------
+let gameState = {
+    currentQuestion: 0,
+    totalQuestions: 0,
+    timeLeft: 20,
+    timerInterval: null,
+    answers: {},
+    score: 0,
+    questionStartTime: null,
+    endTime: null,
+};
+
+function resetGameState() {
+    gameState.currentQuestion = 0;
+    gameState.totalQuestions = 0;
+    gameState.timeLeft = 20;
+    if (gameState.timerInterval) {
+        cancelAnimationFrame(gameState.timerInterval);
+        gameState.timerInterval = null;
+    }
+    gameState.answers = {};
+    gameState.score = 0;
+    gameState.questionStartTime = null;
+    gameState.endTime = null;
+}
+
+// ---------- Initialization ----------
+function initQuiz(roomCode) {
+    const sock = getSocket();
+    if (!sock) {
+        handleAutoReload('Connection lost');
+        return;
+    }
+
+    resetGameState();
+
+    // UI засах
+    const loadingEl = document.getElementById('quizLoading');
+    const errorEl = document.getElementById('quizError');
+    const containerEl = document.getElementById('quizContainer');
+
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (errorEl) errorEl.style.display = 'none';
+    if (containerEl) containerEl.style.display = 'block';
+
+    // Socket Сүлжээний Алдаа / Тасралт Хянах (ШИНЭ)
+    sock.off('connect_error').on('connect_error', () => {
+        handleAutoReload('Server connection error');
+    });
+
+    sock.off('disconnect').on('disconnect', (reason) => {
+        console.warn('Disconnected:', reason);
+        handleAutoReload('Disconnected from live server');
+    });
+
+    // Socket event listeners
+    sock.off('question').on('question', (data) => {
+        renderQuestion(data);
+        startTimer(data.time_limit || 20);
+    });
+
+    sock.off('answer_result').on('answer_result', (data) => {
+        showAnswerResult(data);
+    });
+
+    sock.off('round_results').on('round_results', (data) => {
+        showRoundResults(data);
+    });
+
+    sock.off('game_over').on('game_over', (data) => {
+        showGameOver(data);
+    });
+
+    sock.off('next_question_ready').on('next_question_ready', () => {
+        if (sock) {
+            sock.emit('request_question', { room_code: roomCode });
         }
-    },
+    });
 
-    // Quiz Types
-    modes: {
-        classic: { timePerQuestion: 30, scoreMultiplier: 1, category: 'general' },
-        speed: { timePerQuestion: 10, scoreMultiplier: 2, category: 'general' },
-        expert: { timePerQuestion: 45, scoreMultiplier: 3, category: 'mixed', hardOnly: true },
-        duel: { timePerQuestion: 15, scoreMultiplier: 1.5, category: 'general' },
-        daily: { timePerQuestion: 20, scoreMultiplier: 1.5, category: 'general', isDaily: true },
-        tournament: { timePerQuestion: 20, scoreMultiplier: 2, category: 'general' },
-        voice: { timePerQuestion: 30, scoreMultiplier: 1.5, type: 'voice' },
-        image: { timePerQuestion: 25, scoreMultiplier: 1.5, type: 'image' },
-        video: { timePerQuestion: 30, scoreMultiplier: 2, type: 'video' },
-        music: { timePerQuestion: 30, scoreMultiplier: 1.5, type: 'music' },
-        puzzle: { timePerQuestion: 60, scoreMultiplier: 3, type: 'puzzle' }
-    },
+    sock.off('error').on('error', (err) => {
+        showToast(err.message || 'An error occurred', 'error');
+    });
 
-    // Initialize quiz
-    init(config = {}) {
-        this.state.mode = config.mode || 'classic';
-        this.state.category = config.category || 'general';
-        this.state.difficulty = config.difficulty || 'medium';
+    sock.off('player_eliminated').on('player_eliminated', () => {
+        showToast('A player has been eliminated!', 'warning');
+    });
 
-        const modeConfig = this.modes[this.state.mode] || this.modes.classic;
-        this.state.timePerQuestion = config.timePerQuestion || modeConfig.timePerQuestion;
-        this.state.bonusMultiplier = modeConfig.scoreMultiplier;
+    // Эхний асуултыг хүсэх
+    sock.emit('request_question', { room_code: roomCode });
 
-        this.state.startTime = Date.now();
-        this.state.totalQuestions = config.totalQuestions || 10;
-    },
+    // Гарны товчлуур сонсох (1-4)
+    document.removeEventListener('keydown', handleKeyboard);
+    document.addEventListener('keydown', handleKeyboard);
+}
 
-    // Load question
-    async loadQuestion() {
-        try {
-            const response = await fetch('/api/question', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    mode: this.state.mode,
-                    category: this.state.category,
-                    difficulty: this.state.difficulty,
-                    question_index: this.state.questionIndex
-                })
-            });
-            const data = await response.json();
-            this.state.currentQuestion = data;
-            return data;
-        } catch (error) {
-            console.error('Failed to load question:', error);
-            return null;
+// ---------- Keyboard Handler ----------
+function handleKeyboard(e) {
+    const key = parseInt(e.key);
+    if (isNaN(key) || key < 1 || key > 4) return;
+    const buttons = document.querySelectorAll('.answer-btn');
+    if (buttons.length > 0 && !buttons[0].disabled) {
+        const targetBtn = buttons[key - 1];
+        if (targetBtn) {
+            const answerId = parseInt(targetBtn.dataset.id);
+            submitAnswer(answerId);
         }
-    },
+    }
+}
 
-    // Answer question
-    submitAnswer(answer, timeRemaining) {
-        if (this.state.isLocked) return;
-        this.state.isLocked = true;
+// ---------- Question Rendering ----------
+function renderQuestion(data) {
+    gameState.currentQuestion = data.question_number;
+    gameState.totalQuestions = data.total_questions;
+    gameState.timeLeft = data.time_limit;
 
-        const isCorrect = answer === this.state.currentQuestion.correct_answer;
-        const baseScore = 100;
-        const timeBonus = Math.floor(timeRemaining * 5);
-        const comboBonus = Math.floor(this.state.combo * 10);
-        const totalScore = Math.floor(
-            (baseScore + timeBonus + comboBonus) * this.state.bonusMultiplier
-        );
+    const container = document.getElementById('quizContainer');
+    if (!container) return;
 
-        if (isCorrect) {
-            this.state.score += totalScore;
-            this.state.combo++;
-            this.state.correctAnswers++;
-            this.state.maxCombo = Math.max(this.state.maxCombo, this.state.combo);
-            if (this.state.audioEnabled) TriviaVerse.audio.play('correct');
+    container.innerHTML = `
+        <div class="quiz-layout">
+            <div class="quiz-main">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div>
+                        <h2 style="font-weight:700; margin-bottom:4px;" id="questionNumber">Question ${data.question_number}/${data.total_questions}</h2>
+                        <span style="color:var(--text-secondary);" id="categoryLabel">${escapeHtml(data.category || 'General')}</span>
+                    </div>
+                    <div class="timer" id="timerDisplay" style="font-size:1.8rem; font-weight:800; color:var(--accent);">
+                        ${data.time_limit}s
+                    </div>
+                </div>
+                <div id="questionText" style="font-size:1.3rem; font-weight:600; margin-bottom:32px; line-height:1.6;">
+                    ${escapeHtml(data.question_text)}
+                </div>
+                ${data.image_url ? `<img src="${data.image_url}" alt="Question image" style="max-width:100%;border-radius:12px;margin-bottom:20px;">` : ''}
+                <div id="optionsContainer" class="options-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    ${data.answers.map((a, idx) => `
+                        <button class="option-btn answer-btn" onclick="submitAnswer(${a.id})" data-id="${a.id}">
+                            <span style="background:var(--accent);color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.9rem;">${idx + 1}</span>
+                            ${escapeHtml(a.answer_text)}
+                        </button>
+                    `).join('')}
+                </div>
+                <div style="margin-top:auto; padding-top:24px; display:flex; justify-content:center;">
+                    <button id="leaveGameBtn" class="btn btn-ghost" style="background:rgba(255,77,77,0.2); color:#ff4d4d;" onclick="confirmLeave()">
+                        🚪 Leave Game
+                    </button>
+                </div>
+            </div>
+            <div class="quiz-sidebar">
+                <h3 style="font-weight:700; margin-bottom:16px;">Players</h3>
+                <div id="playersList" style="margin-bottom:20px;">${renderPlayers(data.players || [])}</div>
+                <hr style="border-color:var(--border); margin:16px 0;">
+                <h3 style="font-weight:700; margin-bottom:12px;">Scoreboard</h3>
+                <div id="scoreboard">${renderScoreboard(data.scores || [])}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPlayers(players) {
+    if (!players.length) return '<p style="color:var(--text-secondary);">No players</p>';
+    return players.map(p => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;">
+            <span class="player-dot ${p.online ? '' : 'offline'}"></span>
+            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:24px;height:24px;border-radius:50%;" onerror="this.src='/static/avatars/default.png'">
+            <span style="flex:1;font-size:0.9rem;">${escapeHtml(p.username)}</span>
+            <span style="font-weight:600;color:var(--accent);">${p.score || 0}</span>
+        </div>
+    `).join('');
+}
+
+function renderScoreboard(scores) {
+    if (!scores.length) return '<p style="color:var(--text-secondary);">Waiting for scores...</p>';
+    return scores.slice(0, 5).map((s, i) => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.9rem;">
+            <span style="width:20px;font-weight:700;">#${i + 1}</span>
+            <span style="flex:1;">${escapeHtml(s.username)}</span>
+            <span style="font-weight:700;">${s.score}</span>
+        </div>
+    `).join('');
+}
+
+// ---------- Timer ----------
+function startTimer(seconds) {
+    if (gameState.timerInterval) {
+        cancelAnimationFrame(gameState.timerInterval);
+    }
+    gameState.timeLeft = seconds;
+    gameState.questionStartTime = Date.now();
+    gameState.endTime = gameState.questionStartTime + seconds * 1000;
+
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (!timerDisplay) return;
+
+    function update() {
+        const now = Date.now();
+        const remaining = Math.max(0, gameState.endTime - now);
+        gameState.timeLeft = remaining / 1000;
+
+        const displayTime = Math.ceil(gameState.timeLeft);
+        timerDisplay.textContent = displayTime + 's';
+
+        if (gameState.timeLeft <= 5) {
+            timerDisplay.style.color = '#ef4444';
+        } else if (gameState.timeLeft <= 10) {
+            timerDisplay.style.color = '#f59e0b';
         } else {
-            this.state.wrongAnswers++;
-            this.state.combo = 0;
-            if (this.state.audioEnabled) TriviaVerse.audio.play('wrong');
+            timerDisplay.style.color = 'var(--accent)';
         }
 
-        this.state.questionIndex++;
-        this.state.isLocked = false;
-
-        return {
-            correct: isCorrect,
-            score: totalScore,
-            combo: this.state.combo,
-            totalScore: this.state.score,
-            timeBonus,
-            comboBonus,
-            progress: {
-                current: this.state.questionIndex,
-                total: this.state.totalQuestions,
-                accuracy: this.calculateAccuracy()
-            }
-        };
-    },
-
-    // Calculate accuracy
-    calculateAccuracy() {
-        const total = this.state.correctAnswers + this.state.wrongAnswers;
-        if (total === 0) return 0;
-        return (this.state.correctAnswers / total) * 100;
-    },
-
-    // Timer management
-    startTimer(callback) {
-        this.state.timeLeft = this.state.timePerQuestion;
-        this.state.timer = setInterval(() => {
-            this.state.timeLeft--;
-            if (callback) callback(this.state.timeLeft);
-
-            if (this.state.timeLeft <= 0) {
-                this.stopTimer();
-                if (callback) callback(0);
-                this.submitAnswer(null, 0); // Time out
-            }
-        }, 1000);
-    },
-
-    stopTimer() {
-        if (this.state.timer) {
-            clearInterval(this.state.timer);
-            this.state.timer = null;
+        if (remaining <= 0) {
+            gameState.timerInterval = null;
+            submitAnswer(null);
+        } else {
+            gameState.timerInterval = requestAnimationFrame(update);
         }
-    },
+    }
 
-    // Lifelines
-    useFiftyFifty() {
-        if (!this.state.lifelines.fiftyFifty) return false;
-        this.state.lifelines.fiftyFifty = false;
+    gameState.timerInterval = requestAnimationFrame(update);
+}
 
-        const question = this.state.currentQuestion;
-        const wrongOptions = question.options.filter(o => o !== question.correct_answer);
-        const removed = wrongOptions.sort(() => Math.random() - 0.5).slice(0, 2);
+// ---------- Answer Submission ----------
+function submitAnswer(answerId) {
+    if (gameState.timerInterval) {
+        cancelAnimationFrame(gameState.timerInterval);
+        gameState.timerInterval = null;
+    }
 
-        return {
-            removed: removed,
-            remaining: question.options.filter(o => !removed.includes(o))
-        };
-    },
+    const buttons = document.querySelectorAll('.answer-btn');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        if (parseInt(btn.dataset.id) === answerId) {
+            btn.classList.add('selected');
+        }
+    });
 
-    useTimeBonus() {
-        if (!this.state.lifelines.timeBonus) return false;
-        this.state.lifelines.timeBonus = false;
-        this.state.timeLeft += 15;
-        return true;
-    },
+    const timeTaken = gameState.questionStartTime
+        ? (Date.now() - gameState.questionStartTime) / 1000
+        : 0;
+    const sock = getSocket();
+    if (sock) {
+        sock.emit('submit_answer', {
+            room_code: window.roomCode,
+            answer_id: answerId,
+            time_taken: Math.max(0, timeTaken)
+        });
+    } else {
+        handleAutoReload('Cannot send answer - connection lost');
+    }
+}
 
-    // Get final results
-    getResults() {
-        const duration = Math.floor((Date.now() - this.state.startTime) / 1000);
-        return {
-            mode: this.state.mode,
-            category: this.state.category,
-            difficulty: this.state.difficulty,
-            score: this.state.score,
-            correctAnswers: this.state.correctAnswers,
-            wrongAnswers: this.state.wrongAnswers,
-            accuracy: this.calculateAccuracy(),
-            maxCombo: this.state.maxCombo,
-            duration: duration,
-            questionsAnswered: this.state.questionIndex,
-            lifelinesUsed: {
-                fiftyFifty: !this.state.lifelines.fiftyFifty,
-                timeBonus: !this.state.lifelines.timeBonus
-            }
-        };
-    },
+// ---------- Answer Result Popup ----------
+function showAnswerResult(data) {
+    const popup = document.createElement('div');
+    popup.className = 'answer-popup';
+    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--surface);padding:32px 48px;border-radius:16px;z-index:9999;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);transition:opacity 0.3s;';
+    popup.innerHTML = `
+        <div style="font-size:3rem;margin-bottom:8px;">${data.correct ? '✅' : '❌'}</div>
+        <div style="font-size:1.5rem;font-weight:800;">${data.correct ? 'Correct!' : 'Wrong!'}</div>
+        <div style="color:var(--text-secondary);margin-top:8px;">+${data.score_earned} points</div>
+        <div style="margin-top:16px;font-size:0.9rem;">Streak: ${data.streak} 🔥</div>
+        ${data.survival_lives !== null && data.survival_lives !== undefined ? `<div style="margin-top:8px;font-size:0.9rem;">Lives: ${'❤️'.repeat(data.survival_lives)}</div>` : ''}
+    `;
+    document.body.appendChild(popup);
 
-    // Reset
-    reset() {
-        this.stopTimer();
-        this.state = {
-            currentQuestion: null,
-            questionIndex: 0,
-            totalQuestions: 0,
-            score: 0,
-            combo: 0,
-            maxCombo: 0,
-            correctAnswers: 0,
-            wrongAnswers: 0,
-            startTime: null,
-            timer: null,
-            timeLeft: 0,
-            timePerQuestion: 30,
-            isLocked: false,
-            difficulty: 'medium',
-            category: 'general',
-            mode: 'classic',
-            bonusMultiplier: 1,
-            lifelines: { fiftyFifty: true, timeBonus: true, skip: false }
-        };
+    setTimeout(() => {
+        popup.style.opacity = '0';
+        setTimeout(() => popup.remove(), 300);
+    }, 2000);
+}
+
+// ---------- Round Results ----------
+function showRoundResults(data) {
+    const container = document.getElementById('quizContainer');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="quiz-layout">
+            <div class="quiz-main" style="text-align:center;">
+                <h2 style="margin-bottom:24px;">Round Results</h2>
+                <div style="display:flex;flex-direction:column;gap:12px;max-width:500px;margin:0 auto;">
+                    ${data.leaderboard.map((p, i) => `
+                        <div style="display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border-radius:12px;border:${i === 0 ? '2px solid var(--warning)' : '1px solid var(--border)'};">
+                            <div style="font-size:1.5rem;font-weight:800;width:40px;">#${i + 1}</div>
+                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:40px;height:40px;border-radius:50%;" onerror="this.src='/static/avatars/default.png'">
+                            <div style="flex:1;text-align:left;">
+                                <div style="font-weight:700;">${escapeHtml(p.username)}</div>
+                                <div style="font-size:0.85rem;color:var(--text-secondary);">Streak: ${p.streak}</div>
+                            </div>
+                            <div style="font-size:1.3rem;font-weight:800;color:var(--accent);">${p.score}</div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary btn-full" style="margin-top:24px;" onclick="nextQuestion()">Next Question →</button>
+            </div>
+        </div>
+    `;
+}
+
+function nextQuestion() {
+    const sock = getSocket();
+    if (sock) {
+        sock.emit('next_question', { room_code: window.roomCode });
+    }
+}
+
+// ---------- Game Over ----------
+function showGameOver(data) {
+    const container = document.getElementById('quizContainer');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="quiz-layout">
+            <div class="quiz-main" style="text-align:center;">
+                <h1 style="font-size:3rem;margin-bottom:8px;">🏆</h1>
+                <h2 style="margin-bottom:32px;">Game Over!</h2>
+
+                <div style="display:flex;justify-content:center;gap:32px;margin:32px 0;">
+                    ${data.results.slice(0, 3).map((p, i) => `
+                        <div style="text-align:center;">
+                            <img src="${p.avatar || '/static/avatars/default.png'}" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent);" onerror="this.src='/static/avatars/default.png'">
+                            <div style="font-weight:800;margin-top:8px;">${escapeHtml(p.username)}</div>
+                            <div style="font-weight:700;color:var(--warning);">${p.score} pts</div>
+                            <div style="font-size:0.85rem;">#${i + 1}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto;">
+                    ${data.results.map((p, i) => `
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-radius:12px;">
+                            <span style="font-weight:800;width:30px;">#${i + 1}</span>
+                            <span style="flex:1;">${escapeHtml(p.username)}</span>
+                            <span style="color:var(--accent);font-weight:700;">${p.score}</span>
+                            <span style="font-size:0.85rem;color:var(--text-secondary);">${p.correct}/${data.total_questions}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <a href="/rooms/lobby" class="btn btn-primary btn-lg">Back to Lobby</a>
+            </div>
+        </div>
+    `;
+
+    createConfetti();
+}
+
+function createConfetti() {
+    const colors = ['#FFD700', '#00D4FF', '#5865F2', '#EC4899', '#22C55E'];
+    for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.style.cssText = `
+            position:fixed;
+            width:10px;height:10px;
+            background:${colors[Math.floor(Math.random() * colors.length)]};
+            left:${Math.random() * 100}%;
+            top:-10px;
+            border-radius:${Math.random() > 0.5 ? '50%' : '0'};
+            animation:confettiFall ${3 + Math.random() * 4}s linear forwards;
+            z-index:9999;
+            pointer-events:none;
+        `;
+        document.body.appendChild(confetti);
+        setTimeout(() => confetti.remove(), 7000);
+    }
+}
+
+// ---------- Leave Game ----------
+window.confirmLeave = function () {
+    if (confirm('Are you sure you want to leave the game?')) {
+        const sock = getSocket();
+        if (sock) {
+            sock.emit('leave_game', { room_code: window.roomCode });
+        }
+        window.location.href = '/rooms/lobby';
     }
 };
+
+// ---------- Toast Notifications ----------
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    const colors = { info: '#5865F2', success: '#22C55E', warning: '#f59e0b', error: '#ef4444' };
+    toast.style.cssText = `
+        position:fixed;bottom:24px;right:24px;
+        background:${colors[type] || colors.info};color:white;
+        padding:12px 24px;border-radius:8px;
+        font-size:0.9rem;font-weight:600;
+        z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);
+        transition:opacity 0.3s;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ---------- Auto-init ----------
+document.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.roomCode !== 'undefined' && window.roomCode) {
+        initQuiz(window.roomCode);
+    }
+});

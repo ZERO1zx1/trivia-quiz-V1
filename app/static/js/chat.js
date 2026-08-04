@@ -27,7 +27,7 @@ const ChatSystem = {
         if (!this.socket) return;
 
         // Join channel
-        this.socket.emit('join_chat', { channel_id: this.channelId });
+        this.socket.emit('join_channel', { channel_id: this.channelId });
 
         // New message
         this.socket.on('new_message', (data) => {
@@ -41,8 +41,13 @@ const ChatSystem = {
         });
 
         // User joined
-        this.socket.on('joined', (data) => {
+        this.socket.on('user_joined', (data) => {
             this.addSystemMessage(`${data.username} joined the chat`);
+        });
+
+        // User left
+        this.socket.on('user_left', (data) => {
+            this.addSystemMessage(`${data.username} left the chat`);
         });
 
         // Message edited
@@ -54,12 +59,17 @@ const ChatSystem = {
         this.socket.on('message_deleted', (data) => {
             this.removeMessage(data.message_id);
         });
+
+        // Pin notification
+        this.socket.on('message_pinned', (data) => {
+            this.addSystemMessage(`📌 ${data.username} pinned a message`);
+        });
     },
 
     setupUI() {
-        const form = document.getElementById('sendMessageForm') || document.getElementById('chat-form');
-        const input = document.getElementById('messageInput') || document.getElementById('chat-input');
-        const container = document.getElementById('chatMessages') || document.getElementById('chat-messages');
+        const form = document.getElementById('chat-form');
+        const input = document.getElementById('chat-input');
+        const container = document.getElementById('chat-messages');
 
         if (form && input) {
             form.addEventListener('submit', (e) => {
@@ -74,15 +84,25 @@ const ChatSystem = {
                 if (this.socket) {
                     this.socket.emit('typing', {
                         channel_id: this.channelId,
-                        is_typing: true
+                        is_typing: true,
+                        username: this.username
                     });
                     clearTimeout(typingTimeout);
                     typingTimeout = setTimeout(() => {
                         this.socket.emit('typing', {
                             channel_id: this.channelId,
-                            is_typing: false
+                            is_typing: false,
+                            username: this.username
                         });
                     }, 2000);
+                }
+            });
+
+            // Keyboard shortcut - Enter to send
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    form.dispatchEvent(new Event('submit'));
                 }
             });
         }
@@ -98,16 +118,10 @@ const ChatSystem = {
             });
         } else {
             // Fallback to HTTP
-            fetch(`/chat/send`, {
+            fetch(`/chat/api/${this.channelId}/messages`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
-                },
-                body: JSON.stringify({ 
-                    channel_id: this.channelId,
-                    content: content.trim() 
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: content.trim() })
             });
         }
     },
@@ -116,7 +130,7 @@ const ChatSystem = {
         try {
             const response = await fetch(`/chat/api/${this.channelId}/messages?limit=${limit}`);
             const data = await response.json();
-            const container = document.getElementById('chatMessages') || document.getElementById('chat-messages');
+            const container = document.getElementById('chat-messages');
             if (container) {
                 container.innerHTML = '';
                 (data.messages || []).forEach(msg => this.appendMessage(msg));
@@ -128,7 +142,7 @@ const ChatSystem = {
     },
 
     appendMessage(msg) {
-        const container = document.getElementById('chatMessages') || document.getElementById('chat-messages');
+        const container = document.getElementById('chat-messages');
         if (!container) return;
 
         const div = document.createElement('div');
@@ -136,21 +150,21 @@ const ChatSystem = {
         div.id = `msg-${msg.id}`;
 
         const isOwn = msg.user_id === this.userId;
-        if (isOwn) div.classList.add('mine');
+        div.classList.toggle('own-message', isOwn);
 
         div.innerHTML = `
-            <div class="msg-header">
-                <strong>${this.escapeHtml(msg.username || 'Unknown')}</strong>
-                <span class="msg-time">${this.formatTime(msg.created_at)}</span>
+            <div class="flex items-start gap-2 ${isOwn ? 'flex-row-reverse' : ''}">
+                <span class="chat-username">${this.escapeHtml(msg.username || 'Unknown')}</span>
+                <span class="chat-content">${this.escapeHtml(msg.content)}</span>
+                <span class="chat-timestamp">${this.formatTime(msg.created_at)}</span>
             </div>
-            <div class="msg-content">${this.escapeHtml(msg.content)}</div>
         `;
 
         container.appendChild(div);
     },
 
     addSystemMessage(text) {
-        const container = document.getElementById('chatMessages') || document.getElementById('chat-messages');
+        const container = document.getElementById('chat-messages');
         if (!container) return;
 
         const div = document.createElement('div');
@@ -178,15 +192,15 @@ const ChatSystem = {
     },
 
     updateMessage(data) {
-        const el = document.getElementById(`msg-${data.message_id || data.id}`);
+        const el = document.getElementById(`msg-${data.id}`);
         if (el) {
-            const content = el.querySelector('.msg-content');
-            if (content) content.textContent = data.new_content || data.content;
+            const content = el.querySelector('.chat-content');
+            if (content) content.textContent = data.content;
         }
     },
 
     scrollToBottom() {
-        const container = document.getElementById('chatMessages') || document.getElementById('chat-messages');
+        const container = document.getElementById('chat-messages');
         if (container) {
             container.scrollTop = container.scrollHeight;
         }
@@ -207,12 +221,10 @@ const ChatSystem = {
 
 // Auto-initialize
 document.addEventListener('DOMContentLoaded', () => {
-    const channelInput = document.querySelector('input[name="channel_id"]');
-    if (channelInput) {
+    const chatForm = document.getElementById('chat-form');
+    if (chatForm) {
         ChatSystem.init({
-            channelId: parseInt(channelInput.value),
-            userId: parseInt(document.body.dataset.userId || '0'),
-            username: document.body.dataset.username || ''
+            channelId: parseInt(document.getElementById('chat-channel-id')?.value || '1'),
         });
     }
 });

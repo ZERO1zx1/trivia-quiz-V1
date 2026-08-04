@@ -11,9 +11,7 @@ from flask_login import logout_user, current_user
 from flask_babel import Babel, _
 
 def create_app(config_name='default'):
-    app = Flask(__name__,
-                template_folder='../templates',
-                static_folder='../static')
+    app = Flask(__name__)
     app.config.from_object(config[config_name])
 
     # ================= BABEL (Multi-language) =================
