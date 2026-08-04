@@ -1,0 +1,12 @@
+{
+  "dashboard": {
+    "title": "TriviaVerse Enterprise",
+    "uid": "triviaverse-main",
+    "panels": [
+      {"title": "Total Users", "type": "stat", "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0}},
+      {"title": "Total Questions", "type": "stat", "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0}},
+      {"title": "Active Rooms", "type": "stat", "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0}},
+      {"title": "App Info", "type": "stat", "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0}}
+    ]
+  }
+}

@@ -206,6 +206,7 @@ def create_app(config_name='default'):
     from app.routes.two_factor import two_factor_bp
     from app.routes.guild_war import guild_war_bp
     from app.routes.tournament_replay import tournament_replay_bp
+    from app.routes.metrics import metrics_bp
 
     # ================= REGISTER CORE BLUEPRINTS =================
     app.register_blueprint(home_bp)
@@ -250,6 +251,7 @@ def create_app(config_name='default'):
     app.register_blueprint(two_factor_bp, url_prefix='/two-factor')
     app.register_blueprint(guild_war_bp, url_prefix='/guild-war')
     app.register_blueprint(tournament_replay_bp, url_prefix='/tournament-replay')
+    app.register_blueprint(metrics_bp)
 
     return app
 

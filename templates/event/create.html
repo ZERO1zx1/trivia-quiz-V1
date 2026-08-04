@@ -1,0 +1,48 @@
+{% extends "layouts/base.html" %}
+{% block title %}Create Event{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2><i class="fas fa-calendar-plus"></i> Create New Event</h2>
+            <form method="POST" action="{{ url_for('event.create_event') }}">
+                <div class="form-group">
+                    <label>Event Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="e.g. Summer Trivia Championship">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" class="form-control" rows="3" placeholder="Describe the event..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" class="form-control">
+                        <option value="seasonal">Seasonal</option>
+                        <option value="holiday">Holiday</option>
+                        <option value="limited">Limited Time</option>
+                        <option value="special_boss">Special Boss</option>
+                        <option value="anniversary">Anniversary</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Start Date</label>
+                        <input type="datetime-local" name="start_date" class="form-control" required>
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>End Date</label>
+                        <input type="datetime-local" name="end_date" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Rewards (JSON)</label>
+                    <textarea name="rewards" class="form-control" rows="3" placeholder='[{"name":"Gold Trophy","coins":500},{"name":"Special Title","coins":100}]'></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg btn-block">
+                    <i class="fas fa-plus"></i> Create Event
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

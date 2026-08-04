@@ -1,0 +1,74 @@
+{% extends "layouts/base.html" %}
+{% block title %}Tournament Replay - {{ tournament.name }}{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-play-circle"></i> Tournament Replay: {{ tournament.name }}</h2>
+            <span class="badge badge-{{ 'success' if tournament.status == 'completed' else 'warning' }}">{{ tournament.status }}</span>
+            <span class="text-muted ml-2">Max Participants: {{ tournament.max_participants }}</span>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark border-secondary">
+                <div class="card-header">
+                    <h5>Match History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Round</th>
+                                    <th>Match</th>
+                                    <th>Player A</th>
+                                    <th>Score A</th>
+                                    <th>Score B</th>
+                                    <th>Player B</th>
+                                    <th>Winner</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="matches-table">
+                                <tr><td colspan="8" class="text-center text-muted">Loading matches...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tournamentId = {{ tournament.id }};
+    fetch(`/tournament-replay/api/tournaments/${tournamentId}/replay`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.getElementById('matches-table');
+            if (data.matches && data.matches.length > 0) {
+                tbody.innerHTML = data.matches.map(m => `
+                    <tr>
+                        <td>R${m.round}</td>
+                        <td>#${m.order}</td>
+                        <td>${m.player_a.username}</td>
+                        <td>${m.score_a}</td>
+                        <td>${m.score_b}</td>
+                        <td>${m.player_b.username}</td>
+                        <td>${m.winner_id ? (m.winner_id === m.player_a.id ? m.player_a.username : m.player_b.username) : 'TBD'}</td>
+                        <td><span class="badge badge-${m.is_completed ? 'success' : 'warning'}">${m.is_completed ? 'Completed' : 'Pending'}</span></td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No matches recorded yet.</td></tr>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('matches-table').innerHTML = '<tr><td colspan="8" class="text-center text-danger">Failed to load replay data.</td></tr>';
+        });
+});
+</script>
+{% endblock %}

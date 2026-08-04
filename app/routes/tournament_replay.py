@@ -1,9 +1,16 @@
 """Tournament Replay - Watch past tournament matches"""
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, render_template
 from app.extensions import db
 from app.models.tournament import Tournament, TournamentMatch
 
-tournament_replay_bp = Blueprint('tournament_replay', __name__)
+tournament_replay_bp = Blueprint('tournament_replay', __name__, url_prefix='/tournament-replay')
+
+
+@tournament_replay_bp.route('/tournament/<int:tournament_id>')
+def view_replay(tournament_id):
+    """View tournament replay page."""
+    tournament = Tournament.query.get_or_404(tournament_id)
+    return render_template('tournament/replay.html', tournament=tournament)
 
 
 @tournament_replay_bp.route('/api/tournaments/<int:tournament_id>/replay')

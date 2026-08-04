@@ -54,6 +54,13 @@ def api_user_stats():
     }
     return jsonify(stats)
 
+@dashboard_bp.route('/coach')
+@login_required
+def coach():
+    """AI Coach page - view personalized advice."""
+    return render_template('dashboard/coach.html')
+
+
 @dashboard_bp.route('/daily-reward', methods=['POST'])
 @login_required
 def daily_reward():

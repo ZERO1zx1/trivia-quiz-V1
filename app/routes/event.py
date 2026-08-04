@@ -120,6 +120,48 @@ def leaderboard(event_id):
     return render_template('event/leaderboard.html', event=event, participants=participants)
 
 
+@event_bp.route('/create', methods=['GET', 'POST'])
+@login_required
+def create_event():
+    """Create a new event (admin only)."""
+    if not current_user.is_admin:
+        flash('Only admins can create events.', 'danger')
+        return redirect(url_for('event.index'))
+
+    if request.method == 'POST':
+        import json
+        event = GameEvent(
+            name=request.form.get('name'),
+            description=request.form.get('description', ''),
+            event_type=request.form.get('category', 'seasonal'),
+            start_date=datetime.fromisoformat(request.form.get('start_date')),
+            end_date=datetime.fromisoformat(request.form.get('end_date')),
+            status='upcoming'
+        )
+        db.session.add(event)
+        db.session.flush()
+
+        # Parse rewards JSON
+        rewards_json = request.form.get('rewards', '[]')
+        try:
+            rewards_list = json.loads(rewards_json)
+            for r in rewards_list:
+                db.session.add(EventReward(
+                    event_id=event.id,
+                    name=r.get('name', 'Reward'),
+                    reward_type='coins',
+                    item_id=r.get('coins', 100)
+                ))
+        except json.JSONDecodeError:
+            pass
+
+        db.session.commit()
+        flash(f'Event "{event.name}" created!', 'success')
+        return redirect(url_for('event.detail', event_id=event.id))
+
+    return render_template('event/create.html')
+
+
 # API endpoints
 @event_bp.route('/api/active')
 def api_active():

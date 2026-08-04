@@ -411,3 +411,43 @@ def admin_give_item():
         
     db.session.commit()
     return jsonify({'success': True})
+
+
+# ================= BAN APPEAL ROUTES =================
+
+@admin_bp.route('/ban-appeals')
+@admin_required
+def ban_appeals():
+    """View all ban appeals."""
+    from app.models.settings import BanAppeal
+    appeals = BanAppeal.query.order_by(BanAppeal.created_at.desc()).all()
+    return render_template('admin/ban_appeals.html', appeals=appeals)
+
+
+@admin_bp.route('/ban-appeals/<int:appeal_id>/review', methods=['POST'])
+@admin_required
+def review_ban_appeal(appeal_id):
+    """Review and approve/deny a ban appeal."""
+    from app.models.settings import BanAppeal
+    from app.models.user import User
+    appeal = BanAppeal.query.get_or_404(appeal_id)
+    action = request.form.get('action')  # 'approve' or 'deny'
+
+    if action == 'approve':
+        user = User.query.get(appeal.user_id)
+        if user:
+            user.is_banned = False
+        appeal.status = 'approved'
+    elif action == 'deny':
+        appeal.status = 'denied'
+    else:
+        flash('Invalid action.', 'danger')
+        return redirect(url_for('admin.ban_appeals'))
+
+    appeal.reviewed_by = current_user.id
+    appeal.reviewed_at = datetime.utcnow()
+    appeal.review_notes = request.form.get('review_note', '')
+    db.session.commit()
+
+    flash(f'Appeal {appeal.status}.', 'success' if action == 'approve' else 'info')
+    return redirect(url_for('admin.ban_appeals'))

@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+{% block title %}Ban Appeals - Admin{% endblock %}
+{% block content %}
+<div class="container">
+    <h2><i class="fas fa-gavel"></i> Ban Appeals Management</h2>
+    
+    <div class="table-responsive">
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Ban Type</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Submitted</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for appeal in appeals %}
+                <tr>
+                    <td>#{{ appeal.id }}</td>
+                    <td>{{ appeal.user.username if appeal.user else 'Unknown' }}</td>
+                    <td><span class="badge badge-info">{{ appeal.ban_type }}</span></td>
+                    <td>{{ appeal.reason[:50] }}{% if appeal.reason|length > 50 %}...{% endif %}</td>
+                    <td>
+                        <span class="badge badge-{{ 'warning' if appeal.status == 'pending' else 'success' if appeal.status == 'approved' else 'danger' }}">
+                            {{ appeal.status }}
+                        </span>
+                    </td>
+                    <td>{{ appeal.created_at.strftime('%Y-%m-%d %H:%M') if appeal.created_at else 'N/A' }}</td>
+                    <td>
+                        {% if appeal.status == 'pending' %}
+                        <form method="POST" action="{{ url_for('admin.review_ban_appeal', appeal_id=appeal.id) }}" style="display:inline;">
+                            <input type="hidden" name="action" value="approve">
+                            <input type="text" name="review_note" placeholder="Review note..." style="width:150px;" required>
+                            <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin.review_ban_appeal', appeal_id=appeal.id) }}" style="display:inline;">
+                            <input type="hidden" name="action" value="deny">
+                            <input type="text" name="review_note" placeholder="Reason for denial..." style="width:150px;" required>
+                            <button type="submit" class="btn btn-sm btn-danger">Deny</button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">Reviewed</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not appeals %}
+                <tr><td colspan="7" class="text-center text-muted">No ban appeals yet.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
