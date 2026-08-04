@@ -89,3 +89,6 @@ pywebpush==2.0.1
 
 # File handling
 python-magic==0.4.27
+
+# Supabase
+supabase==2.13.0

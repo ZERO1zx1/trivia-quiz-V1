@@ -35,7 +35,7 @@
 | Төрөл | Технологи |
 | --- | --- |
 | **Backend** | Python 3.12+, Flask, Flask-SocketIO |
-| **Database** | PostgreSQL 14+, Redis (Cache/Queue) |
+| **Database** | Supabase PostgreSQL (Managed), Redis (Cache/Queue) |
 | **Frontend** | Jinja2, Glassmorphism UI, Vanilla JS |
 | **Bot System** | discord.py 2.6+ |
 | **AI Integration**| OpenAI API (GPT-4), Gemini, Claude |
@@ -79,7 +79,7 @@ docker-compose up --build
 ```
 
 ### 3. Гараар ажиллуулах
-1. `.env` файлыг тохируулах (Жишээг `.env.example`-аас харна уу).
+	1. `.env` файлыг тохируулах (Supabase DATABASE_URL болон API түлхүүрүүдийг нэмэх).
 2. `pip install -r requirements.txt`
 3. `python run.py` (Вэб сервер)
 4. `python discord_bot/bot.py` (Discord бот)

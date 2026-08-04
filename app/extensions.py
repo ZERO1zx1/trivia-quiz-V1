@@ -9,10 +9,15 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from flask_babel import Babel
+from supabase import create_client, Client
 
 # Database & ORM
 db = SQLAlchemy()
 migrate = Migrate()
+
+# Supabase Client
+supabase: Client = None
+
 
 # Authentication
 login_manager = LoginManager()

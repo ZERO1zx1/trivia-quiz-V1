@@ -53,7 +53,7 @@ def create_app(config_name='default'):
     async_mode = app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
     cors_origins = app.config.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
 
-    from app.extensions import db, migrate, login_manager, socketio, csrf, cors, limiter
+    from app.extensions import db, migrate, login_manager, socketio, csrf, cors, limiter, create_client
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -61,6 +61,14 @@ def create_app(config_name='default'):
     csrf.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": cors_origins}})
     limiter.init_app(app)
+
+    # Supabase Client Init
+    supabase_url = app.config.get('SUPABASE_URL') or os.environ.get('SUPABASE_URL')
+    supabase_key = app.config.get('SUPABASE_KEY') or os.environ.get('SUPABASE_KEY')
+    if supabase_url and supabase_key:
+        import app.extensions as ext
+        ext.supabase = create_client(supabase_url, supabase_key)
+        app.logger.info("Supabase client initialized")
 
     # ================= SCHEDULER =================
     scheduler = BackgroundScheduler()
