@@ -234,13 +234,21 @@
     }
 
     // Theme
-    function setTheme(theme) {
+    async function setTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        document.querySelectorAll('.glass').forEach(el => {
-            el.style.transition = 'none';
-            setTimeout(() => el.style.transition = '', 50);
-        });
+        
+        // Sync with server
+        try {
+            await fetch('/account/settings/theme', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ theme: theme })
+            });
+            window.location.reload(); // Reload to apply theme to all components correctly
+        } catch (e) {
+            console.error('Failed to sync theme');
+        }
     }
 
     // Initialize current theme

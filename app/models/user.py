@@ -43,6 +43,7 @@ class User(UserMixin, db.Model):
     last_daily_reward = db.Column(db.DateTime)
     last_fortune_spin = db.Column(db.DateTime, nullable=True)
     language = db.Column(db.String(5), default='en')   # 'en', 'mn'
+    theme = db.Column(db.String(10), default='dark')   # 'dark', 'light'
     timezone = db.Column(db.String(50), default='UTC')
 
     # Нийгмийн харилцаа

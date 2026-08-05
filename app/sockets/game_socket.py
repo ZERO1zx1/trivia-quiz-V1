@@ -143,8 +143,10 @@ def register_game_events(socketio):
         room = Room.query.filter_by(code=room_code).first()
         # Decreasing Point Timer Logic
         # Start with 1000, decrease by 50 per second
+        # Safety: ensure time_taken is reasonable
+        safe_time = max(0.5, min(time_taken, 30.0))
         base_points = 1000
-        time_penalty = int(time_taken * 50)
+        time_penalty = int(safe_time * 50)
         calculated_base = max(100, base_points - time_penalty)
         
         # Combo Multiplier System

@@ -14,11 +14,15 @@ function escapeHtml(text) {
 }
 
 function getSocket() {
-    if (typeof socket !== 'undefined' && socket) return socket;
-    if (typeof io !== 'undefined') {
-        window.socket = io();
+    // base.html-д тодорхойлсон глобал socket-г ашиглах
+    if (window.socket && window.socket.connected) return window.socket;
+    
+    // Хэрэв холбогдоогүй бол initSocket дуудна (socket.js-д байгаа)
+    if (typeof window.initSocket === 'function') {
+        window.initSocket();
         return window.socket;
     }
+    
     console.error('Socket.IO not initialized');
     return null;
 }

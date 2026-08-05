@@ -45,6 +45,7 @@ def main():
         ('profile_theme_music', 'VARCHAR(100)'),
         ('performance_mode', 'INTEGER', 0),
         ('preferred_difficulty', 'VARCHAR(20)'),
+        ('theme', 'VARCHAR(10)', "'dark'"),
     ]
     
     for col in columns:

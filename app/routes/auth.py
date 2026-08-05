@@ -113,9 +113,12 @@ def login():
             user.last_login_ip = client_ip
             user.last_login_at = datetime.utcnow()
 
+            from flask import session
             login_user(user, remember=remember)
             user.is_online = True
             user.last_seen = datetime.utcnow()
+            session['theme'] = user.theme
+            session['language'] = user.language
             db.session.commit()
 
             next_page = request.args.get('next')
@@ -197,8 +200,11 @@ def discord_callback():
         discord_account.access_token = access_token
         discord_account.discord_username = discord_username
         discord_account.discord_avatar = discord_avatar
+        from flask import session
         db.session.commit()
         login_user(discord_account.user, remember=True)
+        session['theme'] = discord_account.user.theme
+        session['language'] = discord_account.user.language
         flash(f'Welcome back, {discord_account.user.username}!', 'success')
         return redirect(url_for('dashboard.index'))
 
@@ -273,7 +279,10 @@ def discord_callback():
         db.session.add(ua)
     db.session.commit()
 
+    from flask import session
     login_user(user, remember=True)
+    session['theme'] = user.theme
+    session['language'] = user.language
     flash('Account created with Discord! Welcome to TriviaVerse.', 'success')
     return redirect(url_for('dashboard.index'))
 

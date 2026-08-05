@@ -2331,19 +2331,73 @@ select.custom-select {
 
 /* Light Mode Overrides */
 [data-theme="light"] {
-    --bg: #f8fafc;
+    --bg: #f1f5f9;
     --bg-secondary: #ffffff;
-    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    --surface: rgba(0, 0, 0, 0.03);
-    --surface-hover: rgba(0, 0, 0, 0.06);
-    --border: rgba(0, 0, 0, 0.08);
-    --text: #0f172a;
-    --text-secondary: #475569;
-    --glass: rgba(255, 255, 255, 0.75);
-    --glass-border: rgba(0, 0, 0, 0.06);
+    --bg-gradient: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    --surface: rgba(0, 0, 0, 0.05);
+    --surface-hover: rgba(0, 0, 0, 0.08);
+    --border: rgba(0, 0, 0, 0.1);
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --glass: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(0, 0, 0, 0.1);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+    --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.15);
+    --primary: #4f46e5;
+    --primary-light: #6366f1;
+    --primary-dark: #3730a3;
+}
+
+/* Light mode-д зориулсан тусгай засварууд */
+[data-theme="light"] .sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .top-navbar {
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] .card, [data-theme="light"] .glass {
+    background: #ffffff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+}
+
+[data-theme="light"] .nav-item {
+    color: #475569;
+}
+
+[data-theme="light"] .nav-item:hover, [data-theme="light"] .nav-item.active {
+    background: #f1f5f9;
+    color: #4f46e5;
+}
+
+[data-theme="light"] .stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+[data-theme="light"] input, [data-theme="light"] select {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+}
+
+[data-theme="light"] .btn-ghost {
+    color: #475569;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .btn-ghost:hover {
+    background: #f1f5f9;
+}
+
+[data-theme="light"] body::before {
+    opacity: 0.3;
 }
 
 /* Role Colors & Glow */

@@ -28,34 +28,19 @@ def generate_trivia_question(category_name="General Knowledge", difficulty="medi
     )
 
     try:
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "gpt-3.5-turbo",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.9,
-                "max_tokens": 300
-            },
-            timeout=20
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url=current_app.config.get('OPENAI_API_BASE')
         )
-
-        # === HTTP алдааг шалгах ===
-        if response.status_code == 401:
-            current_app.logger.error("❌ OpenAI: Invalid API Key (401). Check your .env file.")
-            return None
-        elif response.status_code == 429:
-            current_app.logger.error("❌ OpenAI: Quota exceeded or rate limited (429).")
-            return None
-        elif response.status_code != 200:
-            current_app.logger.error(f"❌ OpenAI returned status {response.status_code}: {response.text}")
-            return None
-
-        data = response.json()
-        content = data['choices'][0]['message']['content'].strip()
+        response = client.chat.completions.create(
+            model="gpt-5",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.9,
+            max_tokens=500,
+            response_format={"type": "json_object"}
+        )
+        content = response.choices[0].message.content.strip()
 
         # Заримдаа ```json ... ``` гэж ирдэг
         if content.startswith("```json"):

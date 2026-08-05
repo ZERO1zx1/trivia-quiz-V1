@@ -236,3 +236,67 @@ def check_solo_answer():
         'correct': is_correct,
         'correct_answer_id': correct_answer.id if correct_answer else None
     })
+
+@quiz_bp.route('/ai/generate-room', methods=['POST'])
+@login_required
+def ai_generate_room():
+    data = request.get_json()
+    topic = data.get('topic', 'General Knowledge')
+    difficulty = data.get('difficulty', 'medium')
+    
+    # Generate 5 questions using AI
+    from app.utils.ai import generate_trivia_question
+    import random
+    import string
+    
+    # Create a temporary category
+    cat_name = f"AI: {topic}"
+    cat = Category.query.filter_by(name=cat_name).first()
+    if not cat:
+        cat = Category(name=cat_name, slug='ai-' + ''.join(random.choices(string.ascii_lowercase, k=5)))
+        db.session.add(cat)
+        db.session.commit()
+    
+    generated_questions = []
+    for _ in range(5):
+        q_data = generate_trivia_question(topic, difficulty)
+        if q_data:
+            q = Question(
+                question_text=q_data['question'],
+                difficulty=difficulty,
+                category_id=cat.id,
+                is_active=True
+            )
+            db.session.add(q)
+            db.session.flush()
+            db.session.add(Answer(question_id=q.id, answer_text=q_data['correct_answer'], is_correct=True))
+            for w in q_data.get('wrong_answers', []):
+                db.session.add(Answer(question_id=q.id, answer_text=w, is_correct=False))
+            generated_questions.append(q)
+    
+    if not generated_questions:
+        return jsonify({'success': False, 'error': 'AI failed to generate questions. Please try a different topic.'}), 500
+    
+    db.session.commit()
+    
+    # Create Room
+    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    room = Room(
+        code=code,
+        name=f"AI Quiz: {topic}",
+        host_id=current_user.id,
+        category_id=cat.id,
+        difficulty=difficulty,
+        question_count=len(generated_questions),
+        max_players=8,
+        game_mode='classic',
+        status='waiting'
+    )
+    db.session.add(room)
+    
+    # Join host to room
+    player = RoomPlayer(room_id=room.id, user_id=current_user.id, is_host=True)
+    db.session.add(player)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'room_code': code})

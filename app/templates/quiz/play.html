@@ -83,20 +83,17 @@
     window.currentUserRole = '{{ current_user.role }}';
     window.currentUsername = '{{ current_user.username }}';
 
-    // Socket.io глобал сервер холболт үүсгэх
-    window.socket = io();
-
+    // Socket.io глобал сервер холболтыг ашиглах (base.html-ээс)
     function connectToGame() {
         document.getElementById('quizLoading').style.display = 'block';
         document.getElementById('retryBtn').style.display = 'none';
 
         if (typeof window.joinRoomSocket === 'function') {
-            window.joinRoomSocket(window.roomCode, {
-                user_id: window.currentUserId,
-                username: window.currentUsername
-            });
+            window.joinRoomSocket(window.roomCode);
         } else {
             console.warn('joinRoomSocket is loading...');
+            // Хэрэв socket.js хараахан ачаалагдаагүй бол 500ms дараа дахин оролдоно
+            setTimeout(connectToGame, 500);
         }
     }
 </script>

@@ -15,17 +15,20 @@ def create_app(config_name='default'):
     app.config.from_object(config[config_name])
 
     # ================= BABEL (Multi-language) =================
-    babel = Babel(app)
+    from app.extensions import babel
 
     def get_locale():
+        # Check session first
         if 'language' in session:
             return session['language']
-        if current_user.is_authenticated and current_user.language:
+        # Then user profile
+        if current_user.is_authenticated and hasattr(current_user, 'language') and current_user.language:
             return current_user.language
+        # Finally browser preference
         return request.accept_languages.best_match(['en', 'mn'])
 
     def get_timezone():
-        if current_user.is_authenticated and current_user.timezone:
+        if current_user.is_authenticated and hasattr(current_user, 'timezone') and current_user.timezone:
             return current_user.timezone
         return 'UTC'
 
@@ -145,10 +148,18 @@ def create_app(config_name='default'):
     # ================= GLOBAL TEMPLATE VARIABLES =================
     @app.context_processor
     def inject_globals():
+        # Get theme from session, then user, then default
+        theme = session.get('theme')
+        if not theme and current_user.is_authenticated:
+            theme = current_user.theme
+        if not theme:
+            theme = 'dark'
+            
         return {
             'app_name': 'TriviaVerse',
             'current_year': 2026,
-            'current_user': current_user
+            'current_user': current_user,
+            'current_theme': theme
         }
 
     # ================= ERROR HANDLERS =================

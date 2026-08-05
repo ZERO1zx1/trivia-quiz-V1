@@ -38,6 +38,7 @@ class Config:
 
     # AI
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY') or 'your-actual-api-key'
+    OPENAI_API_BASE = os.environ.get('OPENAI_API_BASE')
 
     # Owner
     OWNER_USERNAME = os.environ.get('OWNER_USERNAME') or None

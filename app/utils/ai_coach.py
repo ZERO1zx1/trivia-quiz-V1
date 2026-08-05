@@ -92,25 +92,19 @@ def generate_coach_advice(user_id):
     )
 
     try:
-        import requests
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "gpt-3.5-turbo",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.8,
-                "max_tokens": 200
-            },
-            timeout=15
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url=current_app.config.get('OPENAI_API_BASE')
         )
-        if response.status_code == 200:
-            data = response.json()
-            advice = data['choices'][0]['message']['content'].strip()
-            return advice
+        response = client.chat.completions.create(
+            model="gpt-5",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.8,
+            max_tokens=300
+        )
+        advice = response.choices[0].message.content.strip()
+        return advice
     except Exception as e:
         current_app.logger.error(f"AI Coach error: {e}")
 

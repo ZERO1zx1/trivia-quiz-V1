@@ -101,6 +101,37 @@ def register_room_events(socketio):
         room.started_at = datetime.utcnow()
         db.session.commit()
 
+        # Initialize game state before redirecting
+        from app.sockets.game_socket import game_states
+        from app.models.question import Question
+        from app.models.room import Match
+
+        query = Question.query.filter_by(is_active=True)
+        if room.category_id:
+            query = query.filter_by(category_id=room.category_id)
+        if room.difficulty != 'mixed':
+            query = query.filter_by(difficulty=room.difficulty)
+
+        questions = query.order_by(db.func.random()).limit(room.question_count).all()
+        
+        match = Match(room_id=room.id, category_id=room.category_id,
+                     difficulty=room.difficulty, question_count=room.question_count)
+        db.session.add(match)
+        db.session.commit()
+
+        game_states[room_code] = {
+            'match_id': match.id,
+            'questions': [q.to_dict() for q in questions],
+            'current_question': 0,
+            'answers': {},
+            'scores': {p.user_id: 0 for p in players},
+            'streaks': {p.user_id: 0 for p in players},
+            'started_at': datetime.utcnow().isoformat(),
+            'game_mode': room.game_mode,
+            'survival_lives': {p.user_id: p.survival_lives for p in players},
+            'eliminated': set()
+        }
+
         # Бүх хэрэглэгчийг quiz хуудас руу чиглүүлэх
         emit('game_started', {
             'room_code': room_code,

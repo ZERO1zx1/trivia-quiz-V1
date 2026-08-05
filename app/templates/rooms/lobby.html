@@ -6,6 +6,8 @@
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
     <h1 style="font-size:2rem;font-weight:800;">Game Lobby 🎮</h1>
     <div style="display:flex;gap:12px;">
+        <!-- AI Generator Button -->
+        <button class="btn btn-primary" style="background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%);" onclick="openAIModal()">✨ AI Quiz</button>
         <!-- Solo Practice Button (opens modal) -->
         <button class="btn btn-primary" onclick="openSoloModal()">🎮 Solo Practice</button>
         <!-- Create Room Button -->
@@ -169,9 +171,74 @@
             style="margin-top:16px;">Cancel</button>
     </div>
 </div>
+<!-- AI Quiz Modal -->
+<div id="aiModal"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(8px);">
+    <div class="glass" style="padding:40px; border-radius:24px; width:100%; max-width:400px;">
+        <h2 style="margin-bottom:16px; text-align:center;">✨ AI Quiz Generator</h2>
+        <p style="color:var(--text-secondary); font-size:0.9rem; text-align:center; margin-bottom:24px;">Enter a topic and AI will generate questions for you!</p>
+        <form id="aiQuizForm" onsubmit="generateAIQuiz(event)">
+            <div style="margin-bottom:16px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600;">Topic</label>
+                <input type="text" id="aiTopic" placeholder="e.g. Mongolian History, Space, Anime" required
+                    style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 16px; color:var(--text);">
+            </div>
+            <div style="margin-bottom:24px;">
+                <label style="display:block; margin-bottom:8px; font-weight:600;">Difficulty</label>
+                <select id="aiDifficulty" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 16px; color:var(--text);">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <button type="submit" id="aiSubmitBtn" class="btn btn-primary btn-full btn-glow">Generate & Play</button>
+        </form>
+        <button onclick="document.getElementById('aiModal').style.display='none'" class="btn btn-ghost btn-full"
+            style="margin-top:12px;">Cancel</button>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    function openAIModal() {
+        document.getElementById('aiModal').style.display = 'flex';
+    }
+
+    async function generateAIQuiz(event) {
+        event.preventDefault();
+        const topic = document.getElementById('aiTopic').value;
+        const difficulty = document.getElementById('aiDifficulty').value;
+        const btn = document.getElementById('aiSubmitBtn');
+        
+        btn.disabled = true;
+        btn.textContent = 'Generating... ✨';
+        
+        try {
+            const response = await fetch('/quiz/ai/generate-room', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ topic, difficulty })
+            });
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = `/rooms/room/${data.room_code}`;
+            } else {
+                showToast(data.error || 'Generation failed', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Generate & Play';
+            }
+        } catch (e) {
+            showToast('An error occurred', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Generate & Play';
+        }
+    }
+</script>
 <script>
     // Solo Practice модал нээх
     window.openSoloModal = function () {

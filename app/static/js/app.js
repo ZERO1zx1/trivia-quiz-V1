@@ -154,12 +154,26 @@ window.apiFetch = async (url, options = {}) => {
     return response.json();
 };
 
-window.toggleTheme = function () {
+window.toggleTheme = async function () {
     const html = document.documentElement;
     const current = html.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
+    
+    // Sync with server session
+    try {
+        await fetch('/account/settings/theme', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify({ theme: next })
+        });
+    } catch (e) {
+        console.error('Failed to sync theme with server');
+    }
 };
 
 // ==================================

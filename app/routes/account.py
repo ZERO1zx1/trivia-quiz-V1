@@ -148,3 +148,16 @@ def update_preferences():
     db.session.commit()
     flash('Notification preferences updated!', 'success')
     return redirect(url_for('account.settings'))
+
+@account_bp.route('/settings/theme', methods=['POST'])
+@login_required
+def update_theme():
+    data = request.get_json()
+    theme = data.get('theme')
+    if theme in ('dark', 'light'):
+        from flask import session
+        session['theme'] = theme
+        current_user.theme = theme
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'success': False}), 400
