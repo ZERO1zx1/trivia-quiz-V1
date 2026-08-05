@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.select_category }} - {{ t.site_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz_v2.css') }}">
+</head>
+<body class="v2-categories-page">
+    <!-- Top Nav -->
+    <nav class="v2-nav">
+        <div class="v2-nav-inner">
+            <a href="{{ url_for('quiz_v2.v2_home') }}" class="v2-logo">
+                <span class="v2-logo-icon">🧠</span>
+                <span class="v2-logo-text">{{ t.site_name }}</span>
+            </a>
+            <div class="v2-nav-actions">
+                <div class="v2-lang-toggle">
+                    <a href="{{ url_for('quiz_v2.v2_set_language', lang='mn') }}" class="v2-lang-btn {% if lang == 'mn' %}active{% endif %}">MN</a>
+                    <a href="{{ url_for('quiz_v2.v2_set_language', lang='en') }}" class="v2-lang-btn {% if lang == 'en' %}active{% endif %}">EN</a>
+                </div>
+                <button id="themeToggle" class="v2-theme-btn" aria-label="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Categories Grid -->
+    <main class="v2-main">
+        <div class="v2-container">
+            <div class="v2-page-header">
+                <h1 class="v2-page-title">{{ t.select_category }}</h1>
+                <p class="v2-page-subtitle">{{ categories|length }} {{ t.categories }}</p>
+            </div>
+
+            <div class="v2-cat-grid-large" id="categoryGrid">
+                {% for cat in categories %}
+                <a href="{{ url_for('quiz_v2.v2_play', category_id=cat.id) }}" class="v2-cat-card-large" style="--cat-color: {{ cat.color or '#6366f1' }}">
+                    <div class="v2-cat-card-header">
+                        <span class="v2-cat-card-icon">{{ cat.icon or '📚' }}</span>
+                    </div>
+                    <div class="v2-cat-card-body">
+                        <h3 class="v2-cat-card-name">{{ cat.name }}</h3>
+                        <p class="v2-cat-card-desc">{{ cat.description or '' }}</p>
+                    </div>
+                    <div class="v2-cat-card-footer">
+                        <span class="v2-cat-card-count">{{ cat.question_count or 0 }} {{ t.questions }}</span>
+                        <span class="v2-cat-card-arrow">→</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+
+            {% if not categories %}
+            <div class="v2-empty-state">
+                <span class="v2-empty-icon">📭</span>
+                <h3>{{ t.no_questions }}</h3>
+                <a href="{{ url_for('quiz_v2.v2_home') }}" class="v2-btn-secondary">{{ t.back_home }}</a>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/quiz_v2.js') }}"></script>
+</body>
+</html>

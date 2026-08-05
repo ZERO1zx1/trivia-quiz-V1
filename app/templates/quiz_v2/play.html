@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}" data-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ category.name }} - {{ t.site_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/quiz_v2.css') }}">
+</head>
+<body class="v2-play-page" data-theme="{{ theme }}">
+    <!-- Top Bar -->
+    <nav class="v2-play-nav">
+        <div class="v2-play-nav-inner">
+            <button id="quitBtn" class="v2-quit-btn" title="{{ t.back_home }}">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+            <div class="v2-play-nav-center">
+                <span class="v2-play-cat-icon">{{ category.icon or '📚' }}</span>
+                <span class="v2-play-cat-name">{{ category.name }}</span>
+            </div>
+            <div class="v2-play-nav-right">
+                <div class="v2-play-stats">
+                    <div class="v2-play-stat">
+                        <span class="v2-play-stat-label">{{ t.score }}</span>
+                        <span class="v2-play-stat-value" id="scoreDisplay">0</span>
+                    </div>
+                    <div class="v2-play-stat">
+                        <span class="v2-play-stat-label">🔥</span>
+                        <span class="v2-play-stat-value" id="streakDisplay">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Quiz Container -->
+    <main class="v2-quiz-container" id="quizContainer">
+        <!-- Loading State -->
+        <div class="v2-loading" id="loadingState">
+            <div class="v2-loading-spinner"></div>
+            <p>{{ t.loading }}</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="v2-error" id="errorState" style="display:none;">
+            <span class="v2-error-icon">⚠️</span>
+            <h3>{{ t.error }}</h3>
+            <button class="v2-btn-primary" onclick="location.reload()">{{ t.retry }}</button>
+        </div>
+
+        <!-- Empty State -->
+        <div class="v2-empty-state" id="emptyState" style="display:none;">
+            <span class="v2-empty-icon">📭</span>
+            <h3>{{ t.no_questions }}</h3>
+            <a href="{{ url_for('quiz_v2.v2_categories') }}" class="v2-btn-secondary">{{ t.select_category }}</a>
+        </div>
+
+        <!-- Question Area -->
+        <div class="v2-question-area" id="questionArea" style="display:none;">
+            <!-- Progress Bar -->
+            <div class="v2-progress-bar">
+                <div class="v2-progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+
+            <!-- Timer -->
+            <div class="v2-timer" id="timerArea">
+                <svg class="v2-timer-ring" viewBox="0 0 120 120">
+                    <circle class="v2-timer-bg" cx="60" cy="60" r="54" fill="none" stroke-width="6"/>
+                    <circle class="v2-timer-circle" id="timerCircle" cx="60" cy="60" r="54" fill="none" stroke-width="6"
+                        stroke-dasharray="339.292" stroke-dashoffset="0" stroke-linecap="round"/>
+                </svg>
+                <span class="v2-timer-text" id="timerText">20</span>
+            </div>
+
+            <!-- Question -->
+            <div class="v2-question-header">
+                <span class="v2-question-counter" id="questionCounter">{{ t.question }} 1 {{ t.of }} 10</span>
+                <span class="v2-difficulty-badge" id="difficultyBadge">{{ t.medium }}</span>
+            </div>
+            <h2 class="v2-question-text" id="questionText">{{ t.loading }}</h2>
+
+            <!-- Answer Options -->
+            <div class="v2-options-grid" id="optionsContainer"></div>
+
+            <!-- Feedback Overlay -->
+            <div class="v2-feedback-overlay" id="feedbackOverlay" style="display:none;">
+                <div class="v2-feedback-content" id="feedbackContent"></div>
+            </div>
+        </div>
+
+        <!-- Results Screen -->
+        <div class="v2-results" id="resultsArea" style="display:none;">
+            <div class="v2-results-card">
+                <div class="v2-results-icon" id="resultsIcon">🏆</div>
+                <h1 class="v2-results-title">{{ t.quiz_complete }}</h1>
+
+                <div class="v2-results-score">
+                    <span class="v2-results-score-label">{{ t.your_score }}</span>
+                    <span class="v2-results-score-value" id="finalScore">0</span>
+                </div>
+
+                <div class="v2-results-stats">
+                    <div class="v2-result-stat">
+                        <div class="v2-result-stat-icon">✅</div>
+                        <div class="v2-result-stat-info">
+                            <span class="v2-result-stat-value" id="correctCount">0</span>
+                            <span class="v2-result-stat-label">{{ t.correct_answers }}</span>
+                        </div>
+                    </div>
+                    <div class="v2-result-stat">
+                        <div class="v2-result-stat-icon">❌</div>
+                        <div class="v2-result-stat-info">
+                            <span class="v2-result-stat-value" id="wrongCount">0</span>
+                            <span class="v2-result-stat-label">{{ t.wrong_answers }}</span>
+                        </div>
+                    </div>
+                    <div class="v2-result-stat">
+                        <div class="v2-result-stat-icon">🔥</div>
+                        <div class="v2-result-stat-info">
+                            <span class="v2-result-stat-value" id="maxStreak">0</span>
+                            <span class="v2-result-stat-label">{{ t.streak }}</span>
+                        </div>
+                    </div>
+                    <div class="v2-result-stat">
+                        <div class="v2-result-stat-icon">🎯</div>
+                        <div class="v2-result-stat-info">
+                            <span class="v2-result-stat-value" id="accuracy">0%</span>
+                            <span class="v2-result-stat-label">{{ t.accuracy }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="v2-results-actions">
+                    <button class="v2-btn-primary" id="playAgainBtn">
+                        <span>{{ t.play_again }}</span>
+                    </button>
+                    <a href="{{ url_for('quiz_v2.v2_home') }}" class="v2-btn-secondary">
+                        <span>{{ t.back_home }}</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.quizV2Config = {
+            categoryId: {{ category_id }},
+            categoryName: '{{ category.name }}',
+            totalQuestions: {{ limit }},
+            timerMode: '{{ timer_mode }}',
+            timerSeconds: 20,
+            lang: '{{ lang }}',
+            supabaseUrl: '{{ config.get("SUPABASE_URL", "https://rqalizeohjpwtvepltqe.supabase.co") }}',
+            supabaseKey: '{{ config.get("SUPABASE_ANON_KEY", "") }}',
+            translations: {{ t|tojson }},
+            isAuthenticated: {{ 'true' if current_user.is_authenticated else 'false' }},
+            userId: {{ current_user.id if current_user.is_authenticated else 'null' }}
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/quiz_v2_play.js') }}"></script>
+</body>
+</html>

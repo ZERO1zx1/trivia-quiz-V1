@@ -196,6 +196,7 @@ def create_app(config_name='default'):
     from app.routes.language import lang_bp
     from app.routes.box_api import box_api_bp
     from app.routes.search import search_bp
+    from app.routes.quiz_v2 import quiz_v2_bp
 
     # ================= BLUEPRINTS - ENTERPRISE =================
     from app.routes.guild import guild_bp
@@ -241,6 +242,7 @@ def create_app(config_name='default'):
     app.register_blueprint(lang_bp)
     app.register_blueprint(box_api_bp, url_prefix='/box')
     app.register_blueprint(search_bp, url_prefix='/search')
+    app.register_blueprint(quiz_v2_bp, url_prefix='/quiz')
 
     # ================= REGISTER ENTERPRISE BLUEPRINTS =================
     app.register_blueprint(guild_bp, url_prefix='/guild')
