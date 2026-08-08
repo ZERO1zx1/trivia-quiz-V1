@@ -6,7 +6,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install system dependencies including libpq for PostgreSQL
+# FIX-016: system dependencies for building psycopg2; gcc is purged
+# afterwards to shrink the image and reduce the attack surface.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -15,12 +16,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt && pip install psycopg2-binary
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt psycopg2-binary \
+    && apt-get purge -y gcc && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # Copy application code
 COPY . .
 
-# Create necessary directories
+# FIX-016: directories are created BEFORE dropping to the non-root user
+# so ownership is set while still running as root.
 RUN mkdir -p logs static/uploads
 
 # Create non-root user
@@ -29,7 +32,10 @@ USER appuser
 
 EXPOSE 5000
 
+# FIX-016: stdlib-only healthcheck (no dependency on requests) against the
+# dedicated /health endpoint instead of the HTML root.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000/')" || exit 1
+    CMD python -c "import urllib.request, sys; \
+urllib.request.urlopen('http://localhost:5000/health'); sys.exit(0)" || exit 1
 
 CMD ["python", "run.py"]

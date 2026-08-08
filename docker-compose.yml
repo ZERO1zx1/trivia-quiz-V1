@@ -9,14 +9,18 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_DB: triviaverse
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: triviaverse
+      # FIX-018: never ship hardcoded credentials; source the password from a
+      # Docker secret (file-backed, not baked into the image or compose file).
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U triviaverse"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,8 +29,8 @@ services:
     image: redis:7-alpine
     container_name: triviaverse_redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -37,22 +41,25 @@ services:
     build: .
     container_name: triviaverse_web
     restart: unless-stopped
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     env_file:
       - .env
     environment:
-      - FLASK_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/triviaverse
+      # FIX-018: run as production, not development, and require a real
+      # SECRET_KEY via the .env file (config.py refuses weak values in
+      # production).
+      - FLASK_ENV=production
+      - APP_ENV=production
+      - DATABASE_URL=postgresql://triviaverse@db:5432/triviaverse
       - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./:/app
-    command: python run.py
+    command: ["python", "run.py"]
 
   nginx:
     image: nginx:alpine
@@ -61,9 +68,15 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # FIX-018: the original file referenced ./nginx.conf which does not
+      # exist; point at the repository file that does.
+      - ./nginx/conf.d/triviaverse.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - web
+
+secrets:
+  db_password:
+    file: .secrets/db_password.txt
 
 volumes:
   pgdata:
