@@ -42,9 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ========== USER DROPDOWN ==========
+    // FIX-026: keep aria-expanded in sync with the dropdown state
     window.toggleDropdown = () => {
         const dropdown = document.getElementById('userDropdown');
+        const trigger = document.querySelector('[aria-controls="userDropdown"]');
         if (dropdown) dropdown.classList.toggle('show');
+        if (trigger) trigger.setAttribute('aria-expanded', dropdown.classList.contains('show'));
     };
 
     document.addEventListener('click', (e) => {

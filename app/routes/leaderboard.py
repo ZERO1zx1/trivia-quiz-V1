@@ -1,6 +1,7 @@
 """Leaderboard Routes"""
 from flask import Blueprint, render_template, jsonify, request
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.economy import LeaderboardEntry
 from app.models.user import User
@@ -25,7 +26,10 @@ def api_leaderboard(period):
     if period not in ['daily', 'weekly', 'monthly', 'alltime']:
         return jsonify({'error': 'Invalid period'}), 400
     limit = request.args.get('limit', 100, type=int)
-    entries = LeaderboardEntry.query.filter_by(period=period).order_by(
+    # FIX-024: eager-load the User relationship to avoid N+1 queries in the
+    # per-entry username/avatar/level serialization.
+    entries = LeaderboardEntry.query.options(
+        joinedload(LeaderboardEntry.user)).filter_by(period=period).order_by(
         LeaderboardEntry.score.desc()).limit(limit).all()
     data = []
     for i, entry in enumerate(entries, 1):
