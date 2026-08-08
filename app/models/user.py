@@ -245,6 +245,16 @@ class User(UserMixin, db.Model):
             'is_premium': self.is_premium
         }
 
+    def public_dict(self):
+        """FIX-024: minimal public representation for listing and leaderboard
+        responses. Never exposes coins, role, or premium status."""
+        return {
+            'id': self.id,
+            'username': self.username,
+            'display_name': self.display_name,
+            'avatar_url': self.avatar_url,
+        }
+
 
 class DiscordAccount(db.Model):
     __tablename__ = 'discord_accounts'

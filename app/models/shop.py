@@ -48,10 +48,16 @@ class UserInventory(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey('shop_items.id'), nullable=False)
     quantity = db.Column(db.Integer, default=1)
+    locked_quantity = db.Column(db.Integer, default=0)  # escrow / pending transfers
     is_equipped = db.Column(db.Boolean, default=False)
 
     user = db.relationship('User', back_populates='user_inventory_items')
     item = db.relationship('ShopItem', back_populates='user_inventory')
+
+    @property
+    def available_quantity(self):
+        """Quantity that can still be listed / transferred."""
+        return max(0, (self.quantity or 0) - (self.locked_quantity or 0))
 
     def to_dict(self):
         return {
