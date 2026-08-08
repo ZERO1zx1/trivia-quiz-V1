@@ -6,13 +6,18 @@ from flask import Flask, request, session, redirect, url_for, flash, render_temp
 from config import config
 from .extensions import db, socketio
 from apscheduler.schedulers.background import BackgroundScheduler
-from app.utils.scheduler import check_expired_premium, check_streak_protection
+from app.jobs import register_jobs
 from flask_login import logout_user, current_user
 from flask_babel import Babel, _
 
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    # FIX-012: production configuration sanity check (strong SECRET_KEY).
+    cfg = config[config_name]()
+    if hasattr(cfg, 'validate'):
+        cfg.validate()
 
     # ================= BABEL (Multi-language) =================
     from app.extensions import babel
@@ -67,11 +72,15 @@ def create_app(config_name='default'):
     cors.init_app(app, resources={r"/api/*": {"origins": cors_origins}})
     limiter.init_app(app)
 
+    # ================= SECURITY HEADERS (FIX-015) =================
+    from app.security import init_security_headers
+    init_security_headers(app)
+
     # ================= SCHEDULER =================
     scheduler = BackgroundScheduler()
-    scheduler.add_job(func=lambda: check_expired_premium(app), trigger='interval', hours=1)
-    scheduler.add_job(func=lambda: check_streak_protection(app), trigger='interval', hours=4)
+    register_jobs(scheduler, app)
     scheduler.start()
+    app.scheduler = scheduler
 
     # ================= BAN CHECK =================
     @app.before_request
@@ -103,6 +112,14 @@ def create_app(config_name='default'):
     # ================= DATABASE & SEEDING + OWNER SETUP =================
     with app.app_context():
         db.create_all()
+        # FIX-022: apply idempotent SQL migrations (e.g. the unique
+        # auction-bidder constraint and transaction ledger columns) so that
+        # existing Postgres deployments are brought in sync after a deploy.
+        # Enabled explicitly with RUN_DB_MIGRATIONS=1; SQLite dev/test
+        # environments get the same columns from db.create_all().
+        from app.migrations import run_sql_migrations
+        if os.environ.get('RUN_DB_MIGRATIONS') == '1':
+            run_sql_migrations(app)
         _seed_categories()
         _seed_achievements()
         _seed_regions()
@@ -161,6 +178,11 @@ def create_app(config_name='default'):
             'current_user': current_user,
             'current_theme': theme
         }
+
+    # ================= HEALTH CHECK (FIX-016) =================
+    @app.route('/health')
+    def health_check():
+        return {'status': 'ok', 'service': 'triviaverse'}, 200
 
     # ================= ERROR HANDLERS =================
     @app.errorhandler(404)

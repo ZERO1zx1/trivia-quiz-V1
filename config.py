@@ -11,6 +11,10 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///triviaverse.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'triviaverse-jwt-secret'
+
+    # Trust proxy headers from the reverse proxy (Nginx) so real client IPs
+    # are available for rate limiting and logging (FIX-013).
+    PREFERRED_URL_SCHEME = os.environ.get('PREFERRED_URL_SCHEME', 'http')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
 
     # Discord
@@ -19,9 +23,10 @@ class Config:
     DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI') or 'http://localhost:5000/auth/discord/callback'
     DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
 
-    # SocketIO
+    # SocketIO — default to the same origins as the app to avoid the
+    # permissive wildcard in production (FIX-011).
     SOCKETIO_ASYNC_MODE = 'threading'
-    SOCKETIO_CORS_ALLOWED_ORIGINS = '*'
+    SOCKETIO_CORS_ALLOWED_ORIGINS = os.environ.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
 
     # Game settings
     QUESTION_TIME_LIMIT = 20
@@ -51,6 +56,7 @@ class Config:
 
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI') or 'memory://'
+    RATELIMIT_HEADERS_ENABLED = True
 
     # Error webhook
     DISCORD_ERROR_WEBHOOK = os.environ.get('DISCORD_ERROR_WEBHOOK') or ''
@@ -271,6 +277,27 @@ class ProductionConfig(Config):
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PREFERRED_URL_SCHEME = 'https'
+
+    # FIX-012: refuse to boot without an explicitly configured secret in
+    # production — the static dev fallback is a session-hijacking vector.
+    def validate(self):
+        """Raise RuntimeError if production is misconfigured."""
+        is_prod = os.environ.get('FLASK_ENV') == 'production' \
+            or os.environ.get('APP_ENV') == 'production'
+        if is_prod:
+            # FIX-012: in production the secret must come from the
+            # environment and be at least 32 bytes of entropy. Placeholder
+            # and short values are refused at boot.
+            if not self.SECRET_KEY \
+                    or self.SECRET_KEY.startswith('triviaverse-') \
+                    or len(self.SECRET_KEY) < 32:
+                raise RuntimeError(
+                    'Production requires a strong SECRET_KEY (at least 32 '
+                    'characters) set via environment. Generate one with: '
+                    'python -c "import secrets; print(secrets.token_hex(32))"')
+
+
+PRODUCTION_CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
 
 
 class TestingConfig(Config):
