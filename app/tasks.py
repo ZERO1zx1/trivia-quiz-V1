@@ -1,24 +1,23 @@
-"""Background tasks"""
-import redis
-from rq import Queue
-from flask import current_app
-from app.extensions import mail
-from flask_mail import Message
+"""DEPRECATED compatibility stub.
 
-def get_redis_queue():
-    redis_url = current_app.config.get('REDIS_URL', 'redis://localhost:6379')
-    conn = redis.from_url(redis_url)
-    return Queue(connection=conn)
+This root-level module was orphaned (no internal importers) and its
+contents have been relocated to ``app.jobs.email_tasks``. This stub
+re-exports the helpers so that any external importer continues to work,
+and emits a ``DeprecationWarning`` on import. Prefer importing from
+``app.jobs.email_tasks`` — this module will be removed in a future
+release.
+"""
+import warnings
 
-def send_email_async(subject, recipients, body):
-    """Имэйл илгээх (ар талд)"""
-    try:
-        msg = Message(subject, recipients=recipients, body=body)
-        mail.send(msg)
-    except Exception as e:
-        current_app.logger.error(f"Email failed: {e}")
+warnings.warn(
+    "app.tasks is deprecated and will be removed; "
+    "import from app.jobs.email_tasks instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-def queue_email(subject, recipients, body):
-    """Имэйлийг дараалалд оруулах"""
-    queue = get_redis_queue()
-    queue.enqueue(send_email_async, subject, recipients, body)
+from app.jobs.email_tasks import (  # noqa: F401,E402
+    get_redis_queue,
+    queue_email,
+    send_email_async,
+)
