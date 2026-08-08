@@ -1,3 +1,10 @@
+"""DEPRECATED — room_service.py
+
+This file was never referenced anywhere in the repository and has
+been relocated here as part of the incremental structure cleanup.
+It is kept in version control purely for historical reference and
+may be deleted in a future release. Do not import it in new code.
+"""
 """Room Service"""
 import random
 import string

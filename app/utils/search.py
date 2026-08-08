@@ -1,6 +1,7 @@
 """Full-Text Search Utilities (Chapter 16)
 Supports both database-level search (ILIKE) and optional Elasticsearch integration.
 """
+from sqlalchemy.orm import joinedload
 from app.extensions import db
 from app.models.user import User
 from app.models.question import Question
@@ -10,7 +11,9 @@ from flask import current_app
 
 def search_questions(query_text, category_id=None, difficulty=None, limit=20):
     """Search questions by text using database ILIKE."""
-    q = Question.query.filter_by(is_active=True)
+    # FIX-024: eager-load the Category relationship so listing renderers do
+    # not trigger one extra query per question (N+1).
+    q = Question.query.options(joinedload(Question.category)).filter_by(is_active=True)
     if query_text:
         q = q.filter(Question.question_text.ilike(f'%{query_text}%'))
     if category_id:

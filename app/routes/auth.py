@@ -1,18 +1,124 @@
-"""Authentication Routes (Chapters 3, 5, 10)"""
-import jwt
-import bleach
-import requests
+"""Authentication Routes
+
+Security fixes applied:
+- FIX-001: use `from flask import session` (module-level import) everywhere.
+- FIX-002: login gate — unverified accounts are redirected to the OTP
+  verification flow instead of receiving a session.
+- FIX-003/FIX-004: after a successful password check the flow enforces 2FA
+  for users who have 2FA enabled (OTP intercept + rate limiting).
+- Discord OAuth now carries a cryptographically random `state` parameter
+  (FIX-009) and is checked on the callback (FIX-011).
+- FIX-023: every password check goes through the canonical password policy.
+"""
+import hmac
 import secrets
-from urllib.parse import urlparse
+
+import bleach
+import jwt
+import requests
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
-from flask_login import login_user, logout_user, login_required, current_user
-from app.extensions import db, mail
-from app.models.user import User, DiscordAccount
+from flask import (Blueprint, current_app, flash, redirect, render_template,
+                   request, session, url_for)
+from flask_login import current_user, login_required, login_user, logout_user
+from urllib.parse import urlparse
+
+from app.extensions import db, limiter
 from app.models.achievement import Achievement, UserAchievement
+from app.models.settings import TwoFactorAuth
+from app.models.user import DiscordAccount, User
+from app.shared.password_policy import validate_password
 from app.utils.email import send_password_reset_email
 
 auth_bp = Blueprint('auth', __name__)
+
+AUTH_OTP_PREFIX = 'verify_'
+AUTH_OTP_RATE_LIMIT = 3      # max OTP (re)sends per hour per IP
+AUTH_OTP_COOLDOWN_SECONDS = 30
+
+
+def _otp_count_key(ip):
+    return f'otp_count_{ip}'
+
+
+def _otp_allowed(ip):
+    """Rate-limit OTP sends per IP (in-memory counter, refreshed per hour)."""
+    window_key = _otp_count_key(ip)
+    now = datetime.utcnow()
+    hour = now.strftime('%Y%m%d%H')
+    entry = session.get(window_key)
+    if not entry or entry['hour'] != hour:
+        session[window_key] = {'hour': hour, 'count': 1, 'last': now.timestamp()}
+        return True
+    entry['count'] += 1
+    session[window_key] = entry
+    if entry['count'] > AUTH_OTP_RATE_LIMIT:
+        return False
+    if now.timestamp() - entry['last'] < AUTH_OTP_COOLDOWN_SECONDS:
+        return False
+    entry['last'] = now.timestamp()
+    session[window_key] = entry
+    return True
+
+
+def _is_2fa_enabled(user):
+    """Whether 2FA (TOTP) is enabled for the user."""
+    twofa = TwoFactorAuth.query.filter_by(
+        user_id=user.id, is_enabled=True).first()
+    return twofa is not None and bool(twofa.secret_key)
+
+
+def _pending_login_session(user, remember):
+    """Start the login sequence for a verified user, handling 2FA intercept.
+
+    If 2FA is enabled, stores a signed pending-login token in the session and
+    redirects to the 2FA verification endpoint. Otherwise completes login.
+    """
+    if _is_2fa_enabled(user):
+        # FIX-004: 2FA intercept — never call login_user before TOTP proof.
+        token = jwt.encode(
+            {'uid': user.id, 'nonce': secrets.token_hex(8),
+             'exp': datetime.utcnow() + timedelta(minutes=10)},
+            current_app.config.get('SECRET_KEY'),
+            algorithm='HS256',
+        )
+        session['2fa_user_id'] = user.id
+        session['2fa_pending_token'] = token
+        return redirect(url_for('two_factor.verify'))
+
+    login_user(user, remember=remember)
+    user.is_online = True
+    user.last_seen = datetime.utcnow()
+    session['theme'] = user.theme
+    session['language'] = user.language
+    db.session.commit()
+    return None
+
+
+def _complete_login(user):
+    """Finish a pending (2FA-passed) login. Token must be presented and valid."""
+    pending_token = session.pop('2fa_pending_token', None)
+    if pending_token is None:
+        flash('2FA session expired. Please log in again.', 'warning')
+        return redirect(url_for('auth.login'))
+    try:
+        payload = jwt.decode(
+            pending_token,
+            current_app.config.get('SECRET_KEY'),
+            algorithms=['HS256'],
+        )
+        if payload.get('uid') != user.id:
+            raise ValueError('uid mismatch')
+    except Exception:
+        flash('2FA session invalid. Please log in again.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    login_user(user, remember=True)
+    user.is_online = True
+    user.last_seen = datetime.utcnow()
+    session['theme'] = user.theme
+    session['language'] = user.language
+    db.session.commit()
+    return None
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -35,8 +141,10 @@ def register():
             flash('Passwords do not match.', 'danger')
             return render_template('auth/register.html')
 
-        if len(password) < 6:
-            flash('Password must be at least 6 characters.', 'danger')
+        # FIX-023: canonical password policy
+        policy_errors = validate_password(password)
+        if policy_errors:
+            flash(policy_errors[0], 'danger')
             return render_template('auth/register.html')
 
         if User.query.filter_by(username=username).first():
@@ -70,7 +178,6 @@ def register():
         for ach in achievements:
             ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
             db.session.add(ua)
-        db.session.commit()
 
         # Send OTP
         otp = user.generate_otp()
@@ -79,6 +186,7 @@ def register():
 
         db.session.commit()
         flash('Account created! Please check your email for the verification code.', 'success')
+        # FIX-001: use module-level session import
         session['verify_user_id'] = user.id
         return redirect(url_for('auth.verify'))
 
@@ -103,23 +211,25 @@ def login():
             if user.is_banned:
                 flash('Your account has been suspended. Contact support.', 'danger')
                 return render_template('auth/login.html')
-            
+
             # Security Alert Check
             client_ip = request.remote_addr
             if user.last_login_ip and user.last_login_ip != client_ip:
                 from app.utils.email import send_security_alert_email
                 send_security_alert_email(user, client_ip)
-            
+
             user.last_login_ip = client_ip
             user.last_login_at = datetime.utcnow()
 
-            from flask import session
-            login_user(user, remember=remember)
-            user.is_online = True
-            user.last_seen = datetime.utcnow()
-            session['theme'] = user.theme
-            session['language'] = user.language
-            db.session.commit()
+            # FIX-002: email verification gate
+            if not user.is_verified:
+                session['verify_user_id'] = user.id
+                flash('Please verify your email to continue.', 'warning')
+                return redirect(url_for('auth.verify'))
+
+            response = _pending_login_session(user, remember)
+            if response is not None:
+                return response
 
             next_page = request.args.get('next')
             if not next_page or urlparse(next_page).netloc != '':
@@ -140,24 +250,40 @@ def logout():
     current_user.last_seen = datetime.utcnow()
     db.session.commit()
     logout_user()
+    session.pop('verify_user_id', None)
+    session.pop('2fa_user_id', None)
+    session.pop('2fa_pending_token', None)
+    session.pop('discord_oauth_state', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('home.index'))
 
 
 @auth_bp.route('/discord')
 def discord_login():
+    # FIX-009/FIX-011: include an unpredictable `state` parameter and
+    # remember it so the callback can reject forged requests.
+    state = secrets.token_urlsafe(24)
+    session['discord_oauth_state'] = state
     discord_auth_url = (
         f"https://discord.com/api/oauth2/authorize"
         f"?client_id={current_app.config['DISCORD_CLIENT_ID']}"
         f"&redirect_uri={current_app.config['DISCORD_REDIRECT_URI']}"
         f"&response_type=code"
         f"&scope=identify%20email"
+        f"&state={state}"
     )
     return redirect(discord_auth_url)
 
 
 @auth_bp.route('/discord/callback')
 def discord_callback():
+    # FIX-009/FIX-011: validate OAuth state with constant-time comparison.
+    expected_state = session.pop('discord_oauth_state', None)
+    returned_state = request.args.get('state', '')
+    if not expected_state or not hmac.compare_digest(str(expected_state), str(returned_state)):
+        flash('Discord authentication failed (invalid state).', 'danger')
+        return redirect(url_for('auth.login'))
+
     code = request.args.get('code')
     if not code:
         flash('Discord authentication failed.', 'danger')
@@ -200,9 +326,11 @@ def discord_callback():
         discord_account.access_token = access_token
         discord_account.discord_username = discord_username
         discord_account.discord_avatar = discord_avatar
-        from flask import session
         db.session.commit()
-        login_user(discord_account.user, remember=True)
+        # FIX-004: respect 2FA intercept for Discord logins too.
+        response = _pending_login_session(discord_account.user, True)
+        if response is not None:
+            return response
         session['theme'] = discord_account.user.theme
         session['language'] = discord_account.user.language
         flash(f'Welcome back, {discord_account.user.username}!', 'success')
@@ -237,7 +365,10 @@ def discord_callback():
                 )
                 db.session.add(discord_account)
                 db.session.commit()
-            login_user(existing_user, remember=True)
+            # FIX-004: respect 2FA intercept for email-matched Discord logins.
+            response = _pending_login_session(existing_user, True)
+            if response is not None:
+                return response
             flash('Your account has been linked with Discord!', 'success')
             return redirect(url_for('dashboard.index'))
         else:
@@ -279,8 +410,12 @@ def discord_callback():
         db.session.add(ua)
     db.session.commit()
 
-    from flask import session
-    login_user(user, remember=True)
+    # FIX-002: brand-new Discord accounts are created verified
+    # (identity proven by Discord OAuth) so normal login works.
+    # FIX-004: respect 2FA intercept.
+    response = _pending_login_session(user, True)
+    if response is not None:
+        return response
     session['theme'] = user.theme
     session['language'] = user.language
     flash('Account created with Discord! Welcome to TriviaVerse.', 'success')
@@ -320,14 +455,17 @@ def reset_password(token):
         if password != confirm:
             flash('Passwords do not match.', 'danger')
             return render_template('auth/reset_password.html', token=token)
-        elif len(password) < 6:
-            flash('Password must be at least 6 characters.', 'danger')
+
+        # FIX-023: canonical password policy
+        policy_errors = validate_password(password)
+        if policy_errors:
+            flash(policy_errors[0], 'danger')
             return render_template('auth/reset_password.html', token=token)
-        else:
-            user.set_password(password)
-            db.session.commit()
-            flash('Password has been reset! You can now login.', 'success')
-            return redirect(url_for('auth.login'))
+
+        user.set_password(password)
+        db.session.commit()
+        flash('Password has been reset! You can now login.', 'success')
+        return redirect(url_for('auth.login'))
 
     return render_template('auth/reset_password.html', token=token)
 
@@ -348,8 +486,10 @@ def change_password():
         flash('New passwords do not match.', 'danger')
         return redirect(url_for('account.settings'))
 
-    if len(new_password) < 6:
-        flash('Password must be at least 6 characters.', 'danger')
+    # FIX-023: canonical password policy
+    policy_errors = validate_password(new_password)
+    if policy_errors:
+        flash(policy_errors[0], 'danger')
         return redirect(url_for('account.settings'))
 
     current_user.set_password(new_password)
@@ -371,16 +511,17 @@ def send_notification_for_referrer(referrer):
     except Exception:
         pass
 
+
 @auth_bp.route('/verify', methods=['GET', 'POST'])
 def verify():
     user_id = session.get('verify_user_id')
     if not user_id:
         return redirect(url_for('auth.register'))
-    
+
     user = User.query.get(user_id)
     if not user:
         return redirect(url_for('auth.register'))
-    
+
     if user.is_verified:
         flash('Account already verified.', 'info')
         return redirect(url_for('auth.login'))
@@ -396,17 +537,24 @@ def verify():
 
     return render_template('auth/verify.html', email=user.email)
 
+
 @auth_bp.route('/resend-otp')
 def resend_otp():
+    # FIX-002: rate limit + cooldown on OTP resends (per IP)
+    client_ip = request.remote_addr or 'unknown'
+    if not _otp_allowed(client_ip):
+        flash('Too many verification codes sent. Please wait a while.', 'warning')
+        return redirect(url_for('auth.verify'))
+
     user_id = session.get('verify_user_id')
     if not user_id:
         return redirect(url_for('auth.register'))
-    
+
     user = User.query.get(user_id)
     if user:
         otp = user.generate_otp()
         from app.utils.email import send_otp_email
         send_otp_email(user, otp)
         flash('New verification code sent to your email.', 'info')
-    
+
     return redirect(url_for('auth.verify'))

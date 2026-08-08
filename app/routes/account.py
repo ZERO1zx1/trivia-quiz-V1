@@ -88,8 +88,11 @@ def change_password():
         flash('New passwords do not match.', 'danger')
         return redirect(url_for('account.settings'))
 
-    if len(new_password) < 6:
-        flash('Password must be at least 6 characters.', 'danger')
+    # FIX-023: canonical password policy (shared with auth flow)
+    from app.shared.password_policy import validate_password
+    policy_errors = validate_password(new_password)
+    if policy_errors:
+        flash(policy_errors[0], 'danger')
         return redirect(url_for('account.settings'))
 
     current_user.set_password(new_password)

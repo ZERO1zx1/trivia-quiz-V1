@@ -34,10 +34,13 @@ async function updateNotifBadge() {
 }
 
 // Notification Dropdown toggle
+// FIX-026: keep aria-expanded in sync with the dropdown state
 window.toggleNotifDropdown = () => {
     const menu = document.getElementById('notifMenu');
+    const trigger = document.querySelector('[aria-controls="notifMenu"]');
     if (!menu) return;
     const isOpen = menu.classList.toggle('show');
+    if (trigger) trigger.setAttribute('aria-expanded', isOpen);
     if (isOpen) {
         loadNotifications();
     }

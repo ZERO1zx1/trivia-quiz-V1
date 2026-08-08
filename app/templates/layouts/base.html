@@ -18,6 +18,8 @@
 </head>
 
 <body>
+    {# FIX-025: keyboard users can skip navigation and reach the main content #}
+    <a href="#main-content" class="skip-link">{{ _('Skip to main content') }}</a>
     {% if current_user.is_authenticated %}
     <div class="app-layout">
         <!-- ====== SIDEBAR ====== -->
@@ -212,7 +214,7 @@
         </aside>
 
         <!-- ====== MAIN CONTENT ====== -->
-        <main class="main-content">
+        <main class="main-content" id="main-content">
             <header class="top-navbar">
                 <!-- Mobile Sidebar Toggle -->
                 <button class="mobile-sidebar-toggle" id="mobileSidebarToggle" aria-label="Open menu">
@@ -226,12 +228,13 @@
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                     </svg>
-                    <input type="text" placeholder="{{ _('Search players, rooms, questions...') }}">
+                    <label class="sr-only" for="global-search">{{ _('Search') }}</label>
+                    <input id="global-search" type="text" placeholder="{{ _('Search players, rooms, questions...') }}">
                 </div>
 
                 <div class="navbar-actions">
                     <!-- Dark/Light Mode Toggle -->
-                    <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+                    <button class="icon-btn" onclick="toggleTheme()" title="{{ _('Toggle theme') }}" aria-label="{{ _('Toggle theme') }}">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
@@ -240,7 +243,7 @@
 
                     <!-- Notification Bell -->
                     <div class="dropdown" id="notificationDropdown">
-                        <button class="icon-btn" id="notifBtn" onclick="toggleNotifDropdown()">
+                        <button class="icon-btn" id="notifBtn" onclick="toggleNotifDropdown()" aria-label="{{ _('Notifications') }}" aria-expanded="false" aria-controls="notifMenu">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
                                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -260,7 +263,7 @@
 
                     <!-- User Dropdown -->
                     <div class="dropdown">
-                        <button class="avatar-btn" onclick="toggleDropdown()">
+                        <button class="avatar-btn" onclick="toggleDropdown()" aria-label="{{ _('User menu') }}" aria-expanded="false" aria-controls="userDropdown">
                             <img src="{{ current_user.avatar_url }}" alt="Avatar"
                                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ current_user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
                             <span class="online-indicator"></span>
@@ -281,10 +284,13 @@
             <div class="page-content">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
+                {# FIX-027: flash messages are announced to assistive technology #}
+                <div role="status" aria-live="polite">
                 <div class="flash-messages">
                     {% for category, message in messages %}
-                    <div class="flash flash-{{ category }}">{{ message }}</div>
+                    <div class="flash flash-{{ category }}" {% if category == 'danger' %}role="alert"{% endif %}>{{ message }}</div>
                     {% endfor %}
+                </div>
                 </div>
                 {% endif %}
                 {% endwith %}
@@ -300,7 +306,7 @@
                 <div class="chat-header" style="padding:12px; background:var(--primary); cursor:pointer;"
                     onclick="toggleMiniChat()">
                     <span id="miniChatTitle">💬 {{ _('Chat') }}</span>
-                    <button onclick="closeMiniChat()"
+                    <button onclick="closeMiniChat()" aria-label="{{ _('Close chat') }}"
                         style="float:right; background:none; border:none; color:white;">×</button>
                 </div>
                 <div class="chat-messages" id="miniChatMessages" style="height:300px; overflow-y:auto; padding:12px;">

@@ -1,43 +1,60 @@
-"""Marketplace Routes"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
+"""Marketplace Routes
+
+All mutating operations are delegated to the economy service layer, which
+owns validation, inventory locking, escrow accounting and settlement.
+Route URLs and response shapes are preserved for compatibility.
+"""
+from datetime import datetime
+
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
 from app.extensions import db
-from app.models.marketplace import MarketplaceListing, MarketplaceTransaction, Auction, AuctionBid
+from app.models.marketplace import Auction, AuctionBid, MarketplaceListing
 from app.models.shop import UserInventory
-from datetime import datetime, timedelta
+from app.economy.inventory.transactions import EconomyError
+from app.economy.marketplace.service import (
+    MAX_LISTING_PRICE,
+    active_listings_query,
+    cancel_listing,
+    create_listing,
+    expire_listing,
+    purchase_listing,
+)
+from app.economy.auction.service import (
+    cancel_auction,
+    create_auction,
+    place_bid,
+    settle_auction,
+)
+from app.economy.auction.validators import validate_duration
 
 marketplace_bp = Blueprint('marketplace', __name__, url_prefix='/marketplace')
 
 
+def _handle_economy_error(exc):
+    flash(str(exc), 'danger')
+
+
 @marketplace_bp.route('/')
 def index():
-    """Marketplace listing page"""
+    """Marketplace listing page (only active, non-expired listings)."""
     item_type = request.args.get('type', 'all')
     sort_by = request.args.get('sort', 'newest')
     page = request.args.get('page', 1, type=int)
 
-    query = MarketplaceListing.query.filter_by(status='active')
-    if item_type != 'all':
-        query = query.filter_by(item_type=item_type)
+    # On-the-fly expiry check for listings without a scheduler process.
+    expired = MarketplaceListing.query.filter(
+        MarketplaceListing.status == 'active',
+        MarketplaceListing.expires_at < datetime.utcnow(),
+    ).all()
+    for listing in expired:
+        expire_listing(listing)
+    if expired:
+        db.session.commit()
 
-    if sort_by == 'price_low':
-        query = query.order_by(MarketplaceListing.price.asc())
-    elif sort_by == 'price_high':
-        query = query.order_by(MarketplaceListing.price.desc())
-    elif sort_by == 'rarity':
-        query = query.order_by(
-            db.case(
-                (MarketplaceListing.rarity == 'mythic', 1),
-                (MarketplaceListing.rarity == 'legendary', 2),
-                (MarketplaceListing.rarity == 'epic', 3),
-                (MarketplaceListing.rarity == 'rare', 4),
-                else_=5
-            )
-        )
-    else:
-        query = query.order_by(MarketplaceListing.created_at.desc())
-
-    listings = query.paginate(page=page, per_page=24, error_out=False)
+    listings = active_listings_query(item_type, sort_by).paginate(
+        page=page, per_page=24, error_out=False)
 
     return render_template('marketplace/index.html', listings=listings,
                            item_type=item_type, sort_by=sort_by)
@@ -45,48 +62,22 @@ def index():
 
 @marketplace_bp.route('/list', methods=['POST'])
 @login_required
-def create_listing():
+def create_listing_route():
     """Create a marketplace listing"""
     item_id = request.form.get('item_id', type=int)
     price = request.form.get('price', type=int)
 
-    if not item_id or not price or price <= 0:
+    if not item_id or price is None:
         flash('Invalid listing parameters.', 'danger')
         return redirect(url_for('marketplace.index'))
 
-    if price > 1000000:
-        flash('Maximum listing price is 1,000,000 coins.', 'danger')
-        return redirect(url_for('marketplace.index'))
-
-    # Check if user owns the item
-    inventory_item = UserInventory.query.filter_by(
-        user_id=current_user.id, item_id=item_id
-    ).first()
-
-    if not inventory_item:
-        flash('You do not own this item.', 'danger')
-        return redirect(url_for('marketplace.index'))
-
-    if inventory_item.is_equipped:
-        flash('Cannot list equipped items.', 'warning')
-        return redirect(url_for('marketplace.index'))
-
-    listing = MarketplaceListing(
-        seller_id=current_user.id,
-        item_type=inventory_item.item.item_type if inventory_item.item else 'other',
-        item_id=item_id,
-        item_name=inventory_item.item.name if inventory_item.item else 'Unknown',
-        item_image=inventory_item.item.image_url if inventory_item.item else '',
-        price=price,
-        rarity=inventory_item.item.rarity if hasattr(inventory_item.item, 'rarity') else 'common',
-        quantity=inventory_item.quantity,
-        expires_at=datetime.utcnow() + timedelta(hours=72)
-    )
-
-    db.session.add(listing)
-    db.session.commit()
-
-    flash('Listing created successfully!', 'success')
+    try:
+        create_listing(current_user._get_current_object(), item_id, price)
+        db.session.commit()
+        flash('Listing created successfully!', 'success')
+    except EconomyError as exc:
+        db.session.rollback()
+        _handle_economy_error(exc)
     return redirect(url_for('marketplace.index'))
 
 
@@ -96,47 +87,13 @@ def buy(listing_id):
     """Buy a marketplace listing"""
     listing = MarketplaceListing.query.get_or_404(listing_id)
 
-    if listing.status != 'active':
-        flash('This listing is no longer available.', 'warning')
-        return redirect(url_for('marketplace.index'))
-
-    if listing.seller_id == current_user.id:
-        flash('You cannot buy your own listing.', 'warning')
-        return redirect(url_for('marketplace.index'))
-
-    if current_user.coins < listing.price:
-        flash('Not enough coins.', 'danger')
-        return redirect(url_for('marketplace.index'))
-
-    # ACID Transaction - atomic buy operation
-    tax = int(listing.price * 0.05)  # 5% marketplace tax
-    net_amount = listing.price - tax
-
     try:
-        current_user.coins -= listing.price
-        seller = listing.seller
-        seller.coins += net_amount
-
-        listing.status = 'sold'
-        listing.sold_at = datetime.utcnow()
-        listing.buyer_id = current_user.id
-
-        transaction = MarketplaceTransaction(
-            listing_id=listing.id,
-            buyer_id=current_user.id,
-            seller_id=listing.seller_id,
-            price=listing.price,
-            tax=tax,
-            net_seller_amount=net_amount
-        )
-        db.session.add(transaction)
+        purchase_listing(current_user._get_current_object(), listing)
         db.session.commit()
         flash(f'Purchased {listing.item_name} for {listing.price} coins!', 'success')
-    except Exception as e:
+    except EconomyError as exc:
         db.session.rollback()
-        from flask import current_app
-        current_app.logger.error(f'Marketplace buy error: {e}')
-        flash('Transaction failed. Please try again.', 'danger')
+        _handle_economy_error(exc)
 
     return redirect(url_for('marketplace.index'))
 
@@ -147,14 +104,14 @@ def cancel(listing_id):
     """Cancel a marketplace listing"""
     listing = MarketplaceListing.query.get_or_404(listing_id)
 
-    if listing.seller_id != current_user.id:
-        flash('You can only cancel your own listings.', 'danger')
-        return redirect(url_for('marketplace.index'))
+    try:
+        cancel_listing(current_user._get_current_object(), listing)
+        db.session.commit()
+        flash('Listing cancelled.', 'info')
+    except EconomyError as exc:
+        db.session.rollback()
+        _handle_economy_error(exc)
 
-    listing.status = 'cancelled'
-    db.session.commit()
-
-    flash('Listing cancelled.', 'info')
     return redirect(url_for('marketplace.index'))
 
 
@@ -174,72 +131,64 @@ def my_listings():
 # Auction endpoints
 @marketplace_bp.route('/auction/create', methods=['POST'])
 @login_required
-def create_auction():
+def create_auction_route():
     """Create an auction"""
     item_id = request.form.get('item_id', type=int)
     starting_price = request.form.get('starting_price', type=int)
     buy_now_price = request.form.get('buy_now_price', type=int)
     duration = request.form.get('duration', 24, type=int)
 
-    auction = Auction(
-        seller_id=current_user.id,
-        item_type='item',
-        item_id=item_id,
-        item_name=f'Item #{item_id}',
-        starting_price=starting_price,
-        buy_now_price=buy_now_price if buy_now_price else None,
-        duration_hours=duration,
-        ends_at=datetime.utcnow() + timedelta(hours=duration)
-    )
-    db.session.add(auction)
-    db.session.commit()
+    if not item_id:
+        flash('Invalid auction parameters.', 'danger')
+        return redirect(url_for('marketplace.index'))
 
-    flash('Auction created!', 'success')
+    try:
+        create_auction(current_user._get_current_object(), item_id,
+                       starting_price, buy_now_price, duration)
+        db.session.commit()
+        flash('Auction created!', 'success')
+    except EconomyError as exc:
+        db.session.rollback()
+        _handle_economy_error(exc)
     return redirect(url_for('marketplace.index'))
 
 
 @marketplace_bp.route('/auction/<int:auction_id>/bid', methods=['POST'])
 @login_required
-def place_bid(auction_id):
+def place_bid_route(auction_id):
     """Place a bid on an auction"""
     auction = Auction.query.get_or_404(auction_id)
-
-    if auction.status != 'active':
-        flash('This auction has ended.', 'warning')
-        return redirect(url_for('marketplace.index'))
-
-    if auction.seller_id == current_user.id:
-        flash('You cannot bid on your own auction.', 'warning')
-        return redirect(url_for('marketplace.index'))
-
     bid_amount = request.form.get('amount', type=int)
-    min_bid = (auction.current_bid or auction.starting_price) + 10
 
-    if bid_amount < min_bid:
-        flash(f'Minimum bid is {min_bid} coins.', 'danger')
+    if bid_amount is None:
+        flash('Invalid bid amount.', 'danger')
         return redirect(url_for('marketplace.index'))
 
-    if current_user.coins < bid_amount:
-        flash('Not enough coins.', 'danger')
-        return redirect(url_for('marketplace.index'))
+    try:
+        place_bid(current_user._get_current_object(), auction, bid_amount)
+        db.session.commit()
+        flash(f'Bid of {bid_amount} coins placed!', 'success')
+    except EconomyError as exc:
+        db.session.rollback()
+        _handle_economy_error(exc)
 
-    # Refund previous bidder
-    if auction.current_bidder_id:
-        prev_bidder = User.query.get(auction.current_bidder_id)
-        if prev_bidder:
-            prev_bidder.coins += auction.current_bid
+    return redirect(url_for('marketplace.index'))
 
-    bid = AuctionBid(
-        auction_id=auction.id,
-        bidder_id=current_user.id,
-        amount=bid_amount
-    )
-    auction.current_bid = bid_amount
-    auction.current_bidder_id = current_user.id
-    db.session.add(bid)
-    db.session.commit()
 
-    flash(f'Bid of {bid_amount} coins placed!', 'success')
+@marketplace_bp.route('/auction/<int:auction_id>/cancel', methods=['POST'])
+@login_required
+def cancel_auction_route(auction_id):
+    """Cancel an active auction (seller only)."""
+    auction = Auction.query.get_or_404(auction_id)
+
+    try:
+        cancel_auction(current_user._get_current_object(), auction)
+        db.session.commit()
+        flash('Auction cancelled.', 'info')
+    except EconomyError as exc:
+        db.session.rollback()
+        _handle_economy_error(exc)
+
     return redirect(url_for('marketplace.index'))
 
 
@@ -250,11 +199,8 @@ def api_listings():
     page = request.args.get('page', 1, type=int)
     item_type = request.args.get('type', 'all')
 
-    query = MarketplaceListing.query.filter_by(status='active')
-    if item_type != 'all':
-        query = query.filter_by(item_type=item_type)
-
-    listings = query.order_by(MarketplaceListing.created_at.desc()).paginate(
+    listings = active_listings_query(item_type).order_by(
+        MarketplaceListing.created_at.desc()).paginate(
         page=page, per_page=20, error_out=False
     )
 
@@ -268,10 +214,18 @@ def api_listings():
 @marketplace_bp.route('/api/auctions')
 def api_auctions():
     """API: List active auctions"""
+    # FIX-024: use a SQL COUNT() instead of len(a.bids), which would load
+    # every bid row for every auction (N+1 and unbounded memory growth).
+    bid_counts = db.session.query(
+        AuctionBid.auction_id, db.func.count(AuctionBid.id)
+    ).filter(
+        AuctionBid.auction_id.in_(
+            db.session.query(Auction.id).filter_by(status='active'))
+    ).group_by(AuctionBid.auction_id).all()
+    bid_map = dict(bid_counts)
     auctions = Auction.query.filter_by(status='active').order_by(
         Auction.ends_at
     ).limit(50).all()
-
     return jsonify({
         'auctions': [
             {
@@ -281,7 +235,7 @@ def api_auctions():
                 'current_bid': a.current_bid,
                 'buy_now_price': a.buy_now_price,
                 'ends_at': a.ends_at.isoformat() if a.ends_at else None,
-                'bid_count': len(a.bids)
+                'bid_count': bid_map.get(a.id, 0)
             }
             for a in auctions
         ]

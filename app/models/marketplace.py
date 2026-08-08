@@ -8,6 +8,7 @@ class MarketplaceListing(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    buyer_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     item_type = db.Column(db.String(50), nullable=False)  # badge, frame, title, aura, box, pet, emote, music, theme
     item_id = db.Column(db.Integer, nullable=False)  # reference to the item in shop_items or specific table
     item_name = db.Column(db.String(100), nullable=False)
@@ -25,10 +26,17 @@ class MarketplaceListing(db.Model):
 
     seller = db.relationship('User', backref='marketplace_listings', foreign_keys=[seller_id])
 
+    def is_expired(self):
+        """True when the listing window has closed and status is still active."""
+        from datetime import datetime
+        return self.status == 'active' and self.expires_at is not None \
+            and self.expires_at < datetime.utcnow()
+
     def to_dict(self):
+        """Public DTO — never exposes buyer/transaction data."""
         return {
             'id': self.id,
-            'seller': self.seller.to_dict() if self.seller else None,
+            'seller': self.seller.public_dict() if self.seller else None,
             'item_type': self.item_type,
             'item_name': self.item_name,
             'item_image': self.item_image,
@@ -76,6 +84,7 @@ class Auction(db.Model):
     current_bidder_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     buy_now_price = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), default='active')  # active, ended, cancelled
+    inventory_item_id = db.Column(db.Integer, nullable=True)  # UserInventory row held in escrow
     duration_hours = db.Column(db.Integer, default=24)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     ends_at = db.Column(db.DateTime)
@@ -96,7 +105,13 @@ class AuctionBid(db.Model):
     auction_id = db.Column(db.Integer, db.ForeignKey('auctions.id'), nullable=False)
     bidder_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     amount = db.Column(db.Integer, nullable=False)
+    refunded = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('auction_id', 'bidder_id',
+                            name='uq_auction_bidder'),
+    )
 
     auction = db.relationship('Auction', backref='bids')
     bidder = db.relationship('User', backref='auction_bids')
