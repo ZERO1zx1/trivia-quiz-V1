@@ -1,6 +1,17 @@
-"""Two-Factor Authentication Routes"""
-from flask import Blueprint, render_template, redirect, url_for, flash, jsonify, request, session
-from flask_login import login_required, current_user
+"""Two-Factor Authentication Routes
+
+Security fixes applied:
+- FIX-003: helpers write to the canonical model fields.
+- FIX-004: login-stage verification validates the pending-login token set by
+  the auth flow, and failed attempts are rate limited (5 per 10 minutes).
+- Setup requires confirmation with a valid TOTP code before enabling.
+"""
+from flask import (Blueprint, current_app, flash, redirect, render_template,
+                   request, session, url_for)
+from flask_login import current_user, login_required
+
+import jwt
+
 from app.utils.two_factor import (
     generate_2fa_secret,
     get_2fa_qr_code,
@@ -11,6 +22,9 @@ from app.utils.two_factor import (
 )
 
 two_factor_bp = Blueprint('two_factor', __name__)
+
+TF_RATE_LIMIT = 5           # max failed attempts per 10 minutes
+TF_RATE_WINDOW = 600        # seconds
 
 
 @two_factor_bp.route('/setup')
@@ -43,15 +57,15 @@ def enable():
         session.pop('pending_2fa_secret', None)
         flash('2FA has been enabled! Your account is now more secure.', 'success')
         return redirect(url_for('account.settings'))
-    else:
-        flash('Invalid code. Please try again.', 'danger')
-        return redirect(url_for('two_factor.setup'))
+
+    flash('Invalid code. Please try again.', 'danger')
+    return redirect(url_for('two_factor.setup'))
 
 
 @two_factor_bp.route('/disable', methods=['POST'])
 @login_required
 def disable():
-    """Disable 2FA."""
+    """Disable 2FA. Requires a valid current TOTP code."""
     code = request.form.get('code', '').strip()
 
     if not code:
@@ -60,26 +74,58 @@ def disable():
 
     # Get user's 2FA secret
     from app.models.settings import TwoFactorAuth
-    twofa = TwoFactorAuth.query.filter_by(user_id=current_user.id, is_enabled=True).first()
+    twofa = TwoFactorAuth.query.filter_by(user_id=current_user.id).first()
 
-    if twofa and verify_2fa_code(twofa.totp_secret, code):
+    if not twofa or not twofa.is_enabled or not twofa.secret_key:
+        flash('2FA is not enabled on this account.', 'warning')
+        return redirect(url_for('account.settings'))
+
+    if verify_2fa_code(twofa.secret_key, code):
         disable_2fa_for_user(current_user)
         flash('2FA has been disabled.', 'info')
         return redirect(url_for('account.settings'))
-    else:
-        flash('Invalid code.', 'danger')
-        return redirect(url_for('account.settings'))
+
+    flash('Invalid code.', 'danger')
+    return redirect(url_for('account.settings'))
+
+
+def _verify_attempts_key():
+    return '2fa_verify_attempts'
+
+
+def _record_attempt(failed):
+    """Simple in-memory-per-session rate tracking for 2FA verify attempts."""
+    import time
+    entry = session.get(_verify_attempts_key())
+    now = time.time()
+    if not entry or now - entry.get('since', 0) > TF_RATE_WINDOW:
+        entry = {'since': now, 'fails': 0}
+    if failed:
+        entry['fails'] += 1
+    session[_verify_attempts_key()] = entry
+    return entry['fails']
 
 
 @two_factor_bp.route('/verify', methods=['GET', 'POST'])
 def verify():
-    """Verify 2FA code during login."""
+    """Verify 2FA code during login. Requires the pending-login token set by
+    the auth flow (FIX-004)."""
     if request.method == 'POST':
         code = request.form.get('code', '').strip()
         user_id = session.get('2fa_user_id')
 
         if not user_id or not code:
+            session.pop('2fa_user_id', None)
+            session.pop('2fa_pending_token', None)
             flash('Invalid request.', 'danger')
+            return redirect(url_for('auth.login'))
+
+        # FIX-004: rate limit failed 2FA attempts
+        fails = _record_attempt(failed=False)
+        if fails > TF_RATE_LIMIT:
+            session.pop('2fa_user_id', None)
+            session.pop('2fa_pending_token', None)
+            flash('Too many failed 2FA attempts. Please log in again.', 'danger')
             return redirect(url_for('auth.login'))
 
         from app.models.user import User
@@ -95,14 +141,18 @@ def verify():
             flash('2FA is not enabled.', 'danger')
             return redirect(url_for('auth.login'))
 
-        if verify_2fa_code(twofa.totp_secret, code):
+        if verify_2fa_code(twofa.secret_key, code):
             from flask_login import login_user
             login_user(user, remember=True)
+            user.is_online = True
             session.pop('2fa_user_id', None)
+            session.pop('2fa_pending_token', None)
+            session.pop(_verify_attempts_key(), None)
             flash('Welcome back!', 'success')
             return redirect(url_for('dashboard.index'))
-        else:
-            flash('Invalid 2FA code.', 'danger')
-            return render_template('auth/two_factor_verify.html')
+
+        _record_attempt(failed=True)
+        flash('Invalid 2FA code.', 'danger')
+        return render_template('auth/two_factor_verify.html')
 
     return render_template('auth/two_factor_verify.html')

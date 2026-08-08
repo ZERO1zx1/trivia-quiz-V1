@@ -81,12 +81,22 @@ class TwoFactorAuth(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
     is_enabled = db.Column(db.Boolean, default=False)
-    secret_key = db.Column(db.String(100))
+    secret_key = db.Column(db.String(100), nullable=True)  # canonical field
     backup_codes = db.Column(db.Text, default='')  # JSON array of backup codes
     method = db.Column(db.String(20), default='app')  # app (TOTP), email
     enabled_at = db.Column(db.DateTime, nullable=True)
+    updated_at = db.Column(db.DateTime, nullable=True)  # canonical field
 
     user = db.relationship('User', backref='two_factor')
+
+    @property
+    def totp_secret(self):
+        """Alias used by older utility code; keep both names in sync."""
+        return self.secret_key
+
+    @totp_secret.setter
+    def totp_secret(self, value):
+        self.secret_key = value
 
     def __repr__(self):
         return f'<TwoFactorAuth user={self.user_id} enabled={self.is_enabled}>'
