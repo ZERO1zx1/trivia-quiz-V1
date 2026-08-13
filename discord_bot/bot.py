@@ -35,9 +35,15 @@ class TriviaVerseBot(commands.Bot):
         self.session = None
 
     async def setup_hook(self):
+        api_token = os.getenv('DISCORD_API_TOKEN', '')
+        if not api_token:
+            raise RuntimeError('DISCORD_API_TOKEN environment variable not set')
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=10),
-            headers={"User-Agent": "TriviaVerseBot/1.0"}
+            headers={
+                "User-Agent": "TriviaVerseBot/1.0",
+                "X-Discord-API-Key": api_token,
+            }
         )
 
         # Load all cogs from the cogs directory

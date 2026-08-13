@@ -14,6 +14,9 @@ depends_on = None
 
 
 def upgrade():
+    if op.get_bind().dialect.name != 'postgresql':
+        return
+
     op.execute('SET search_path = app, public')
 
     op.execute("""
@@ -252,6 +255,9 @@ def upgrade():
 
 
 def downgrade():
+    if op.get_bind().dialect.name != 'postgresql':
+        return
+
     op.execute("""
     DROP POLICY IF EXISTS triviaverse_realtime_send ON realtime.messages;
     DROP POLICY IF EXISTS triviaverse_realtime_receive ON realtime.messages;

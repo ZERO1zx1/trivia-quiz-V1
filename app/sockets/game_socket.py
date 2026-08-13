@@ -67,6 +67,16 @@ def _state(room_code):
         game_states[room_code] = state
     return state
 
+
+def _room_member(room):
+    return bool(
+        room
+        and current_user.is_authenticated
+        and RoomPlayer.query.filter_by(
+            room_id=room.id, user_id=current_user.id).first()
+    )
+
+
 def register_game_events(socketio):
 
     @socketio.on('start_game')
@@ -74,7 +84,7 @@ def register_game_events(socketio):
         """Initialize actual game state from questions and start gameplay."""
         room_code = data.get('room_code')
         room = Room.query.filter_by(code=room_code).first()
-        if not room or room.host_id != current_user.id:
+        if not room or not current_user.is_authenticated or room.host_id != current_user.id:
             emit('error', {'message': 'Unauthorized'})
             return
 
@@ -131,7 +141,12 @@ def register_game_events(socketio):
 
     @socketio.on('request_question')
     def handle_request_question(data):
+        data = data or {}
         room_code = data.get('room_code')
+        room = Room.query.filter_by(code=room_code).first()
+        if not _room_member(room):
+            emit('error', {'message': 'Unauthorized'})
+            return
         state = _state(room_code)
         if not state:
             emit('error', {'message': 'Game not found'})
@@ -147,7 +162,6 @@ def register_game_events(socketio):
             return
 
         question = state['questions'][q_idx]
-        room = Room.query.filter_by(code=room_code).first()
         time_limit = room.time_per_question
         if state['game_mode'] == 'time_attack':
             time_limit = room.time_attack_duration
@@ -171,17 +185,37 @@ def register_game_events(socketio):
 
     @socketio.on('submit_answer')
     def handle_submit_answer(data):
+        data = data or {}
         room_code = data.get('room_code')
         answer_id = data.get('answer_id')
         time_taken = data.get('time_taken', 0)
+        try:
+            answer_id = int(answer_id)
+            time_taken = float(time_taken)
+        except (TypeError, ValueError):
+            emit('error', {'message': 'Invalid answer payload'})
+            return
+        if time_taken < 0:
+            emit('error', {'message': 'Invalid answer payload'})
+            return
 
+        room = Room.query.filter_by(code=room_code).first()
+        if not _room_member(room):
+            emit('error', {'message': 'Unauthorized'})
+            return
         state = _state(room_code)
         if not state:
             return
         q_idx = state['current_question']
+        if q_idx >= len(state['questions']):
+            _end_game(socketio, room_code)
+            return
         question = state['questions'][q_idx]
 
         if current_user.id in state.get('eliminated', set()):
+            return
+        if q_idx in state.get('answers', {}).get(current_user.id, {}):
+            emit('error', {'message': 'Answer already submitted'})
             return
 
         correct_answer = next((a for a in question['answers'] if a['is_correct']), None)
@@ -192,7 +226,6 @@ def register_game_events(socketio):
             emit('error', {'message': 'Suspiciously fast answer! Anti-cheat triggered.'})
             return
 
-        room = Room.query.filter_by(code=room_code).first()
         # Decreasing Point Timer Logic
         # Start with 1000, decrease by 50 per second
         # Safety: ensure time_taken is reasonable
@@ -279,9 +312,17 @@ def register_game_events(socketio):
 
     @socketio.on('next_question')
     def handle_next_question(data):
+        data = data or {}
         room_code = data.get('room_code')
+        room = Room.query.filter_by(code=room_code).first()
+        if not _room_member(room):
+            emit('error', {'message': 'Unauthorized'})
+            return
         state = _state(room_code)
         if not state:
+            return
+        if room.status != 'playing':
+            emit('error', {'message': 'Game is not active'})
             return
         state['current_question'] += 1
         _save_snapshot(room_code)
@@ -299,7 +340,7 @@ def register_game_events(socketio):
         state = _state(room_code)
         if not state:
             return
-        if current_user.role not in ('admin', 'moderator', 'owner'):
+        if not current_user.is_authenticated or current_user.role not in ('admin', 'moderator', 'owner'):
             emit('error', {'message': 'Unauthorized'})
             return
         state['current_question'] += 1
@@ -318,7 +359,7 @@ def register_game_events(socketio):
     def handle_kick_player(data):
         room_code = data.get('room_code')
         target_id = data.get('user_id')
-        if current_user.role not in ('admin', 'moderator', 'owner'):
+        if not current_user.is_authenticated or current_user.role not in ('admin', 'moderator', 'owner'):
             emit('error', {'message': 'Unauthorized'})
             return
         room = Room.query.filter_by(code=room_code).first()
@@ -338,7 +379,12 @@ def register_game_events(socketio):
     @socketio.on('leave_game')
     def handle_leave_game(data):
         """Player leaves during an active game."""
+        data = data or {}
         room_code = data.get('room_code')
+        room = Room.query.filter_by(code=room_code).first()
+        if not _room_member(room):
+            emit('error', {'message': 'Unauthorized'})
+            return
         state = _state(room_code)
         if not state:
             return
@@ -346,7 +392,6 @@ def register_game_events(socketio):
         _save_snapshot(room_code)
 
         # Check if enough players remain
-        room = Room.query.filter_by(code=room_code).first()
         players = RoomPlayer.query.filter_by(room_id=room.id).all()
         remaining = [p.user_id for p in players if p.user_id not in state['eliminated']]
         
@@ -361,15 +406,14 @@ def register_game_events(socketio):
     @socketio.on('recover_game')
     def handle_recover_game(data):
         """Restore the latest committed state after reconnect or restart."""
+        data = data or {}
         room_code = data.get('room_code')
         state = _state(room_code)
         room = Room.query.filter_by(code=room_code).first()
         if not state or not room:
             emit('game_recovery', {'found': False})
             return
-        player = RoomPlayer.query.filter_by(
-            room_id=room.id, user_id=current_user.id).first()
-        if not player:
+        if not _room_member(room):
             emit('game_recovery', {'found': False, 'error': 'Unauthorized'})
             return
         emit('game_recovery', {
@@ -390,6 +434,8 @@ def _end_game(socketio, room_code):
         return
 
     room = Room.query.filter_by(code=room_code).first()
+    if not room or room.status == 'finished':
+        return
     match = db.session.get(Match, state['match_id'])
 
     if not room or not match:

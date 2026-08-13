@@ -56,6 +56,7 @@ class Config:
     DISCORD_CLIENT_SECRET = os.environ.get('DISCORD_CLIENT_SECRET')
     DISCORD_REDIRECT_URI = os.environ.get('DISCORD_REDIRECT_URI') or 'http://localhost:5000/auth/discord/callback'
     DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
+    DISCORD_API_TOKEN = os.environ.get('DISCORD_API_TOKEN', '')
 
     # SocketIO — default to the same origins as the app to avoid the
     # permissive wildcard in production (FIX-011).

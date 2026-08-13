@@ -1,8 +1,9 @@
+from conftest import make_user
+
 from app.extensions import db, socketio
 from app.models.question import Answer, Category, Question
 from app.models.room import GameSnapshot, Match, Room, RoomPlayer, Score
 from app.sockets import game_socket
-from conftest import make_user
 
 
 def _login(client, user):
@@ -112,3 +113,101 @@ def test_game_socket_authorization_and_survival(app, client, user):
         'room_code': 'SURV01', 'answer_id': 1, 'time_taken': 2})
     assert _events(live, 'player_eliminated')
     live.disconnect()
+
+
+def test_game_socket_requires_membership_and_rejects_duplicate_answers(app, client, user, db):
+    category = Category(name='Socket auth', slug='socket-auth')
+    question = Question(category=category, question_text='1 + 1?', difficulty='easy')
+    correct = Answer(question=question, answer_text='2', is_correct=True)
+    Answer(question=question, answer_text='3', is_correct=False)
+    db.session.add(question)
+    db.session.flush()
+    room = Room(
+        code='SOCK01', name='Socket auth', host_id=user.id,
+        category_id=category.id, difficulty='easy', question_count=1,
+        game_mode='classic', status='playing')
+    db.session.add_all([
+        room,
+        RoomPlayer(room=room, user_id=user.id),
+    ])
+    db.session.commit()
+
+    game_socket.game_states['SOCK01'] = {
+        'match_id': 999,
+        'questions': [{
+            'id': question.id,
+            'question_text': question.question_text,
+            'question_type': 'multiple_choice',
+            'image_url': None,
+            'explanation': '',
+            'answers': [
+                {'id': correct.id, 'answer_text': '2', 'is_correct': True},
+                {'id': correct.id + 1, 'answer_text': '3', 'is_correct': False},
+            ],
+        }],
+        'current_question': 0,
+        'answers': {},
+        'scores': {user.id: 0},
+        'streaks': {user.id: 0},
+        'survival_lives': {user.id: 1},
+        'eliminated': set(),
+        'game_mode': 'classic',
+    }
+
+    _login(client, user)
+    live = socketio.test_client(app, flask_test_client=client)
+    live.emit('submit_answer', {
+        'room_code': 'SOCK01', 'answer_id': correct.id, 'time_taken': 2})
+    assert _events(live, 'answer_result')
+    score_after_first = game_socket.game_states['SOCK01']['scores'][user.id]
+
+    live.emit('submit_answer', {
+        'room_code': 'SOCK01', 'answer_id': correct.id, 'time_taken': 2})
+    duplicate_errors = _events(live, 'error')
+    assert duplicate_errors
+    assert duplicate_errors[0]['args'][0]['message'] == 'Answer already submitted'
+    assert game_socket.game_states['SOCK01']['scores'][user.id] == score_after_first
+    live.disconnect()
+    game_socket.game_states.pop('SOCK01', None)
+
+
+def test_game_socket_membership_required_for_question_events(app, client, user, db):
+    room = Room(code='SOCK02', name='Socket membership', host_id=user.id,
+                status='playing', question_count=1)
+    db.session.add_all([room, RoomPlayer(room=room, user_id=user.id)])
+    db.session.commit()
+
+    live = socketio.test_client(app, flask_test_client=client)
+    live.emit('submit_answer', {
+        'room_code': 'SOCK02', 'answer_id': 1, 'time_taken': 2})
+    assert _events(live, 'error')[0]['args'][0]['message'] == 'Unauthorized'
+    live.emit('next_question', {'room_code': 'SOCK02'})
+    assert _events(live, 'error')[0]['args'][0]['message'] == 'Unauthorized'
+    live.disconnect()
+
+
+def test_game_socket_leave_and_recover_require_membership(app, client, user, db):
+    room = Room(code='SOCK03', name='Socket leave', host_id=user.id,
+                status='playing', question_count=1)
+    db.session.add_all([room, RoomPlayer(room=room, user_id=user.id)])
+    db.session.commit()
+    game_socket.game_states['SOCK03'] = {
+        'match_id': 1,
+        'questions': [],
+        'current_question': 0,
+        'answers': {},
+        'scores': {user.id: 0},
+        'streaks': {user.id: 0},
+        'survival_lives': {user.id: 1},
+        'eliminated': set(),
+        'game_mode': 'classic',
+    }
+
+    live = socketio.test_client(app, flask_test_client=client)
+    live.emit('leave_game', {'room_code': 'SOCK03'})
+    assert _events(live, 'error')[0]['args'][0]['message'] == 'Unauthorized'
+    live.emit('recover_game', {'room_code': 'SOCK03'})
+    recovery = _events(live, 'game_recovery')[0]['args'][0]
+    assert recovery == {'found': False, 'error': 'Unauthorized'}
+    live.disconnect()
+    game_socket.game_states.pop('SOCK03', None)

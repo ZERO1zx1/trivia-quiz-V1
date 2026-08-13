@@ -1,8 +1,29 @@
 from functools import wraps
-from flask import abort, flash, redirect, url_for
+import hmac
+
+from flask import abort, current_app, flash, jsonify, redirect, request, url_for
 from flask_login import current_user
 from datetime import datetime
 from app.extensions import db
+
+def discord_api_required(f):
+    """Require the shared service token used by the Discord bot.
+
+    Legacy bot endpoints mutate user balances and relationships. They must not
+    trust a caller-supplied Discord ID as authentication.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        expected = current_app.config.get('DISCORD_API_TOKEN', '')
+        supplied = request.headers.get('X-Discord-API-Key', '')
+        if not expected:
+            current_app.logger.error('DISCORD_API_TOKEN is not configured')
+            return jsonify({'error': 'Discord API is not configured'}), 503
+        if not supplied or not hmac.compare_digest(supplied, expected):
+            return jsonify({'error': 'Invalid Discord service credentials'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
 
 def premium_required(f):
     @wraps(f)

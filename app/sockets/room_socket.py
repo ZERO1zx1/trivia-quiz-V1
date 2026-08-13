@@ -85,26 +85,26 @@ def register_room_events(socketio):
         if not room or room.host_id != current_user.id:
             emit('error', {'message': 'Only the host can start the game.'})
             return
+        if room.status != 'waiting':
+            emit('error', {'message': 'This game has already started.'})
+            return
 
         players = RoomPlayer.query.filter_by(room_id=room.id).all()
         if len(players) < 2:
             emit('error', {'message': 'Need at least 2 players.'})
             return
 
-        # Хэрэв бүх хүн Ready болохыг заавал шаардахгүй гэвэл доорх 3 мөрийг сулруулж болно:
         if not all(p.is_ready for p in players):
             emit('error', {'message': 'All players must be ready.'})
             return
 
-        # Тоглоом эхлүүлэх
-        room.status = 'playing'
-        room.started_at = utcnow()
-        db.session.commit()
-
-        # Initialize game state before redirecting
-        from app.sockets.game_socket import game_states
+        from app.sockets.game_socket import _save_snapshot, game_states
         from app.models.question import Question
         from app.models.room import Match
+
+        if room_code in game_states:
+            emit('error', {'message': 'This game is already initialized.'})
+            return
 
         query = Question.query.filter_by(is_active=True)
         if room.category_id:
@@ -113,11 +113,16 @@ def register_room_events(socketio):
             query = query.filter_by(difficulty=room.difficulty)
 
         questions = query.order_by(db.func.random()).limit(room.question_count).all()
-        
+        if len(questions) < room.question_count:
+            emit('error', {'message': 'Not enough questions available.'})
+            return
+
         match = Match(room_id=room.id, category_id=room.category_id,
-                     difficulty=room.difficulty, question_count=room.question_count)
+                      difficulty=room.difficulty, question_count=room.question_count)
         db.session.add(match)
-        db.session.commit()
+        db.session.flush()
+        room.status = 'playing'
+        room.started_at = utcnow()
 
         game_states[room_code] = {
             'match_id': match.id,
@@ -131,8 +136,9 @@ def register_room_events(socketio):
             'survival_lives': {p.user_id: p.survival_lives for p in players},
             'eliminated': set()
         }
+        db.session.commit()
+        _save_snapshot(room_code)
 
-        # Бүх хэрэглэгчийг quiz хуудас руу чиглүүлэх
         emit('game_started', {
             'room_code': room_code,
             'redirect_url': f'/quiz/play/{room_code}'
@@ -216,8 +222,22 @@ def register_room_events(socketio):
         room_code = data.get('room_code')
         friend_id = data.get('friend_id')
         if not room_code or not friend_id:
+            emit('error', {'message': 'Room code and friend ID are required.'})
             return
-            
+
+        room = Room.query.filter_by(code=room_code).first()
+        player = (RoomPlayer.query.filter_by(
+            room_id=room.id, user_id=current_user.id).first()
+            if room else None)
+        if not room or not player:
+            emit('error', {'message': 'You are not a member of this room.'})
+            return
+
+        from app.models.user import User
+        if not db.session.get(User, friend_id):
+            emit('error', {'message': 'Friend not found.'})
+            return
+
         send_notification(
             user_id=friend_id,
             title='Game Invitation',
