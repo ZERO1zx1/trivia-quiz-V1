@@ -1,7 +1,7 @@
 """Guild Socket.IO Handler"""
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
-from app.extensions import socketio, db
+from app.extensions import socketio, db, utcnow
 from app.models.guild import Guild, GuildMember
 from datetime import datetime
 
@@ -57,7 +57,7 @@ def register_guild_events(socketio):
             'avatar_url': current_user.avatar_url,
             'content': content,
             'rank': member.rank.name if member.rank else 'Member',
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': utcnow().isoformat()
         }, room=room)
 
     @socketio.on('guild_boss_attack')
@@ -88,7 +88,7 @@ def register_guild_events(socketio):
         member.xp_contributed += damage
 
         if boss.hp <= 0:
-            boss.defeated_at = datetime.utcnow()
+            boss.defeated_at = utcnow()
             boss.is_active = False
 
         db.session.commit()

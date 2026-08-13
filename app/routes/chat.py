@@ -1,11 +1,30 @@
 """Chat System Routes"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import (Blueprint, current_app, flash, jsonify, redirect,
+                   render_template, request, url_for)
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.chat import ChatChannel, ChatMember, ChatMessage, ChatReaction
 from datetime import datetime
+from app.services.supabase import SupabaseError, SupabaseService
 
-chat_bp = Blueprint('chat', __name__, url_prefix='/chat')
+chat_bp = Blueprint('chat', __name__)
+
+
+def _can_access(channel):
+    if channel.channel_type in ('global', 'public'):
+        return True
+    return ChatMember.query.filter_by(
+        channel_id=channel.id, user_id=current_user.id).first() is not None
+
+
+def _broadcast(channel_id, event, payload):
+    if not SupabaseService.enabled():
+        return
+    try:
+        SupabaseService().broadcast(
+            f'chat:{channel_id}:messages', event, payload, private=True)
+    except SupabaseError:
+        current_app.logger.exception('Realtime chat broadcast failed')
 
 
 @chat_bp.route('/')
@@ -32,13 +51,9 @@ def channel(channel_id):
     channel = ChatChannel.query.get_or_404(channel_id)
 
     # Check access
-    if channel.channel_type == 'private':
-        member = ChatMember.query.filter_by(
-            channel_id=channel.id, user_id=current_user.id
-        ).first()
-        if not member:
-            flash('Access denied.', 'danger')
-            return redirect(url_for('chat.index'))
+    if not _can_access(channel):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('chat.index'))
 
     # Get messages
     messages = ChatMessage.query.filter_by(
@@ -75,6 +90,8 @@ def send_message():
     channel = ChatChannel.query.get(channel_id)
     if not channel:
         return jsonify({'error': 'Channel not found'}), 404
+    if not _can_access(channel):
+        return jsonify({'error': 'Access denied'}), 403
 
     # Check if muted
     member = ChatMember.query.filter_by(
@@ -94,9 +111,13 @@ def send_message():
     db.session.add(message)
     db.session.commit()
 
+    payload = message.to_dict()
+    payload['avatar_url'] = current_user.avatar_url
+    _broadcast(channel.id, 'message_created', payload)
+
     return jsonify({
         'success': True,
-        'message': message.to_dict()
+        'message': payload
     })
 
 
@@ -118,6 +139,10 @@ def edit_message(message_id):
     message.edited_at = datetime.utcnow()
     db.session.commit()
 
+    _broadcast(message.channel_id, 'message_edited', {
+        'id': message.id, 'content': message.content,
+        'edited_at': message.edited_at.isoformat()})
+
     return jsonify({'success': True})
 
 
@@ -132,6 +157,8 @@ def delete_message(message_id):
 
     message.is_deleted = True
     db.session.commit()
+
+    _broadcast(message.channel_id, 'message_deleted', {'id': message.id})
 
     return jsonify({'success': True})
 

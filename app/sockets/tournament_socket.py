@@ -1,7 +1,7 @@
 """Tournament Socket.IO Handler"""
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
-from app.extensions import socketio, db
+from app.extensions import socketio, db, utcnow
 from app.models.tournament import Tournament, TournamentParticipant, TournamentMatch
 from datetime import datetime
 
@@ -17,7 +17,7 @@ def register_tournament_events(socketio):
             emit('error', {'message': 'Tournament ID required'})
             return
 
-        tournament = Tournament.query.get(tournament_id)
+        tournament = db.session.get(Tournament, tournament_id)
         if not tournament:
             emit('error', {'message': 'Tournament not found'})
             return
@@ -70,7 +70,7 @@ def register_tournament_events(socketio):
         emit('match_started', {
             'tournament_id': tournament_id,
             'match_id': match_id,
-            'started_at': datetime.utcnow().isoformat()
+            'started_at': utcnow().isoformat()
         }, room=room)
 
     @socketio.on('tournament_match_result')
@@ -85,16 +85,26 @@ def register_tournament_events(socketio):
         if not tournament_id or not match_id:
             return
 
-        match = TournamentMatch.query.get(match_id)
+        match = db.session.get(TournamentMatch, match_id)
         if not match:
             emit('error', {'message': 'Match not found'})
+            return
+
+        participant = TournamentParticipant.query.filter_by(
+            tournament_id=tournament_id, user_id=current_user.id).first()
+        if not participant or participant.id not in (
+                match.player_a_id, match.player_b_id):
+            emit('error', {'message': 'Not a participant in this match'})
+            return
+        if winner_id not in (match.player_a_id, match.player_b_id):
+            emit('error', {'message': 'Invalid winner'})
             return
 
         match.status = 'completed'
         match.score_a = score_a
         match.score_b = score_b
         match.winner_id = winner_id
-        match.completed_at = datetime.utcnow()
+        match.completed_at = utcnow()
 
         # Update participants
         if match.player_a:

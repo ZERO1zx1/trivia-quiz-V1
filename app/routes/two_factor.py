@@ -11,6 +11,7 @@ from flask import (Blueprint, current_app, flash, redirect, render_template,
 from flask_login import current_user, login_required
 
 import jwt
+from uuid import UUID
 
 from app.utils.two_factor import (
     generate_2fa_secret,
@@ -20,6 +21,10 @@ from app.utils.two_factor import (
     disable_2fa_for_user,
     is_2fa_enabled
 )
+from app.extensions import db
+from app.services.auth_sessions import (
+    access_token, replace_auth_tokens)
+from app.services.supabase import SupabaseError, SupabaseService
 
 two_factor_bp = Blueprint('two_factor', __name__)
 
@@ -31,6 +36,29 @@ TF_RATE_WINDOW = 600        # seconds
 @login_required
 def setup():
     """Show 2FA setup page with QR code."""
+    if SupabaseService.enabled():
+        token = access_token()
+        if not token:
+            flash('Authentication session expired. Please sign in again.',
+                  'warning')
+            return redirect(url_for('auth.login'))
+        try:
+            payload = SupabaseService().enroll_totp(
+                token, f'TriviaVerse:{current_user.username}')
+            factor = payload.get('factor') or payload
+            totp = factor.get('totp') or {}
+            factor_id = factor.get('id')
+            if not factor_id or not totp.get('qr_code'):
+                raise SupabaseError('MFA enrollment response was incomplete')
+            session['pending_supabase_factor_id'] = factor_id
+            return render_template(
+                'auth/two_factor_setup.html',
+                qr_code=totp['qr_code'], secret=totp.get('secret', ''))
+        except SupabaseError:
+            current_app.logger.exception('Supabase MFA enrollment failed')
+            flash('2FA setup is temporarily unavailable.', 'danger')
+            return redirect(url_for('account.settings'))
+
     secret = generate_2fa_secret()
     session['pending_2fa_secret'] = secret
     qr_code = get_2fa_qr_code(current_user, secret)
@@ -41,6 +69,38 @@ def setup():
 @login_required
 def enable():
     """Enable 2FA after verifying the code."""
+    if SupabaseService.enabled():
+        factor_id = session.get('pending_supabase_factor_id')
+        code = request.form.get('code', '').strip()
+        token = access_token()
+        if not factor_id or not code or not token:
+            flash('Please restart the 2FA setup process.', 'danger')
+            return redirect(url_for('two_factor.setup'))
+        try:
+            service = SupabaseService()
+            challenge_id = service.challenge_totp(token, factor_id)
+            tokens = service.verify_totp(
+                token, factor_id, challenge_id, code)
+            replace_auth_tokens(tokens)
+        except SupabaseError:
+            flash('Invalid code. Please try again.', 'danger')
+            return redirect(url_for('two_factor.setup'))
+
+        from app.models.settings import TwoFactorAuth
+        twofa = TwoFactorAuth.query.filter_by(
+            user_id=current_user.id).first()
+        if not twofa:
+            twofa = TwoFactorAuth(user_id=current_user.id)
+            db.session.add(twofa)
+        twofa.is_enabled = True
+        twofa.auth_factor_id = UUID(str(factor_id))
+        twofa.secret_key = None
+        twofa.method = 'supabase_totp'
+        session.pop('pending_supabase_factor_id', None)
+        db.session.commit()
+        flash('2FA has been enabled with Supabase Auth.', 'success')
+        return redirect(url_for('account.settings'))
+
     secret = session.get('pending_2fa_secret')
     code = request.form.get('code', '').strip()
 
@@ -75,6 +135,33 @@ def disable():
     # Get user's 2FA secret
     from app.models.settings import TwoFactorAuth
     twofa = TwoFactorAuth.query.filter_by(user_id=current_user.id).first()
+
+    if (SupabaseService.enabled() and twofa and twofa.is_enabled
+            and twofa.auth_factor_id):
+        token = access_token()
+        if not token:
+            flash('Authentication session expired. Please sign in again.',
+                  'warning')
+            return redirect(url_for('auth.login'))
+        try:
+            service = SupabaseService()
+            challenge_id = service.challenge_totp(
+                token, str(twofa.auth_factor_id))
+            tokens = service.verify_totp(
+                token, str(twofa.auth_factor_id), challenge_id, code)
+            replace_auth_tokens(tokens)
+            elevated_token = access_token(refresh_if_needed=False)
+            service.unenroll_factor(
+                elevated_token, str(twofa.auth_factor_id))
+        except SupabaseError:
+            flash('Invalid code.', 'danger')
+            return redirect(url_for('account.settings'))
+        twofa.is_enabled = False
+        twofa.auth_factor_id = None
+        twofa.method = 'supabase_totp'
+        db.session.commit()
+        flash('2FA has been disabled.', 'info')
+        return redirect(url_for('account.settings'))
 
     if not twofa or not twofa.is_enabled or not twofa.secret_key:
         flash('2FA is not enabled on this account.', 'warning')
@@ -131,7 +218,7 @@ def verify():
         from app.models.user import User
         from app.models.settings import TwoFactorAuth
 
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             flash('User not found.', 'danger')
             return redirect(url_for('auth.login'))
@@ -141,12 +228,31 @@ def verify():
             flash('2FA is not enabled.', 'danger')
             return redirect(url_for('auth.login'))
 
-        if verify_2fa_code(twofa.secret_key, code):
-            from flask_login import login_user
-            login_user(user, remember=True)
-            user.is_online = True
+        verified = False
+        if (SupabaseService.enabled() and twofa.auth_factor_id
+                and twofa.method == 'supabase_totp'):
+            token = access_token()
+            try:
+                if not token:
+                    raise SupabaseError('Authentication session expired')
+                service = SupabaseService()
+                challenge_id = service.challenge_totp(
+                    token, str(twofa.auth_factor_id))
+                tokens = service.verify_totp(
+                    token, str(twofa.auth_factor_id), challenge_id, code)
+                replace_auth_tokens(tokens)
+                verified = True
+            except SupabaseError:
+                verified = False
+        else:
+            verified = verify_2fa_code(twofa.secret_key, code)
+
+        if verified:
+            from app.routes.auth import _complete_login
+            response = _complete_login(user)
+            if response is not None:
+                return response
             session.pop('2fa_user_id', None)
-            session.pop('2fa_pending_token', None)
             session.pop(_verify_attempts_key(), None)
             flash('Welcome back!', 'success')
             return redirect(url_for('dashboard.index'))

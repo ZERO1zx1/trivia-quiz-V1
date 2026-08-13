@@ -4,10 +4,57 @@ from werkzeug.security import check_password_hash
 from app.extensions import db
 from app.models.user import User
 from app.models.profile import ProfileView
+from app.services.auth_sessions import access_token
+from app.services.supabase import SupabaseError, SupabaseService
+from io import BytesIO
+from PIL import Image, UnidentifiedImageError
+import secrets
 import os
 from werkzeug.utils import secure_filename
 
 account_bp = Blueprint('account', __name__)
+
+
+def _normalized_image(upload):
+    """Decode and re-encode uploads so active/metadata payloads are removed."""
+    raw = upload.stream.read(6 * 1024 * 1024 + 1)
+    if not raw or len(raw) > 6 * 1024 * 1024:
+        raise ValueError('Image must be 6 MB or smaller.')
+    try:
+        image = Image.open(BytesIO(raw))
+        image.verify()
+        image = Image.open(BytesIO(raw))
+        image.thumbnail((2048, 2048))
+        if image.mode not in ('RGB', 'RGBA'):
+            image = image.convert('RGBA' if 'transparency' in image.info else 'RGB')
+        output = BytesIO()
+        image.save(output, format='WEBP', quality=88, method=6)
+        return output.getvalue(), 'image/webp'
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValueError('Upload a valid PNG, JPEG, GIF, or WebP image.') from exc
+
+
+def _store_profile_image(upload, bucket):
+    data, content_type = _normalized_image(upload)
+    object_name = f'{secrets.token_urlsafe(18)}.webp'
+    if SupabaseService.enabled():
+        if not current_user.auth_user_id:
+            raise ValueError('Your account is not linked to Supabase Auth.')
+        token = access_token()
+        if not token:
+            raise ValueError('Authentication session expired. Sign in again.')
+        object_path = f'{current_user.auth_user_id}/{object_name}'
+        return SupabaseService().upload_image(
+            bucket, object_path, data, content_type, token)
+
+    # Local-only fallback for development. Production never stores durable
+    # uploads on the container filesystem.
+    target_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], bucket)
+    os.makedirs(target_dir, exist_ok=True)
+    target_path = os.path.join(target_dir, object_name)
+    with open(target_path, 'wb') as output:
+        output.write(data)
+    return f'/static/uploads/{bucket}/{object_name}'
 
 @account_bp.route('/profile')
 @login_required
@@ -41,21 +88,22 @@ def update_profile():
     current_user.bio = request.form.get('bio', current_user.bio)
     current_user.country = request.form.get('country', current_user.country)
 
-    if 'avatar' in request.files and request.files['avatar'].filename:
-        file = request.files['avatar']
-        filename = secure_filename(file.filename)
-        avatar_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
-        os.makedirs(avatar_dir, exist_ok=True)
-        file.save(os.path.join(avatar_dir, filename))
-        current_user.avatar_url = '/static/uploads/avatars/' + filename
+    try:
+        if 'avatar' in request.files and request.files['avatar'].filename:
+            current_user.avatar_url = _store_profile_image(
+                request.files['avatar'],
+                current_app.config['SUPABASE_STORAGE_AVATAR_BUCKET'])
 
-    if current_user.is_premium and 'banner' in request.files and request.files['banner'].filename:
-        file = request.files['banner']
-        filename = secure_filename(file.filename)
-        banner_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'banners')
-        os.makedirs(banner_dir, exist_ok=True)
-        file.save(os.path.join(banner_dir, filename))
-        current_user.banner_url = '/static/uploads/banners/' + filename
+        if (current_user.is_premium and 'banner' in request.files
+                and request.files['banner'].filename):
+            current_user.banner_url = _store_profile_image(
+                request.files['banner'],
+                current_app.config['SUPABASE_STORAGE_BANNER_BUCKET'])
+    except (ValueError, SupabaseError) as exc:
+        current_app.logger.info('Profile image rejected for user id=%s: %s',
+                                current_user.id, exc)
+        flash(str(exc), 'danger')
+        return redirect(url_for('account.profile'))
 
     db.session.commit()
     flash('Profile updated!', 'success')
@@ -80,7 +128,13 @@ def change_password():
         flash('All fields are required.', 'danger')
         return redirect(url_for('account.settings'))
 
-    if not current_user.check_password(current_password):
+    if SupabaseService.enabled():
+        try:
+            SupabaseService().sign_in(current_user.email, current_password)
+        except SupabaseError:
+            flash('Current password is incorrect.', 'danger')
+            return redirect(url_for('account.settings'))
+    elif not current_user.check_password(current_password):
         flash('Current password is incorrect.', 'danger')
         return redirect(url_for('account.settings'))
 
@@ -95,7 +149,21 @@ def change_password():
         flash(policy_errors[0], 'danger')
         return redirect(url_for('account.settings'))
 
-    current_user.set_password(new_password)
+    if SupabaseService.enabled():
+        token = access_token()
+        if not token:
+            flash('Authentication session expired. Please sign in again.',
+                  'warning')
+            return redirect(url_for('auth.login'))
+        try:
+            SupabaseService().update_password(token, new_password)
+        except SupabaseError:
+            current_app.logger.exception('Supabase password change failed')
+            flash('Password could not be changed.', 'danger')
+            return redirect(url_for('account.settings'))
+        current_user.password_hash = None
+    else:
+        current_user.set_password(new_password)
     db.session.commit()
     
     # Send email notification for password change

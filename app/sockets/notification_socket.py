@@ -28,7 +28,7 @@ def register_notification_events(socketio):
             emit('error', {'message': 'Invalid message'}, namespace='/notifications')
             return
 
-        target_user = User.query.get(to_user_id)
+        target_user = db.session.get(User, to_user_id)
         if not target_user:
             emit('error', {'message': 'User not found'}, namespace='/notifications')
             return

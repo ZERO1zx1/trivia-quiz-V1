@@ -11,7 +11,11 @@
     <p class="text-muted">{{ channel.description }}</p>
 </div>
 
-<div class="chat-container glass">
+<div class="chat-container glass" id="realtimeChat"
+     data-channel-id="{{ channel.id }}"
+     data-current-user-id="{{ current_user.id }}"
+     data-send-url="{{ url_for('chat.send_message') }}"
+     data-csrf-token="{{ csrf_token() }}">
     <div class="chat-messages" id="chatMessages">
         {% for msg in messages %}
         <div class="chat-message {% if msg.user_id == current_user.id %}mine{% endif %}" id="msg-{{ msg.id }}">
@@ -34,31 +38,5 @@
     </div>
 </div>
 
-<script>
-document.getElementById('sendMessageForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const form = this;
-    const input = form.querySelector('#messageInput');
-    const channel_id = form.querySelector('input[name="channel_id"]').value;
-    
-    fetch(form.action, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': "{{ csrf_token() }}"
-        },
-        body: JSON.stringify({
-            content: input.value,
-            channel_id: channel_id
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            input.value = '';
-            location.reload();
-        } else {
-            alert(data.error || 'Failed to send message');
-        }
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/chat-realtime.js') }}" defer></script>
 {% endblock %}

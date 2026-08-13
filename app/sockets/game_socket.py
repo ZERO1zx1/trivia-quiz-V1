@@ -4,8 +4,8 @@ from flask_socketio import emit
 from flask_login import current_user
 from datetime import datetime, date
 import random
-from app.extensions import db
-from app.models.room import Room, RoomPlayer, Match, Score
+from app.extensions import db, utcnow
+from app.models.room import GameSnapshot, Room, RoomPlayer, Match, Score
 from app.models.question import Question
 from app.models.user import User
 from app.models.notification import Notification
@@ -13,6 +13,59 @@ from app.models.achievement import Achievement, UserAchievement
 from app.models.quest import DailyQuest
 
 game_states = {}
+
+
+def _json_state(state):
+    payload = dict(state)
+    payload['eliminated'] = list(state.get('eliminated', set()))
+    return payload
+
+
+def _restore_state(payload):
+    state = dict(payload)
+    state['eliminated'] = set(
+        int(value) for value in state.get('eliminated', []))
+    for key in ('scores', 'streaks', 'survival_lives'):
+        state[key] = {
+            int(user_id): value
+            for user_id, value in state.get(key, {}).items()
+        }
+    state['answers'] = {
+        int(user_id): {
+            int(index): answer for index, answer in answers.items()
+        }
+        for user_id, answers in state.get('answers', {}).items()
+    }
+    return state
+
+
+def _save_snapshot(room_code):
+    state = game_states.get(room_code)
+    room = Room.query.filter_by(code=room_code).first()
+    if not state or not room:
+        return
+    snapshot = GameSnapshot.query.filter_by(room_id=room.id).first()
+    if snapshot:
+        snapshot.version += 1
+        snapshot.state = _json_state(state)
+        snapshot.is_active = True
+    else:
+        db.session.add(GameSnapshot(
+            room_id=room.id, room_code=room_code,
+            state=_json_state(state), is_active=True))
+    db.session.commit()
+
+
+def _state(room_code):
+    state = game_states.get(room_code)
+    if state:
+        return state
+    snapshot = GameSnapshot.query.filter_by(
+        room_code=room_code, is_active=True).first()
+    if snapshot:
+        state = _restore_state(snapshot.state)
+        game_states[room_code] = state
+    return state
 
 def register_game_events(socketio):
 
@@ -58,15 +111,16 @@ def register_game_events(socketio):
             'answers': {},
             'scores': {p.user_id: 0 for p in players},
             'streaks': {p.user_id: 0 for p in players},
-            'started_at': datetime.utcnow().isoformat(),
+            'started_at': utcnow().isoformat(),
             'game_mode': room.game_mode,
             'survival_lives': {p.user_id: p.survival_lives for p in players},
             'eliminated': set()
         }
 
         room.status = 'playing'
-        room.started_at = datetime.utcnow()
+        room.started_at = utcnow()
         db.session.commit()
+        _save_snapshot(room_code)
 
         emit('game_started', {
             'match_id': match.id,
@@ -78,11 +132,10 @@ def register_game_events(socketio):
     @socketio.on('request_question')
     def handle_request_question(data):
         room_code = data.get('room_code')
-        if room_code not in game_states:
+        state = _state(room_code)
+        if not state:
             emit('error', {'message': 'Game not found'})
             return
-
-        state = game_states[room_code]
         q_idx = state['current_question']
 
         if current_user.id in state.get('eliminated', set()):
@@ -122,10 +175,9 @@ def register_game_events(socketio):
         answer_id = data.get('answer_id')
         time_taken = data.get('time_taken', 0)
 
-        if room_code not in game_states:
+        state = _state(room_code)
+        if not state:
             return
-
-        state = game_states[room_code]
         q_idx = state['current_question']
         question = state['questions'][q_idx]
 
@@ -178,6 +230,7 @@ def register_game_events(socketio):
             'correct': is_correct,
             'score': question_score
         }
+        _save_snapshot(room_code)
 
         if not is_correct and state['game_mode'] == 'survival':
             state['survival_lives'][current_user.id] = state['survival_lives'].get(current_user.id, 1) - 1
@@ -227,10 +280,11 @@ def register_game_events(socketio):
     @socketio.on('next_question')
     def handle_next_question(data):
         room_code = data.get('room_code')
-        if room_code not in game_states:
+        state = _state(room_code)
+        if not state:
             return
-        state = game_states[room_code]
         state['current_question'] += 1
+        _save_snapshot(room_code)
         if state['current_question'] >= len(state['questions']):
             _end_game(socketio, room_code)
         else:
@@ -242,13 +296,14 @@ def register_game_events(socketio):
     @socketio.on('skip_question')
     def handle_skip_question(data):
         room_code = data.get('room_code')
-        if room_code not in game_states:
+        state = _state(room_code)
+        if not state:
             return
         if current_user.role not in ('admin', 'moderator', 'owner'):
             emit('error', {'message': 'Unauthorized'})
             return
-        state = game_states[room_code]
         state['current_question'] += 1
+        _save_snapshot(room_code)
         if state['current_question'] >= len(state['questions']):
             _end_game(socketio, room_code)
         else:
@@ -257,7 +312,9 @@ def register_game_events(socketio):
                 'skipped_by': current_user.username
             }, room=room_code)
 
-    @socketio.on('kick_player')
+    # Keep the lobby host command (`kick_player`) distinct. Registering two
+    # handlers with the same event silently replaced one of them.
+    @socketio.on('game_admin_kick_player')
     def handle_kick_player(data):
         room_code = data.get('room_code')
         target_id = data.get('user_id')
@@ -282,11 +339,11 @@ def register_game_events(socketio):
     def handle_leave_game(data):
         """Player leaves during an active game."""
         room_code = data.get('room_code')
-        if room_code not in game_states:
+        state = _state(room_code)
+        if not state:
             return
-
-        state = game_states[room_code]
         state['eliminated'].add(current_user.id)
+        _save_snapshot(room_code)
 
         # Check if enough players remain
         room = Room.query.filter_by(code=room_code).first()
@@ -301,14 +358,39 @@ def register_game_events(socketio):
                 'username': current_user.username
             }, room=room_code)
 
+    @socketio.on('recover_game')
+    def handle_recover_game(data):
+        """Restore the latest committed state after reconnect or restart."""
+        room_code = data.get('room_code')
+        state = _state(room_code)
+        room = Room.query.filter_by(code=room_code).first()
+        if not state or not room:
+            emit('game_recovery', {'found': False})
+            return
+        player = RoomPlayer.query.filter_by(
+            room_id=room.id, user_id=current_user.id).first()
+        if not player:
+            emit('game_recovery', {'found': False, 'error': 'Unauthorized'})
+            return
+        emit('game_recovery', {
+            'found': True,
+            'room_code': room_code,
+            'match_id': state['match_id'],
+            'current_question': state['current_question'],
+            'total_questions': len(state['questions']),
+            'score': state['scores'].get(current_user.id, 0),
+            'streak': state['streaks'].get(current_user.id, 0),
+            'game_mode': state['game_mode'],
+        })
+
 
 def _end_game(socketio, room_code):
-    if room_code not in game_states:
+    state = _state(room_code)
+    if not state:
         return
 
-    state = game_states[room_code]
     room = Room.query.filter_by(code=room_code).first()
-    match = Match.query.get(state['match_id'])
+    match = db.session.get(Match, state['match_id'])
 
     if not room or not match:
         return
@@ -358,7 +440,7 @@ def _end_game(socketio, room_code):
         })
 
     if winner_id:
-        winner = User.query.get(winner_id)
+        winner = db.session.get(User, winner_id)
         winner.wins += 1
         match.winner_id = winner_id
         
@@ -389,10 +471,17 @@ def _end_game(socketio, room_code):
 
     results.sort(key=lambda x: x['score'], reverse=True)
     room.status = 'finished'
-    room.ended_at = datetime.utcnow()
+    room.ended_at = utcnow()
     db.session.commit()
 
-    del game_states[room_code]
+    snapshot = GameSnapshot.query.filter_by(room_code=room_code).first()
+    if snapshot:
+        snapshot.is_active = False
+        snapshot.state = _json_state(state)
+        snapshot.version += 1
+        db.session.commit()
+
+    game_states.pop(room_code, None)
 
     emit('game_over', {
         'results': results,
@@ -414,7 +503,7 @@ def _update_daily_quests(state, players, winner_id):
             q.current_value += 1
             if q.current_value >= q.target_value:
                 q.is_completed = True
-                q.completed_at = datetime.utcnow()
+                q.completed_at = utcnow()
 
         if p.user_id == winner_id:
             win_quests = DailyQuest.query.filter_by(
@@ -424,7 +513,7 @@ def _update_daily_quests(state, players, winner_id):
                 q.current_value += 1
                 if q.current_value >= q.target_value:
                     q.is_completed = True
-                    q.completed_at = datetime.utcnow()
+                    q.completed_at = utcnow()
 
         user_answers = state['answers'].get(p.user_id, {})
         correct_count = sum(1 for a in user_answers.values() if a['correct'])
@@ -435,7 +524,7 @@ def _update_daily_quests(state, players, winner_id):
             q.current_value += correct_count
             if q.current_value >= q.target_value:
                 q.is_completed = True
-                q.completed_at = datetime.utcnow()
+                q.completed_at = utcnow()
     db.session.commit()
 
 
@@ -449,7 +538,7 @@ def _check_achievements(user):
         if ach.check_requirement(user):
             ua.progress = ach.requirement_value
             ua.is_unlocked = True
-            ua.unlocked_at = datetime.utcnow()
+            ua.unlocked_at = utcnow()
             user.xp += ach.xp_reward
             user.add_coins(ach.coin_reward, f'Achievement: {ach.name}')
             notif = Notification(

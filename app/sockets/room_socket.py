@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import request
 from flask_socketio import emit, join_room, leave_room
 from flask_login import current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.room import Room, RoomPlayer
 from app.utils.notify import send_notification
 
@@ -98,7 +98,7 @@ def register_room_events(socketio):
 
         # Тоглоом эхлүүлэх
         room.status = 'playing'
-        room.started_at = datetime.utcnow()
+        room.started_at = utcnow()
         db.session.commit()
 
         # Initialize game state before redirecting
@@ -126,7 +126,7 @@ def register_room_events(socketio):
             'answers': {},
             'scores': {p.user_id: 0 for p in players},
             'streaks': {p.user_id: 0 for p in players},
-            'started_at': datetime.utcnow().isoformat(),
+            'started_at': utcnow().isoformat(),
             'game_mode': room.game_mode,
             'survival_lives': {p.user_id: p.survival_lives for p in players},
             'eliminated': set()
@@ -158,7 +158,7 @@ def register_room_events(socketio):
             'username': current_user.username,
             'avatar': current_user.avatar_url,
             'message': message,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': utcnow().isoformat()
         }, room=room_code)
 
     @socketio.on('kick_player')
@@ -221,8 +221,8 @@ def register_room_events(socketio):
         send_notification(
             user_id=friend_id,
             title='Game Invitation',
-            message=f'{current_user.username} invited you to join a game!',
+            message=(f'{current_user.username} invited you to join game '
+                     f'room {room_code}.'),
             notif_type='info',
-            link=f'/rooms/lobby?join={room_code}'
         )
         emit('invite_sent', {'success': True})

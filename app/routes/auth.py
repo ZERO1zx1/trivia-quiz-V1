@@ -12,6 +12,7 @@ Security fixes applied:
 """
 import hmac
 import secrets
+from uuid import UUID
 
 import bleach
 import jwt
@@ -22,18 +23,33 @@ from flask import (Blueprint, current_app, flash, redirect, render_template,
 from flask_login import current_user, login_required, login_user, logout_user
 from urllib.parse import urlparse
 
-from app.extensions import db, limiter
+from app.extensions import db, limiter, utcnow
 from app.models.achievement import Achievement, UserAchievement
 from app.models.settings import TwoFactorAuth
 from app.models.user import DiscordAccount, User
 from app.shared.password_policy import validate_password
 from app.utils.email import send_password_reset_email
+from app.services.auth_sessions import (
+    clear_auth_session, save_auth_session, access_token)
+from app.services.supabase import SupabaseError, SupabaseService
 
 auth_bp = Blueprint('auth', __name__)
 
 AUTH_OTP_PREFIX = 'verify_'
 AUTH_OTP_RATE_LIMIT = 3      # max OTP (re)sends per hour per IP
 AUTH_OTP_COOLDOWN_SECONDS = 30
+
+
+def _supabase_enabled():
+    return SupabaseService.enabled()
+
+
+def _auth_uuid(payload):
+    user = payload.get('user') or payload
+    value = user.get('id') if isinstance(user, dict) else None
+    if not value:
+        raise SupabaseError('Authentication account was not created')
+    return UUID(str(value))
 
 
 def _otp_count_key(ip):
@@ -43,7 +59,7 @@ def _otp_count_key(ip):
 def _otp_allowed(ip):
     """Rate-limit OTP sends per IP (in-memory counter, refreshed per hour)."""
     window_key = _otp_count_key(ip)
-    now = datetime.utcnow()
+    now = utcnow()
     hour = now.strftime('%Y%m%d%H')
     entry = session.get(window_key)
     if not entry or entry['hour'] != hour:
@@ -64,7 +80,8 @@ def _is_2fa_enabled(user):
     """Whether 2FA (TOTP) is enabled for the user."""
     twofa = TwoFactorAuth.query.filter_by(
         user_id=user.id, is_enabled=True).first()
-    return twofa is not None and bool(twofa.secret_key)
+    return twofa is not None and bool(
+        twofa.secret_key or twofa.auth_factor_id)
 
 
 def _pending_login_session(user, remember):
@@ -77,7 +94,7 @@ def _pending_login_session(user, remember):
         # FIX-004: 2FA intercept — never call login_user before TOTP proof.
         token = jwt.encode(
             {'uid': user.id, 'nonce': secrets.token_hex(8),
-             'exp': datetime.utcnow() + timedelta(minutes=10)},
+             'exp': utcnow() + timedelta(minutes=10)},
             current_app.config.get('SECRET_KEY'),
             algorithm='HS256',
         )
@@ -87,7 +104,7 @@ def _pending_login_session(user, remember):
 
     login_user(user, remember=remember)
     user.is_online = True
-    user.last_seen = datetime.utcnow()
+    user.last_seen = utcnow()
     session['theme'] = user.theme
     session['language'] = user.language
     db.session.commit()
@@ -114,7 +131,7 @@ def _complete_login(user):
 
     login_user(user, remember=True)
     user.is_online = True
-    user.last_seen = datetime.utcnow()
+    user.last_seen = utcnow()
     session['theme'] = user.theme
     session['language'] = user.language
     db.session.commit()
@@ -156,9 +173,24 @@ def register():
             return render_template('auth/register.html')
 
         user = User(username=username, email=email, display_name=username)
-        user.set_password(password)
+        if _supabase_enabled():
+            try:
+                auth_payload = SupabaseService().sign_up(
+                    email, password,
+                    {'username': username, 'display_name': username})
+                user.auth_user_id = _auth_uuid(auth_payload)
+                auth_user = auth_payload.get('user') or auth_payload
+                user.is_verified = bool(
+                    auth_user.get('email_confirmed_at')
+                    or auth_user.get('confirmed_at'))
+            except SupabaseError:
+                current_app.logger.exception('Supabase registration failed')
+                flash('Registration is temporarily unavailable.', 'danger')
+                return render_template('auth/register.html')
+        else:
+            user.set_password(password)
+            user.is_verified = False
         user.coins = 500
-        user.is_verified = False
 
         # Handle referral (after user object is created but before commit)
         if referral_code:
@@ -179,14 +211,19 @@ def register():
             ua = UserAchievement(user_id=user.id, achievement_id=ach.id)
             db.session.add(ua)
 
-        # Send OTP
+        if _supabase_enabled():
+            db.session.commit()
+            flash('Account created! Check your email to confirm it, then sign in.',
+                  'success')
+            return redirect(url_for('auth.login'))
+
+        # Legacy local development flow. Production verification email is
+        # delivered and validated by Supabase Auth.
         otp = user.generate_otp()
         from app.utils.email import send_otp_email
         send_otp_email(user, otp)
-
         db.session.commit()
         flash('Account created! Please check your email for the verification code.', 'success')
-        # FIX-001: use module-level session import
         session['verify_user_id'] = user.id
         return redirect(url_for('auth.verify'))
 
@@ -207,7 +244,47 @@ def login():
             db.or_(User.username == username, User.email == username)
         ).first()
 
-        if user and user.check_password(password):
+        authenticated = False
+        if user and _supabase_enabled():
+            # Unverified legacy accounts complete the old verification gate
+            # before their one-time Auth cutover.
+            if (not user.auth_user_id and user.check_password(password)
+                    and not user.is_verified):
+                session['verify_user_id'] = user.id
+                flash('Please verify your email to continue.', 'warning')
+                return redirect(url_for('auth.verify'))
+            try:
+                service = SupabaseService()
+                if user.auth_user_id:
+                    tokens = service.sign_in(user.email, password)
+                    if UUID(str(tokens.user.get('id'))) != user.auth_user_id:
+                        raise SupabaseError('Authentication identity mismatch')
+                elif user.check_password(password):
+                    created = service.create_legacy_user(
+                        user.email, password,
+                        {'username': user.username,
+                         'display_name': user.display_name or user.username,
+                         'legacy_user_id': user.id},
+                        email_confirm=user.is_verified)
+                    user.auth_user_id = _auth_uuid(created)
+                    tokens = service.sign_in(user.email, password)
+                    # Delete the legacy verifier only after Supabase accepted
+                    # the same password and returned a valid session.
+                    user.password_hash = None
+                else:
+                    tokens = None
+                if tokens:
+                    save_auth_session(user, tokens)
+                    authenticated = True
+                    user.is_verified = True
+                    db.session.commit()
+            except (SupabaseError, ValueError):
+                current_app.logger.info(
+                    'Supabase login rejected for local user id=%s', user.id)
+        elif user:
+            authenticated = user.check_password(password)
+
+        if user and authenticated:
             if user.is_banned:
                 flash('Your account has been suspended. Contact support.', 'danger')
                 return render_template('auth/login.html')
@@ -219,7 +296,7 @@ def login():
                 send_security_alert_email(user, client_ip)
 
             user.last_login_ip = client_ip
-            user.last_login_at = datetime.utcnow()
+            user.last_login_at = utcnow()
 
             # FIX-002: email verification gate
             if not user.is_verified:
@@ -247,7 +324,8 @@ def login():
 @login_required
 def logout():
     current_user.is_online = False
-    current_user.last_seen = datetime.utcnow()
+    current_user.last_seen = utcnow()
+    clear_auth_session()
     db.session.commit()
     logout_user()
     session.pop('verify_user_id', None)
@@ -258,8 +336,33 @@ def logout():
     return redirect(url_for('home.index'))
 
 
+@auth_bp.route('/realtime-session')
+@login_required
+def realtime_session():
+    if not _supabase_enabled() or not current_user.auth_user_id:
+        return {'error': 'Realtime is unavailable'}, 503
+    token = access_token()
+    if not token:
+        return {'error': 'Authentication session expired'}, 401
+    return {
+        'url': current_app.config['SUPABASE_URL'],
+        'publishable_key': current_app.config['SUPABASE_PUBLISHABLE_KEY'],
+        'access_token': token,
+        'user_id': str(current_user.auth_user_id),
+        'username': current_user.username,
+    }
+
+
 @auth_bp.route('/discord')
 def discord_login():
+    if _supabase_enabled():
+        redirect_to = url_for('auth.discord_callback', _external=True,
+                              _scheme='https' if not current_app.debug else 'http')
+        auth_url, verifier = SupabaseService().begin_oauth(
+            'discord', redirect_to)
+        session['supabase_oauth_verifier'] = verifier
+        return redirect(auth_url)
+
     # FIX-009/FIX-011: include an unpredictable `state` parameter and
     # remember it so the callback can reject forged requests.
     state = secrets.token_urlsafe(24)
@@ -277,6 +380,9 @@ def discord_login():
 
 @auth_bp.route('/discord/callback')
 def discord_callback():
+    if _supabase_enabled():
+        return _supabase_discord_callback()
+
     # FIX-009/FIX-011: validate OAuth state with constant-time comparison.
     expected_state = session.pop('discord_oauth_state', None)
     returned_state = request.args.get('state', '')
@@ -297,7 +403,14 @@ def discord_callback():
         'redirect_uri': current_app.config['DISCORD_REDIRECT_URI']
     }
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    token_response = requests.post('https://discord.com/api/oauth2/token', data=data, headers=headers)
+    try:
+        token_response = requests.post(
+            'https://discord.com/api/oauth2/token', data=data,
+            headers=headers, timeout=(3.05, 10))
+    except requests.RequestException:
+        current_app.logger.exception('Discord token exchange failed')
+        flash('Discord authentication is temporarily unavailable.', 'danger')
+        return redirect(url_for('auth.login'))
 
     if token_response.status_code != 200:
         flash('Failed to authenticate with Discord.', 'danger')
@@ -306,10 +419,15 @@ def discord_callback():
     tokens = token_response.json()
     access_token = tokens.get('access_token')
 
-    user_response = requests.get(
-        'https://discord.com/api/users/@me',
-        headers={'Authorization': f'Bearer {access_token}'}
-    )
+    try:
+        user_response = requests.get(
+            'https://discord.com/api/users/@me',
+            headers={'Authorization': f'Bearer {access_token}'},
+            timeout=(3.05, 10))
+    except requests.RequestException:
+        current_app.logger.exception('Discord profile request failed')
+        flash('Discord authentication is temporarily unavailable.', 'danger')
+        return redirect(url_for('auth.login'))
     if user_response.status_code != 200:
         flash('Failed to get Discord user info.', 'danger')
         return redirect(url_for('auth.login'))
@@ -387,7 +505,8 @@ def discord_callback():
         username=username,
         email=user_email,
         display_name=discord_username,
-        avatar_url=discord_avatar or '/static/avatars/default.png'
+        avatar_url=discord_avatar or '/static/avatars/default.png',
+        is_verified=True,
     )
     user.set_password(secrets.token_urlsafe(32))
     user.coins = 500
@@ -422,6 +541,75 @@ def discord_callback():
     return redirect(url_for('dashboard.index'))
 
 
+def _supabase_discord_callback():
+    code = request.args.get('code', '')
+    verifier = session.pop('supabase_oauth_verifier', None)
+    if not code or not verifier:
+        flash('Discord authentication session expired.', 'danger')
+        return redirect(url_for('auth.login'))
+    try:
+        tokens = SupabaseService().exchange_oauth_code(code, verifier)
+        auth_id = UUID(str(tokens.user['id']))
+    except (SupabaseError, KeyError, ValueError):
+        current_app.logger.exception('Supabase Discord callback failed')
+        flash('Discord authentication failed.', 'danger')
+        return redirect(url_for('auth.login'))
+
+    metadata = tokens.user.get('user_metadata') or {}
+    email = (tokens.user.get('email') or '').strip().lower()
+    discord_id = str(metadata.get('provider_id') or metadata.get('sub') or '')
+    username_base = (metadata.get('preferred_username')
+                     or metadata.get('user_name') or metadata.get('name')
+                     or f'discord_{discord_id[-6:]}')
+
+    user = User.query.filter_by(auth_user_id=auth_id).first()
+    if not user and email:
+        user = User.query.filter_by(email=email).first()
+        if user and user.auth_user_id and user.auth_user_id != auth_id:
+            flash('That email is already linked to another identity.', 'danger')
+            return redirect(url_for('auth.login'))
+    if not user:
+        username = username_base[:80]
+        suffix = 1
+        while User.query.filter_by(username=username).first():
+            username = f'{username_base[:70]}_{suffix}'
+            suffix += 1
+        user = User(
+            auth_user_id=auth_id,
+            username=username,
+            email=email or f'{auth_id}@discord.invalid',
+            display_name=metadata.get('full_name') or username_base,
+            avatar_url=metadata.get('avatar_url')
+            or '/static/avatars/default.png',
+            is_verified=True,
+            coins=500,
+        )
+        db.session.add(user)
+        db.session.flush()
+    else:
+        user.auth_user_id = auth_id
+        user.is_verified = True
+        user.password_hash = None
+
+    if discord_id:
+        discord_account = DiscordAccount.query.filter_by(
+            discord_id=discord_id).first()
+        if not discord_account:
+            discord_account = DiscordAccount(
+                user_id=user.id, discord_id=discord_id,
+                discord_username=username_base,
+                discord_avatar=metadata.get('avatar_url'))
+            db.session.add(discord_account)
+
+    save_auth_session(user, tokens)
+    db.session.commit()
+    response = _pending_login_session(user, True)
+    if response is not None:
+        return response
+    flash('Signed in with Discord.', 'success')
+    return redirect(url_for('dashboard.index'))
+
+
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if current_user.is_authenticated:
@@ -432,14 +620,84 @@ def forgot_password():
         if not email:
             flash('Please enter your email address.', 'warning')
         else:
-            user = User.query.filter_by(email=email).first()
-            if user:
-                token = user.get_reset_password_token(expires_in=600)
-                send_password_reset_email(user, token)
+            if _supabase_enabled():
+                try:
+                    redirect_to = url_for(
+                        'auth.supabase_password_recovery', _external=True,
+                        _scheme='https' if not current_app.debug else 'http')
+                    verifier = SupabaseService().recover(email, redirect_to)
+                    session['supabase_recovery_verifier'] = verifier
+                except SupabaseError:
+                    # Preserve account enumeration resistance while logging
+                    # the operational failure for maintainers.
+                    current_app.logger.exception(
+                        'Supabase password recovery request failed')
+            else:
+                user = User.query.filter_by(email=email).first()
+                if user:
+                    token = user.get_reset_password_token(expires_in=600)
+                    send_password_reset_email(user, token)
             flash('If that email is registered, you will receive a reset link shortly.', 'info')
             return redirect(url_for('auth.login'))
 
     return render_template('auth/forgot_password.html')
+
+
+@auth_bp.route('/reset-password', methods=['GET', 'POST'])
+def supabase_password_recovery():
+    if not _supabase_enabled():
+        return redirect(url_for('auth.forgot_password'))
+
+    if request.method == 'GET':
+        code = request.args.get('code', '')
+        verifier = session.pop('supabase_recovery_verifier', None)
+        if not code or not verifier:
+            flash('Invalid or expired recovery link.', 'danger')
+            return redirect(url_for('auth.forgot_password'))
+        try:
+            tokens = SupabaseService().exchange_oauth_code(code, verifier)
+            auth_id = UUID(str(tokens.user['id']))
+            user = User.query.filter_by(auth_user_id=auth_id).first()
+            if not user:
+                raise SupabaseError('Local account was not found')
+            save_auth_session(user, tokens)
+            db.session.commit()
+            session['password_recovery_user_id'] = user.id
+        except (SupabaseError, KeyError, ValueError):
+            current_app.logger.exception('Password recovery exchange failed')
+            flash('Invalid or expired recovery link.', 'danger')
+            return redirect(url_for('auth.forgot_password'))
+        return render_template('auth/reset_password.html')
+
+    user_id = session.get('password_recovery_user_id')
+    user = db.session.get(User, user_id) if user_id else None
+    token = access_token()
+    if not user or not token:
+        flash('Recovery session expired.', 'danger')
+        return redirect(url_for('auth.forgot_password'))
+
+    password = request.form.get('password', '')
+    confirm = request.form.get('confirm_password', '')
+    if password != confirm:
+        flash('Passwords do not match.', 'danger')
+        return render_template('auth/reset_password.html')
+    policy_errors = validate_password(password)
+    if policy_errors:
+        flash(policy_errors[0], 'danger')
+        return render_template('auth/reset_password.html')
+    try:
+        SupabaseService().update_password(token, password)
+    except SupabaseError:
+        current_app.logger.exception('Supabase password update failed')
+        flash('Password could not be updated. Please request a new link.',
+              'danger')
+        return redirect(url_for('auth.forgot_password'))
+    user.password_hash = None
+    db.session.commit()
+    session.pop('password_recovery_user_id', None)
+    clear_auth_session()
+    flash('Password has been reset! You can now login.', 'success')
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
@@ -478,7 +736,13 @@ def change_password():
     new_password = request.form.get('new_password', '')
     confirm_password = request.form.get('confirm_password', '')
 
-    if not current_user.check_password(current_password):
+    if _supabase_enabled():
+        try:
+            SupabaseService().sign_in(current_user.email, current_password)
+        except SupabaseError:
+            flash('Current password is incorrect.', 'danger')
+            return redirect(url_for('account.settings'))
+    elif not current_user.check_password(current_password):
         flash('Current password is incorrect.', 'danger')
         return redirect(url_for('account.settings'))
 
@@ -492,7 +756,21 @@ def change_password():
         flash(policy_errors[0], 'danger')
         return redirect(url_for('account.settings'))
 
-    current_user.set_password(new_password)
+    if _supabase_enabled():
+        token = access_token()
+        if not token:
+            flash('Authentication session expired. Please sign in again.',
+                  'warning')
+            return redirect(url_for('auth.login'))
+        try:
+            SupabaseService().update_password(token, new_password)
+        except SupabaseError:
+            current_app.logger.exception('Supabase password change failed')
+            flash('Password could not be changed.', 'danger')
+            return redirect(url_for('account.settings'))
+        current_user.password_hash = None
+    else:
+        current_user.set_password(new_password)
     db.session.commit()
     flash('Password changed successfully!', 'success')
     return redirect(url_for('account.settings'))
@@ -518,7 +796,7 @@ def verify():
     if not user_id:
         return redirect(url_for('auth.register'))
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return redirect(url_for('auth.register'))
 
@@ -550,7 +828,7 @@ def resend_otp():
     if not user_id:
         return redirect(url_for('auth.register'))
 
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if user:
         otp = user.generate_otp()
         from app.utils.email import send_otp_email
