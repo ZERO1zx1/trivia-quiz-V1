@@ -14,7 +14,7 @@ from datetime import datetime
 
 from flask import current_app
 
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.marketplace import Auction, AuctionBid
 from app.models.shop import UserInventory
 from app.economy.auction.validators import (
@@ -71,7 +71,7 @@ def create_auction(seller, item_id, starting_price, buy_now_price=None,
         starting_price=starting_price,
         buy_now_price=buy_now_price,
         duration_hours=duration_hours,
-        ends_at=datetime.utcnow() + _td(hours=duration_hours),
+        ends_at=utcnow() + _td(hours=duration_hours),
         inventory_item_id=inventory_item.id,
     )
     db.session.add(auction)
@@ -87,7 +87,7 @@ def place_bid(bidder, auction, bid_amount):
         raise EconomyError(errors[0])
 
     # Refresh the auction locked so two concurrent bids see the same state.
-    auction = Auction.query.get(auction.id)
+    auction = db.session.get(Auction, auction.id)
     errors = validate_bid(auction, bidder, bid_amount)
     if errors:
         raise EconomyError(errors[0])
@@ -125,7 +125,7 @@ def settle_auction(auction):
     """Settle a single ended auction (winner gets item, seller gets net coins)."""
     if auction.status != 'active':
         return
-    if auction.ends_at and auction.ends_at > datetime.utcnow():
+    if auction.ends_at and auction.ends_at > utcnow():
         return
     auction.status = 'ended'
 
@@ -160,7 +160,7 @@ def settle_auction(auction):
         tax_transfer(tax, f'auction #{auction.id}')
 
         # Move the reserved inventory item to the winner.
-        inventory_item = UserInventory.query.get(auction.inventory_item_id)
+        inventory_item = db.session.get(UserInventory, auction.inventory_item_id)
         if inventory_item is not None and (inventory_item.locked_quantity or 0) >= 1:
             winner = db.session.get(type(auction.seller), auction.current_bidder_id)
             if winner:
@@ -170,7 +170,7 @@ def settle_auction(auction):
             f'price={auction.current_bid}')
     else:
         # No bids — return the reserved item to the seller.
-        inventory_item = UserInventory.query.get(auction.inventory_item_id)
+        inventory_item = db.session.get(UserInventory, auction.inventory_item_id)
         if inventory_item is not None and (inventory_item.locked_quantity or 0) >= 1:
             release_inventory(inventory_item, 1)
 
@@ -192,7 +192,7 @@ def cancel_auction(seller, auction):
                 bidder.coins = (bidder.coins or 0) + bid.amount
             bid.refunded = True
 
-    inventory_item = UserInventory.query.get(auction.inventory_item_id)
+    inventory_item = db.session.get(UserInventory, auction.inventory_item_id)
     if inventory_item is not None and (inventory_item.locked_quantity or 0) >= 1:
         release_inventory(inventory_item, 1)
 
@@ -205,7 +205,7 @@ def settle_auctions_job(app):
             settled = 0
             candidates = Auction.query.filter(
                 Auction.status == 'active',
-                Auction.ends_at < datetime.utcnow(),
+                Auction.ends_at < utcnow(),
             ).all()
             for auction in candidates:
                 settle_auction(auction)

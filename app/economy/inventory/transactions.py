@@ -10,6 +10,7 @@ All helpers raise `InventoryError` / `CoinError` on policy violations.
 from datetime import datetime
 
 from flask import current_app
+from sqlalchemy import select
 
 from app.extensions import db
 
@@ -31,12 +32,11 @@ def lock_inventory_item(inventory_item):
 
     Works on SQLite (testing) and PostgreSQL/MySQL (production).
     """
-    try:
-        db.session.query(type(inventory_item)).filter(
+    return db.session.execute(
+        select(type(inventory_item)).where(
             type(inventory_item).id == inventory_item.id
-        ).with_for_update(nowait=False).first()
-    except Exception:  # SQLite does not support FOR UPDATE; fall through
-        pass
+        ).with_for_update()
+    ).scalar_one()
 
 
 def reserve_inventory(inventory_item, quantity):
@@ -47,7 +47,7 @@ def reserve_inventory(inventory_item, quantity):
     """
     if quantity is None or quantity <= 0:
         raise InventoryError('Invalid reservation quantity.')
-    lock_inventory_item(inventory_item)
+    inventory_item = lock_inventory_item(inventory_item)
     available = inventory_item.available_quantity
     if available < quantity:
         raise InventoryError(
@@ -99,13 +99,11 @@ def deduct_coins(user, amount, reason='deduction'):
     """
     if amount is None or amount <= 0:
         raise CoinError('Invalid deduction amount.')
-    locked = user
-    try:
-        locked = db.session.query(type(user)).filter(
-            type(user).id == user.id
-        ).with_for_update(nowait=False).one()
-    except Exception:  # SQLite fallback (no SELECT ... FOR UPDATE)
-        locked = db.session.get(type(user), user.id)
+    model = user._get_current_object().__class__ \
+        if hasattr(user, '_get_current_object') else type(user)
+    locked = db.session.execute(
+        select(model).where(model.id == user.id).with_for_update()
+    ).scalar_one()
     balance = locked.coins or 0
     if balance < amount:
         raise CoinError('Insufficient coins.')
@@ -128,19 +126,28 @@ def transfer_coins(from_user, to_user, amount, reason='transfer'):
     `to_user` may be None for escrow-style holds: coins are deducted from
     `from_user` and held outside circulation until a settlement step.
     """
-    locked_from = deduct_coins(from_user, amount, reason)
-    if to_user is not None:
-        # Lock the receiver too, so concurrent updates can't race.
-        locked_to = to_user
-        try:
-            locked_to = db.session.query(type(to_user)).filter(
-                type(to_user).id == to_user.id
-            ).with_for_update(nowait=False).one()
-        except Exception:  # SQLite fallback
-            locked_to = db.session.get(type(to_user), to_user.id)
-        locked_to.coins = (locked_to.coins or 0) + amount
-        if locked_to is not to_user:
-            to_user.coins = locked_to.coins
+    if amount is None or amount <= 0:
+        raise CoinError('Invalid transfer amount.')
+    if to_user is None:
+        deduct_coins(from_user, amount, reason)
+        return
+
+    from_model = from_user._get_current_object().__class__ \
+        if hasattr(from_user, '_get_current_object') else type(from_user)
+    ids = sorted((from_user.id, to_user.id))
+    locked = db.session.execute(
+        select(from_model).where(from_model.id.in_(ids))
+        .order_by(from_model.id).with_for_update()
+    ).scalars().all()
+    users = {user.id: user for user in locked}
+    locked_from = users[from_user.id]
+    locked_to = users[to_user.id]
+    if (locked_from.coins or 0) < amount:
+        raise CoinError('Insufficient coins.')
+    locked_from.coins -= amount
+    locked_to.coins = (locked_to.coins or 0) + amount
+    from_user.coins = locked_from.coins
+    to_user.coins = locked_to.coins
 
 
 def market_treasury_id():

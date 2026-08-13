@@ -7,6 +7,14 @@ from app.extensions import db
 # -------------------------------
 class Transaction(db.Model):
     __tablename__ = 'transactions'
+    __table_args__ = (
+        db.CheckConstraint("type IN ('credit', 'debit')",
+                           name='ck_transactions_type'),
+        db.CheckConstraint(
+            "(type = 'credit' AND amount >= 0) OR "
+            "(type = 'debit' AND amount <= 0)",
+            name='ck_transactions_amount_direction'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))

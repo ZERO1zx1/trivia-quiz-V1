@@ -78,7 +78,8 @@ class PremiumCog(commands.Cog):
             embed.add_field(name="📦 500+ Box Storage", value="Keep all your loot")
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    async def open_boxes_callback(self, interaction: discord.Interaction):
+    async def open_boxes_callback(self, interaction: discord.Interaction,
+                                  box_id: int):
         # Товчлуурыг шууд идэвхгүй болгох
         for child in interaction.message.components[0].children:
             child.disabled = True

@@ -82,8 +82,9 @@ class TwoFactorAuth(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, unique=True)
     is_enabled = db.Column(db.Boolean, default=False)
     secret_key = db.Column(db.String(100), nullable=True)  # canonical field
+    auth_factor_id = db.Column(db.Uuid(as_uuid=True), nullable=True, unique=True)
     backup_codes = db.Column(db.Text, default='')  # JSON array of backup codes
-    method = db.Column(db.String(20), default='app')  # app (TOTP), email
+    method = db.Column(db.String(20), default='app')  # app, supabase_totp
     enabled_at = db.Column(db.DateTime, nullable=True)
     updated_at = db.Column(db.DateTime, nullable=True)  # canonical field
 
@@ -108,6 +109,9 @@ class Session(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     session_token = db.Column(db.String(500), unique=True, nullable=False)
+    auth_user_id = db.Column(db.Uuid(as_uuid=True), nullable=True, index=True)
+    access_token_ciphertext = db.Column(db.Text, nullable=True)
+    refresh_token_ciphertext = db.Column(db.Text, nullable=True)
     device_info = db.Column(db.String(500))
     ip_address = db.Column(db.String(45))
     is_active = db.Column(db.Boolean, default=True)

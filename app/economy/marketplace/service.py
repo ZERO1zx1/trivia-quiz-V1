@@ -6,8 +6,9 @@ inside a single transaction with FOR UPDATE row locks (FIX-005..FIX-008).
 from datetime import datetime, timedelta
 
 from flask import current_app
+from sqlalchemy import select
 
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.marketplace import (MarketplaceListing, MarketplaceTransaction)
 from app.models.shop import UserInventory
 from app.economy.inventory.transactions import (
@@ -67,7 +68,7 @@ def create_listing(seller, item_id, price, duration_hours=None):
         rarity=inventory_item.item.rarity if hasattr(inventory_item.item, 'rarity') else 'common',
         quantity=1,
         duration_hours=hours,
-        expires_at=datetime.utcnow() + timedelta(hours=hours),
+        expires_at=utcnow() + timedelta(hours=hours),
     )
     db.session.add(listing)
     db.session.flush()
@@ -80,6 +81,10 @@ def purchase_listing(buyer, listing):
     Idempotent against the listing's state: re-purchase of the same listing
     is rejected by the status check at the start.
     """
+    listing = db.session.execute(
+        select(MarketplaceListing).where(
+            MarketplaceListing.id == listing.id).with_for_update()
+    ).scalar_one()
     if listing.status != 'active':
         raise EconomyError('This listing is no longer available.')
     if listing.is_expired():
@@ -90,7 +95,15 @@ def purchase_listing(buyer, listing):
     if buyer.coins < listing.price:
         raise EconomyError('Not enough coins.')
 
-    seller = db.session.get(type(buyer), listing.seller_id)
+    from app.models.user import User
+    locked_users = db.session.execute(
+        select(User).where(User.id.in_(
+            sorted((buyer.id, listing.seller_id))))
+        .order_by(User.id).with_for_update()
+    ).scalars().all()
+    users = {user.id: user for user in locked_users}
+    locked_buyer = users[buyer.id]
+    seller = users[listing.seller_id]
 
     tax = int(listing.price * LISTING_TAX_RATE)
     net_amount = listing.price - tax
@@ -98,22 +111,26 @@ def purchase_listing(buyer, listing):
     # Move coins with row locks on both users.
     # The buyer pays the full price; the seller receives the net amount,
     # and the tax is withdrawn from circulation.
-    deduct_coins(buyer, listing.price,
+    deduct_coins(locked_buyer, listing.price,
                  reason=f'marketplace purchase #{listing.id}')
     seller.coins = (seller.coins or 0) + net_amount
     tax_transfer(tax)
 
     # Resolve the reserved inventory item and transfer it to the buyer.
-    inventory_item = UserInventory.query.filter_by(
-        user_id=listing.seller_id, item_id=listing.item_id).first()
+    inventory_item = db.session.execute(
+        select(UserInventory).where(
+            UserInventory.user_id == listing.seller_id,
+            UserInventory.item_id == listing.item_id,
+        ).with_for_update()
+    ).scalar_one_or_none()
     if inventory_item is None or inventory_item.locked_quantity < 1:
         raise EconomyError(
             'The sold item could not be located in inventory. '
             'Please contact support.')
-    transfer_inventory(inventory_item, buyer, 1)
+    transfer_inventory(inventory_item, locked_buyer, 1)
 
     listing.status = 'sold'
-    listing.sold_at = datetime.utcnow()
+    listing.sold_at = utcnow()
     listing.buyer_id = buyer.id
 
     db.session.add(MarketplaceTransaction(
@@ -161,7 +178,7 @@ def expire_listings_job(app):
         try:
             expired = MarketplaceListing.query.filter(
                 MarketplaceListing.status == 'active',
-                MarketplaceListing.expires_at < datetime.utcnow(),
+                MarketplaceListing.expires_at < utcnow(),
             ).all()
             for listing in expired:
                 expire_listing(listing)
@@ -184,7 +201,7 @@ def active_listings_query(item_type='all', sort_by='newest'):
         MarketplaceListing.status == 'active',
         db.or_(
             MarketplaceListing.expires_at.is_(None),
-            MarketplaceListing.expires_at >= datetime.utcnow(),
+            MarketplaceListing.expires_at >= utcnow(),
         ),
     )
     if item_type != 'all':

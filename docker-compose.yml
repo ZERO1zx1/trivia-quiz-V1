@@ -1,10 +1,8 @@
 # TriviaVerse Docker Compose
 # Full stack: App + PostgreSQL + Redis + Nginx
-version: '3.8'
-
 services:
   db:
-    image: postgres:15
+    image: postgres:17-alpine
     container_name: triviaverse_db
     restart: unless-stopped
     environment:
@@ -44,22 +42,24 @@ services:
     expose:
       - "5000"
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      # FIX-018: run as production, not development, and require a real
-      # SECRET_KEY via the .env file (config.py refuses weak values in
-      # production).
-      - FLASK_ENV=production
-      - APP_ENV=production
-      - DATABASE_URL=postgresql://triviaverse@db:5432/triviaverse
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY}
+      FLASK_ENV: production
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must include the Docker database password}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      SUPABASE_URL: ${SUPABASE_URL:?SUPABASE_URL is required}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?SUPABASE_PUBLISHABLE_KEY is required}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
+      SOCKETIO_CORS_ALLOWED_ORIGINS: ${SOCKETIO_CORS_ALLOWED_ORIGINS:-http://localhost}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: ["python", "run.py"]
+    command: ["gunicorn", "--config", "gunicorn.conf.py", "run:app"]
 
   nginx:
     image: nginx:alpine

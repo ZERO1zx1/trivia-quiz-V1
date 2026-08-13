@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, render_template
+from flask import Blueprint, current_app, jsonify, request, render_template
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.user import User, DiscordAccount, Friend
@@ -230,14 +230,22 @@ def add_xp():
 
 @api_bp.route('/discord/sync-role', methods=['POST'])
 def discord_sync_role():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     level = data.get('level')
+    if not discord_id or not isinstance(level, int) or level < 1:
+        return jsonify({'error': 'discord_id and a positive level are required'}), 400
     try:
         import requests as req
-        req.post(f"http://localhost:9600/sync-role", json={"discord_id": discord_id, "level": level})
+        response = req.post(
+            "http://localhost:9600/sync-role",
+            json={"discord_id": discord_id, "level": level},
+            timeout=(2, 5),
+        )
+        response.raise_for_status()
         return jsonify({'success': True})
-    except:
+    except req.RequestException:
+        current_app.logger.exception('Discord role synchronization failed')
         return jsonify({'error': 'Failed'}), 500
 
 # ==========================================

@@ -1,6 +1,6 @@
 from .user import User, DiscordAccount, Friend
 from .question import Question, Answer, Category
-from .room import Room, RoomPlayer, Match, Score
+from .room import GameSnapshot, Room, RoomPlayer, Match, Score
 from .economy import Transaction, LeaderboardEntry
 from .shop import ShopItem, UserInventory
 from .notification import Notification
@@ -35,7 +35,7 @@ __all__ = [
     # Core models
     'User', 'DiscordAccount', 'Friend',
     'Question', 'Answer', 'Category',
-    'Room', 'RoomPlayer', 'Match', 'Score',
+    'Room', 'RoomPlayer', 'Match', 'Score', 'GameSnapshot',
     'Transaction', 'LeaderboardEntry',
     'ShopItem', 'UserInventory',
     'Notification',

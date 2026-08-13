@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from app.extensions import db
-from app.models.shop import UserInventory
+from app.models.shop import ShopItem, UserInventory
 
 inventory_bp = Blueprint('inventory', __name__)
 

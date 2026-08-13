@@ -3,6 +3,8 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 from flask import Flask, request, session, redirect, url_for, flash, render_template
+from sqlalchemy import text
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import config
 from .extensions import db, socketio
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -13,6 +15,8 @@ from flask_babel import Babel, _
 def create_app(config_name='default'):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
 
     # FIX-012: production configuration sanity check (strong SECRET_KEY).
     cfg = config[config_name]()
@@ -43,9 +47,8 @@ def create_app(config_name='default'):
     app.jinja_env.globals['_'] = _
 
     # ================= LOG SETUP =================
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    if not app.debug:
+    if not app.debug and app.config.get('LOG_TO_FILE'):
+        os.makedirs('logs', exist_ok=True)
         file_handler = RotatingFileHandler('logs/triviaverse.log', maxBytes=10240, backupCount=10)
         file_handler.setFormatter(logging.Formatter(
             '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
@@ -53,15 +56,21 @@ def create_app(config_name='default'):
         file_handler.setLevel(logging.INFO)
         app.logger.addHandler(file_handler)
 
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.INFO)
-    app.logger.addHandler(stream_handler)
+    # The factory is called repeatedly by tests and CLI commands. Reusing a
+    # tagged stream handler prevents duplicate log lines and handler leaks.
+    if not any(getattr(handler, '_triviaverse_stream', False)
+               for handler in app.logger.handlers):
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler._triviaverse_stream = True
+        app.logger.addHandler(stream_handler)
     app.logger.setLevel(logging.INFO)
     app.logger.info('TriviaVerse Enterprise v3.0 startup')
 
     # ================= EXTENSIONS INIT =================
     async_mode = app.config.get('SOCKETIO_ASYNC_MODE', 'threading')
-    cors_origins = app.config.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
+    cors_setting = app.config.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '')
+    cors_origins = [origin.strip() for origin in cors_setting.split(',') if origin.strip()]
 
     from app.extensions import db, migrate, login_manager, socketio, csrf, cors, limiter
     db.init_app(app)
@@ -77,10 +86,12 @@ def create_app(config_name='default'):
     init_security_headers(app)
 
     # ================= SCHEDULER =================
-    scheduler = BackgroundScheduler()
-    register_jobs(scheduler, app)
-    scheduler.start()
-    app.scheduler = scheduler
+    app.scheduler = None
+    if app.config.get('ENABLE_SCHEDULER') and not app.testing:
+        scheduler = BackgroundScheduler(timezone='UTC')
+        register_jobs(scheduler, app)
+        scheduler.start()
+        app.scheduler = scheduler
 
     # ================= BAN CHECK =================
     @app.before_request
@@ -110,16 +121,7 @@ def create_app(config_name='default'):
     register_guild_events(socketio)
 
     # ================= DATABASE & SEEDING + OWNER SETUP =================
-    with app.app_context():
-        db.create_all()
-        # FIX-022: apply idempotent SQL migrations (e.g. the unique
-        # auction-bidder constraint and transaction ledger columns) so that
-        # existing Postgres deployments are brought in sync after a deploy.
-        # Enabled explicitly with RUN_DB_MIGRATIONS=1; SQLite dev/test
-        # environments get the same columns from db.create_all().
-        from app.migrations import run_sql_migrations
-        if os.environ.get('RUN_DB_MIGRATIONS') == '1':
-            run_sql_migrations(app)
+    def seed_reference_data():
         _seed_categories()
         _seed_achievements()
         _seed_regions()
@@ -151,11 +153,27 @@ def create_app(config_name='default'):
             db.session.commit()
             app.logger.info(f"User {user.username} set as owner.")
 
+    # Disposable local/test databases remain convenient, while production is
+    # migration-only and therefore deterministic across restarts.
+    if app.config.get('AUTO_INIT_DATABASE'):
+        with app.app_context():
+            db.create_all()
+            seed_reference_data()
+
+    @app.cli.command('seed-data')
+    def seed_data_command():
+        """Seed idempotent reference data after a versioned migration."""
+        seed_reference_data()
+        app.logger.info('Reference data seeded.')
+
     # ================= FLASK-LOGIN =================
     from app.models.user import User
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        try:
+            return db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -181,8 +199,31 @@ def create_app(config_name='default'):
 
     # ================= HEALTH CHECK (FIX-016) =================
     @app.route('/health')
-    def health_check():
+    @app.route('/health/live')
+    def health_live():
         return {'status': 'ok', 'service': 'triviaverse'}, 200
+
+    @app.route('/health/ready')
+    def health_ready():
+        try:
+            db.session.execute(text('SELECT 1'))
+            table_name = 'alembic_version'
+            if db.engine.dialect.name == 'postgresql':
+                present = db.session.execute(text(
+                    "SELECT to_regclass('app.alembic_version') IS NOT NULL"
+                )).scalar()
+            else:
+                present = db.session.execute(text(
+                    "SELECT COUNT(*) FROM sqlite_master "
+                    "WHERE type='table' AND name=:table_name"
+                ), {'table_name': table_name}).scalar() > 0
+            if not present and not app.testing:
+                return {'status': 'not_ready', 'reason': 'schema_not_migrated'}, 503
+            return {'status': 'ready', 'database': 'ok'}, 200
+        except Exception:
+            db.session.rollback()
+            app.logger.exception('Readiness database check failed')
+            return {'status': 'not_ready', 'reason': 'database_unavailable'}, 503
 
     # ================= ERROR HANDLERS =================
     @app.errorhandler(404)

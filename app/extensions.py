@@ -9,9 +9,41 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_cors import CORS
 from flask_babel import Babel
+from datetime import datetime, timezone
+from sqlalchemy import DateTime
+from sqlalchemy.types import TypeDecorator
+
+
+class UTCDateTime(TypeDecorator):
+    """Store timestamps as TIMESTAMPTZ while bridging legacy naive UTC code."""
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+
+def utcnow():
+    """Legacy-compatible UTC clock without deprecated ``utcnow()`` calls.
+
+    The ORM type attaches UTC before binding and PostgreSQL stores
+    TIMESTAMPTZ. Returning naive UTC here keeps older Python comparisons safe
+    until every in-memory call site has been converted to aware datetimes.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    def process_result_value(self, value, dialect):
+        # Legacy routes currently compare against datetime.utcnow(). Return a
+        # normalized naive UTC value until those call sites are all migrated.
+        if value is not None and value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
 
 # Database & ORM
 db = SQLAlchemy()
+db.DateTime = UTCDateTime
 migrate = Migrate()
 
 # Authentication

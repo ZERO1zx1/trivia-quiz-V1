@@ -35,6 +35,10 @@ class ChatChannel(db.Model):
 
 class ChatMember(db.Model):
     __tablename__ = 'chat_members'
+    __table_args__ = (
+        db.UniqueConstraint('channel_id', 'user_id',
+                            name='uq_chat_member_channel_user'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     channel_id = db.Column(db.Integer, db.ForeignKey('chat_channels.id'), nullable=False)

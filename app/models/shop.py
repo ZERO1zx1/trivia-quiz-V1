@@ -6,6 +6,11 @@ from app.extensions import db
 # -------------------------------
 class ShopItem(db.Model):
     __tablename__ = 'shop_items'
+    __table_args__ = (
+        db.CheckConstraint('price >= 0', name='ck_shop_items_price'),
+        db.CheckConstraint('base_price >= 0', name='ck_shop_items_base_price'),
+        db.CheckConstraint('stock >= -1', name='ck_shop_items_stock'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -43,6 +48,16 @@ class ShopItem(db.Model):
 # -------------------------------
 class UserInventory(db.Model):
     __tablename__ = 'user_inventory'
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'item_id',
+                            name='uq_user_inventory_user_item'),
+        db.CheckConstraint('quantity >= 0',
+                           name='ck_user_inventory_quantity'),
+        db.CheckConstraint('locked_quantity >= 0',
+                           name='ck_user_inventory_locked_nonnegative'),
+        db.CheckConstraint('locked_quantity <= quantity',
+                           name='ck_user_inventory_locked_lte_quantity'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

@@ -1,10 +1,17 @@
 """Marketplace System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class MarketplaceListing(db.Model):
     __tablename__ = 'marketplace_listings'
+    __table_args__ = (
+        db.CheckConstraint('price > 0', name='ck_listing_price_positive'),
+        db.CheckConstraint('quantity > 0', name='ck_listing_quantity_positive'),
+        db.CheckConstraint(
+            "status IN ('active', 'sold', 'expired', 'cancelled')",
+            name='ck_listing_status'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     seller_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -20,7 +27,7 @@ class MarketplaceListing(db.Model):
     status = db.Column(db.String(20), default='active')  # active, sold, expired, cancelled
     quantity = db.Column(db.Integer, default=1)
     duration_hours = db.Column(db.Integer, default=72)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     expires_at = db.Column(db.DateTime)
     sold_at = db.Column(db.DateTime)
 
@@ -30,7 +37,7 @@ class MarketplaceListing(db.Model):
         """True when the listing window has closed and status is still active."""
         from datetime import datetime
         return self.status == 'active' and self.expires_at is not None \
-            and self.expires_at < datetime.utcnow()
+            and self.expires_at < utcnow()
 
     def to_dict(self):
         """Public DTO — never exposes buyer/transaction data."""
@@ -54,6 +61,15 @@ class MarketplaceListing(db.Model):
 
 class MarketplaceTransaction(db.Model):
     __tablename__ = 'marketplace_transactions'
+    __table_args__ = (
+        db.UniqueConstraint('listing_id', name='uq_market_tx_listing'),
+        db.CheckConstraint('price > 0', name='ck_market_tx_price'),
+        db.CheckConstraint('tax >= 0', name='ck_market_tx_tax'),
+        db.CheckConstraint('net_seller_amount >= 0',
+                           name='ck_market_tx_net'),
+        db.CheckConstraint('tax + net_seller_amount = price',
+                           name='ck_market_tx_balanced'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     listing_id = db.Column(db.Integer, db.ForeignKey('marketplace_listings.id'), nullable=False)
@@ -62,7 +78,7 @@ class MarketplaceTransaction(db.Model):
     price = db.Column(db.Integer, nullable=False)
     tax = db.Column(db.Integer, default=0)  # marketplace tax (e.g., 5%)
     net_seller_amount = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     buyer = db.relationship('User', foreign_keys=[buyer_id])
     seller = db.relationship('User', foreign_keys=[seller_id])
@@ -86,7 +102,7 @@ class Auction(db.Model):
     status = db.Column(db.String(20), default='active')  # active, ended, cancelled
     inventory_item_id = db.Column(db.Integer, nullable=True)  # UserInventory row held in escrow
     duration_hours = db.Column(db.Integer, default=24)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     ends_at = db.Column(db.DateTime)
     winner_id = db.Column(db.Integer, nullable=True)
     final_price = db.Column(db.Integer, nullable=True)
@@ -106,7 +122,7 @@ class AuctionBid(db.Model):
     bidder_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     amount = db.Column(db.Integer, nullable=False)
     refunded = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     __table_args__ = (
         db.UniqueConstraint('auction_id', 'bidder_id',

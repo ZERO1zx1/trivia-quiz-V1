@@ -2,14 +2,48 @@
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 load_dotenv()
 
 
+def _database_url():
+    """Return a SQLAlchemy-compatible URL without logging credentials."""
+    value = os.environ.get('DATABASE_URL') or 'sqlite:///triviaverse.db'
+    if value.startswith('postgres://'):
+        value = 'postgresql://' + value[len('postgres://'):]
+    if not value.startswith(('postgresql://', 'postgresql+psycopg2://')):
+        return value
+
+    # Supabase requires TLS, while local/CI PostgreSQL commonly has TLS
+    # disabled. Allow an explicit override and otherwise enforce TLS only for
+    # Supabase connection hosts.
+    parts = urlsplit(value)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    configured_sslmode = os.environ.get('DATABASE_SSLMODE')
+    hostname = (parts.hostname or '').lower()
+    if configured_sslmode:
+        query.setdefault('sslmode', configured_sslmode)
+    elif hostname.endswith('.supabase.co'):
+        query.setdefault('sslmode', 'require')
+    return urlunsplit((parts.scheme, parts.netloc, parts.path,
+                       urlencode(query), parts.fragment))
+
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'triviaverse-dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///triviaverse.db'
+    SQLALCHEMY_DATABASE_URI = _database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+    if SQLALCHEMY_DATABASE_URI.startswith('postgresql'):
+        SQLALCHEMY_ENGINE_OPTIONS['connect_args'] = {
+            # Keep application tables out of the Data API exposed `public`
+            # schema while making unqualified ORM queries deterministic.
+            'options': '-c timezone=UTC -c search_path=app,public',
+        }
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'triviaverse-jwt-secret'
 
     # Trust proxy headers from the reverse proxy (Nginx) so real client IPs
@@ -25,8 +59,20 @@ class Config:
 
     # SocketIO — default to the same origins as the app to avoid the
     # permissive wildcard in production (FIX-011).
-    SOCKETIO_ASYNC_MODE = 'threading'
-    SOCKETIO_CORS_ALLOWED_ORIGINS = os.environ.get('SOCKETIO_CORS_ALLOWED_ORIGINS', '*')
+    SOCKETIO_ASYNC_MODE = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+    SOCKETIO_CORS_ALLOWED_ORIGINS = os.environ.get(
+        'SOCKETIO_CORS_ALLOWED_ORIGINS', 'http://localhost:5000')
+
+    # Supabase public browser configuration. The secret key and database URLs
+    # are deliberately server-only and are never injected into templates.
+    SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
+    SUPABASE_PUBLISHABLE_KEY = os.environ.get('SUPABASE_PUBLISHABLE_KEY', '')
+    SUPABASE_SECRET_KEY = os.environ.get('SUPABASE_SECRET_KEY', '')
+    SUPABASE_AUTH_ENABLED = os.environ.get('SUPABASE_AUTH_ENABLED') == '1'
+    MIGRATION_DATABASE_URL = os.environ.get('MIGRATION_DATABASE_URL', '')
+    SUPABASE_STORAGE_AVATAR_BUCKET = 'avatars'
+    SUPABASE_STORAGE_BANNER_BUCKET = 'banners'
+    SUPABASE_HTTP_TIMEOUT = float(os.environ.get('SUPABASE_HTTP_TIMEOUT', '10'))
 
     # Game settings
     QUESTION_TIME_LIMIT = 20
@@ -57,6 +103,12 @@ class Config:
     # Rate limiting
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI') or 'memory://'
     RATELIMIT_HEADERS_ENABLED = True
+
+    # Runtime lifecycle. Schema and seed changes are explicit commands in
+    # production; tests and local development can opt into disposable setup.
+    AUTO_INIT_DATABASE = os.environ.get('AUTO_INIT_DATABASE') == '1'
+    ENABLE_SCHEDULER = os.environ.get('ENABLE_SCHEDULER') == '1'
+    LOG_TO_FILE = os.environ.get('LOG_TO_FILE') == '1'
 
     # Error webhook
     DISCORD_ERROR_WEBHOOK = os.environ.get('DISCORD_ERROR_WEBHOOK') or ''
@@ -268,6 +320,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     SQLALCHEMY_ECHO = False
+    AUTO_INIT_DATABASE = os.environ.get('AUTO_INIT_DATABASE', '1') == '1'
 
 
 class ProductionConfig(Config):
@@ -276,7 +329,12 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)
+    REMEMBER_COOKIE_SECURE = True
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = 'Lax'
     PREFERRED_URL_SCHEME = 'https'
+    AUTO_INIT_DATABASE = False
 
     # FIX-012: refuse to boot without an explicitly configured secret in
     # production — the static dev fallback is a session-hijacking vector.
@@ -295,6 +353,19 @@ class ProductionConfig(Config):
                     'Production requires a strong SECRET_KEY (at least 32 '
                     'characters) set via environment. Generate one with: '
                     'python -c "import secrets; print(secrets.token_hex(32))"')
+            if not self.SQLALCHEMY_DATABASE_URI.startswith('postgresql'):
+                raise RuntimeError('Production requires a PostgreSQL DATABASE_URL.')
+            if not self.SUPABASE_URL or not self.SUPABASE_PUBLISHABLE_KEY:
+                raise RuntimeError(
+                    'Production requires SUPABASE_URL and '
+                    'SUPABASE_PUBLISHABLE_KEY.')
+            if not self.SUPABASE_SECRET_KEY:
+                raise RuntimeError('Production requires SUPABASE_SECRET_KEY.')
+            if not self.SUPABASE_AUTH_ENABLED:
+                raise RuntimeError('Production requires SUPABASE_AUTH_ENABLED=1.')
+            if self.SOCKETIO_CORS_ALLOWED_ORIGINS in ('', '*'):
+                raise RuntimeError(
+                    'Production requires explicit SOCKETIO_CORS_ALLOWED_ORIGINS.')
 
 
 PRODUCTION_CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
@@ -302,8 +373,14 @@ PRODUCTION_CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '')
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        'TEST_DATABASE_URL', 'sqlite:///:memory:')
     WTF_CSRF_ENABLED = False
+    # Pytest owns schema setup/teardown. Avoid creating the ~100-table schema
+    # twice for every test through both the app factory and its fixture.
+    AUTO_INIT_DATABASE = False
+    ENABLE_SCHEDULER = False
+    MAIL_SUPPRESS_SEND = True
 
 
 config = {

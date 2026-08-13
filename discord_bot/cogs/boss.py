@@ -4,6 +4,7 @@ from discord import app_commands
 import asyncio
 from datetime import datetime, timedelta
 import random
+import os
 
 class BossCog(commands.Cog):
     def __init__(self, bot):
@@ -30,7 +31,9 @@ class BossCog(commands.Cog):
                     self.active_boss = data
                     self.player_cooldowns = {}
                     self.player_damage = {}
-                    channel = self.bot.get_channel(YOUR_CHANNEL_ID)  # сувгийн ID
+                    channel_id = os.getenv('DISCORD_BOSS_CHANNEL_ID')
+                    channel = self.bot.get_channel(int(channel_id)) \
+                        if channel_id and channel_id.isdigit() else None
                     if channel:
                         await channel.send(f"🐉 **{data['name']}** сэрлээ! (HP: {data['max_hp']:,})\n`/attack` ашиглан тулалдацгаа!")
             await asyncio.sleep(86400)  # дахин хүлээх

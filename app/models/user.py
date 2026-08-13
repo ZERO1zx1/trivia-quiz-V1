@@ -2,7 +2,7 @@
 from datetime import datetime, date
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app.extensions import db
+from app.extensions import db, utcnow
 import jwt
 import random
 import string
@@ -14,8 +14,17 @@ from datetime import datetime, timedelta
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
+    __table_args__ = (
+        db.CheckConstraint('coins >= 0', name='ck_users_coins_nonnegative'),
+        db.CheckConstraint('xp >= 0', name='ck_users_xp_nonnegative'),
+        db.CheckConstraint('level >= 1', name='ck_users_level_positive'),
+        db.CheckConstraint('bank_balance >= 0',
+                           name='ck_users_bank_balance_nonnegative'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
+    auth_user_id = db.Column(db.Uuid(as_uuid=True), unique=True, nullable=True,
+                             index=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256))
@@ -38,8 +47,8 @@ class User(UserMixin, db.Model):
     is_verified = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, default=False)
     is_banned = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_seen = db.Column(db.DateTime, default=utcnow)
     last_daily_reward = db.Column(db.DateTime)
     last_fortune_spin = db.Column(db.DateTime, nullable=True)
     language = db.Column(db.String(5), default='en')   # 'en', 'mn'
@@ -124,7 +133,8 @@ class User(UserMixin, db.Model):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        return bool(self.password_hash) and check_password_hash(
+            self.password_hash, password)
 
     def get_reset_password_token(self, expires_in=600):
         return jwt.encode(
@@ -139,17 +149,18 @@ class User(UserMixin, db.Model):
                             algorithms=['HS256'])['reset_password']
         except:
             return None
-        return User.query.get(id)
+        return db.session.get(User, id)
 
     def generate_otp(self):
         self.otp_code = str(random.randint(100000, 999999))
-        self.otp_expiry = datetime.utcnow() + timedelta(minutes=10)
+        self.otp_expiry = utcnow() + timedelta(minutes=10)
+        return self.otp_code
 
     def verify_otp(self, code):
         """Verify OTP code and check expiry."""
         if not self.otp_code or not self.otp_expiry:
             return False
-        if datetime.utcnow() > self.otp_expiry:
+        if utcnow() > self.otp_expiry:
             return False
         if self.otp_code == code:
             self.otp_code = None
@@ -281,7 +292,7 @@ class Friend(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     friend_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     status = db.Column(db.String(20), default='pending')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', foreign_keys=[user_id], back_populates='sent_friends')
     friend = db.relationship('User', foreign_keys=[friend_id], back_populates='received_friends')

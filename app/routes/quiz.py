@@ -1,5 +1,5 @@
 """Quiz Routes (Chapter 3, 14, 16)"""
-from flask import Blueprint, render_template, jsonify, request, flash, redirect, url_for
+from flask import Blueprint, current_app, render_template, jsonify, request, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app.extensions import db
 from app.models.question import Category, Question, Answer

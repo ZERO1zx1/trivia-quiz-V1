@@ -56,6 +56,25 @@ class Room(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
+
+class GameSnapshot(db.Model):
+    """Durable authoritative state for restart/reconnect recovery."""
+    __tablename__ = 'game_snapshots'
+
+    id = db.Column(db.Integer, primary_key=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'),
+                        nullable=False, unique=True, index=True)
+    room_code = db.Column(db.String(10), nullable=False, unique=True,
+                          index=True)
+    version = db.Column(db.Integer, nullable=False, default=1)
+    state = db.Column(db.JSON, nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    updated_at = db.Column(db.DateTime(timezone=True),
+                           default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+
+    room = db.relationship('Room')
+
     def __repr__(self):
         return f'<Room {self.code}>'
 

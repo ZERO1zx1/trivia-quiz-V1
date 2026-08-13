@@ -1,0 +1,24 @@
+{
+  "name": "triviaverse-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "build": "npm run build:supabase && npm run build:socketio",
+    "build:supabase": "esbuild frontend/supabase.js --bundle --format=iife --global-name=TriviaSupabase --minify --sourcemap --outfile=app/static/js/vendor/supabase.js",
+    "build:socketio": "esbuild frontend/socketio.js --bundle --format=iife --global-name=TriviaSocket --minify --sourcemap --outfile=app/static/js/vendor/socket.io.js",
+    "check": "eslint frontend/*.js app/static/js/chat-realtime.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.112.3",
+    "socket.io-client": "4.8.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.35.0",
+    "esbuild": "0.25.9",
+    "eslint": "9.35.0"
+  }
+}
