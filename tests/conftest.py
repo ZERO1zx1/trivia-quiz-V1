@@ -10,7 +10,7 @@ from app.extensions import db as _db
 from app.models.user import User
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def app():
     application = create_app('testing')
     application.config['SERVER_NAME'] = 'localhost'

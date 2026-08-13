@@ -1,4 +1,4 @@
-name: TriviaVerse CI/CD
+name: TriviaVerse CI
 
 on:
   push:
@@ -7,17 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  quality-and-test:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:14
+        image: postgres:17
         env:
           POSTGRES_USER: trivia
-          POSTGRES_PASSWORD: trivia123
+          POSTGRES_PASSWORD: ci-only-password
           POSTGRES_DB: triviaverse_test
         ports:
-          - 5438:5432
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -35,34 +35,59 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest psycopg2-binary
+          pip install -r requirements.lock
+          pip install pytest pytest-cov ruff bandit pip-audit
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install and verify frontend
+        run: |
+          npm ci
+          npm run check
+          npm audit --audit-level=high
 
       - name: Syntax check (all app code)
         run: |
           python -m compileall -q app config.py run.py
 
-      - name: Run tests
+      - name: Python quality and dependency security
+        run: |
+          ruff check --select E9,F63,F7,F82 app discord_bot config.py run.py
+          bandit -q -r app discord_bot -x tests -ll
+          pip-audit -r requirements.lock
+
+      - name: Apply migrations and verify rollback/forward
         env:
-          DATABASE_URL: postgresql://trivia:trivia123@localhost:5438/triviaverse_test
+          DATABASE_URL: postgresql://trivia:ci-only-password@localhost:5432/triviaverse_test
+          AUTO_INIT_DATABASE: '0'
+        run: |
+          flask --app run.py db upgrade
+          flask --app run.py db downgrade 15686c108f32
+          flask --app run.py db upgrade
+
+      - name: PostgreSQL 17 integration smoke test
+        env:
+          DATABASE_URL: postgresql://trivia:ci-only-password@localhost:5432/triviaverse_test
+          TEST_DATABASE_URL: postgresql://trivia:ci-only-password@localhost:5432/triviaverse_test
           SECRET_KEY: ci-test-secret-key-not-for-production
           FLASK_ENV: testing
+          AUTO_INIT_DATABASE: '0'
+        run: python -m pytest tests/test_postgres_integration.py -q --tb=short
+
+      - name: Run tests
+        env:
+          SECRET_KEY: ci-test-secret-key-not-for-production
+          FLASK_ENV: testing
+          AUTO_INIT_DATABASE: '0'
         run: |
-          # FIX-017: test failures must fail the pipeline — never hide them.
-          python -m pytest tests/ -q --tb=short
+          python -m pytest tests/ --cov=app --cov-report=term-missing --cov-fail-under=60 -q --tb=short
+
+      - name: Validate Compose
+        run: docker compose config --quiet
 
       - name: Build Docker image (validates Dockerfile)
         run: docker build -t triviaverse:${{ github.sha }} .
-
-  deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: docker build -t triviaverse:${{ github.sha }} .
-
-      - name: Deploy notification
-        run: echo "Deployment to production would happen here"

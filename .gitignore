@@ -25,6 +25,9 @@ logs/
 # Database
 instance/
 *.db
+backups/
+migration-reports/
+app/static/js/vendor/
 
 # Uploads
 static/uploads/
@@ -41,6 +44,7 @@ Thumbs.db
 # Testing
 .pytest_cache/
 .coverage
+coverage.json
 htmlcov/
 
 # Node

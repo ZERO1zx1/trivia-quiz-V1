@@ -1,7 +1,7 @@
 # 🎮 TriviaVerse — Enterprise Multiplayer Trivia Engine
 
 ![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-3.0-lightgrey.svg)
+![Flask](https://img.shields.io/badge/Flask-3.1-lightgrey.svg)
 ![Discord.py](https://img.shields.io/badge/Discord.py-2.6+-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
@@ -35,11 +35,12 @@
 | Төрөл | Технологи |
 | --- | --- |
 | **Backend** | Python 3.12+, Flask, Flask-SocketIO |
-| **Database** | PostgreSQL 14+, Redis (Cache/Queue) |
-| **Frontend** | Jinja2, Glassmorphism UI, Vanilla JS |
+| **Database** | Supabase PostgreSQL 17 (`app` private schema) |
+| **Auth / Files / Events** | Supabase Auth, Storage, Realtime |
+| **Frontend** | Jinja2, Vanilla JS, pinned npm bundles |
 | **Bot System** | discord.py 2.6+ |
 | **AI Integration**| OpenAI API (GPT-4), Gemini, Claude |
-| **DevOps** | Docker, Nginx, GitHub Actions, Prometheus, Grafana |
+| **DevOps** | Docker, Render Blueprint, GitHub Actions |
 
 ---
 
@@ -61,7 +62,9 @@
 
 ## 📂 Төслийн бүтэц (Project Structure)
 
-Төслийн дэлгэрэнгүй бүтэц болон техникийн баримт бичгийг [DOCUMENTATION.md](./DOCUMENTATION.md) файлаас харна уу.
+Төслийн дэлгэрэнгүй бүтэц болон техникийн баримт бичгийг
+[DOCUMENTATION.md](./docs/DOCUMENTATION.md), production ажиллуулах зааврыг
+[SUPABASE_RENDER_MN.md](./docs/SUPABASE_RENDER_MN.md)-ээс харна уу.
 
 ---
 
@@ -73,16 +76,52 @@ git clone https://github.com/ZERO1zx1/trivia-quiz-V1.git
 cd trivia-quiz-V1
 ```
 
-### 2. Docker ашиглан ажиллуулах (Санал болгож буй)
+### 2. Environment бэлтгэх
+
 ```bash
-docker-compose up --build
+cp .env.example .env
 ```
 
-### 3. Гараар ажиллуулах
-1. `.env` файлыг тохируулах (Жишээг `.env.example`-аас харна уу).
-2. `pip install -r requirements.txt`
-3. `python run.py` (Вэб сервер)
-4. `python discord_bot/bot.py` (Discord бот)
+`.env` доторх secret болон Supabase connection-уудыг бөглөнө. Secret-ийг Git-д
+commit хийж болохгүй.
+
+### 3. Docker ашиглан ажиллуулах (Санал болгож буй)
+
+```bash
+docker compose up --build
+```
+
+### 4. Гараар ажиллуулах
+
+1. Python 3.12, Node 22 суулгана.
+2. `pip install -r requirements.lock`
+3. `npm ci && npm run build`
+4. `flask db upgrade`
+5. `python run.py` (веб сервер)
+6. `python discord_bot/bot.py` (Discord бот, optional)
+
+## ✅ Шалгалт
+
+```bash
+pytest tests --cov=app --cov-fail-under=60
+npm run check
+docker compose config --quiet
+docker build -t triviaverse .
+```
+
+CI нь PostgreSQL 17 migration forward/rollback, Python/JS security audit,
+coverage, Compose болон production Docker build-ийг шалгана. Runtime дээр
+`/health/live` процесс, `/health/ready` database ба Alembic schema-г шалгана.
+
+## ☁️ Production
+
+`render.yaml` нь Singapore region дахь Render Docker Web Service-ийг `main`
+branch-аас checks pass болсны дараа deploy хийнэ. Durable өгөгдөл, session,
+зураг, game snapshot бүгд Supabase-д хадгалагдана. Render-ийн free service 15
+минут trafficгүй үед sleep хийж, дараагийн хүсэлт cold start авч болно.
+
+Migration, SQLite import verification, Auth/Storage/Realtime, secret, deploy,
+rollback-ийн алхмууд: [Монгол production runbook](./docs/SUPABASE_RENDER_MN.md).
 
 ---
 
