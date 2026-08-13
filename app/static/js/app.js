@@ -1,298 +1,323 @@
-// =============================================
-//  TriviaVerse Core Application Script
-// =============================================
+/* TriviaVerse application controller — rebuilt from scratch. */
+(() => {
+  "use strict";
 
-document.addEventListener('DOMContentLoaded', () => {
-    // ========== SIDEBAR TOGGLE ==========
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggle = document.getElementById('sidebarToggle');
+  const selectors = {
+    sidebar: "#sidebar",
+    backdrop: "#sidebarBackdrop",
+    toastRegion: "#toastRegion",
+    userMenu: "#userDropdown",
+    notifMenu: "#notifMenu",
+    miniChat: "#miniChat",
+    miniChatInput: "#miniChatInput",
+    miniChatMessages: "#miniChatMessages",
+    miniChatTitle: "#miniChatTitle",
+  };
 
-    if (sidebarToggle && sidebar) {
-        const savedState = localStorage.getItem('sidebarCollapsed');
-        if (savedState === 'true') {
-            sidebar.classList.add('collapsed');
-        }
+  let miniChatUser = null;
 
-        sidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-        });
+  const getElement = (selector) => document.querySelector(selector);
+  const getAll = (selector) => Array.from(document.querySelectorAll(selector));
+
+  function getCSRFToken() {
+    const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
+    if (token) return token;
+
+    const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+    return match ? decodeURIComponent(match[1]) : "";
+  }
+
+  async function apiFetch(url, options = {}) {
+    const method = (options.method || "GET").toUpperCase();
+    const headers = { ...options.headers };
+
+    if (options.body && !headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+      headers["X-CSRFToken"] = getCSRFToken();
     }
 
-    // ========== MOBILE SIDEBAR TOGGLE ==========
-    const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
-    if (mobileSidebarToggle && sidebar) {
-        mobileSidebarToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-        });
+    const response = await fetch(url, { ...options, method, headers });
+    const contentType = response.headers.get("content-type") || "";
+    const payload = contentType.includes("application/json") ? await response.json() : null;
 
-        document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768) {
-                if (!sidebar.contains(e.target) && e.target !== mobileSidebarToggle) {
-                    sidebar.classList.remove('open');
-                }
-            }
-        });
-    }
-
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 768 && sidebar) {
-            sidebar.classList.remove('open');
-        }
-    });
-
-    // ========== USER DROPDOWN ==========
-    // FIX-026: keep aria-expanded in sync with the dropdown state
-    window.toggleDropdown = () => {
-        const dropdown = document.getElementById('userDropdown');
-        const trigger = document.querySelector('[aria-controls="userDropdown"]');
-        if (dropdown) dropdown.classList.toggle('show');
-        if (trigger) trigger.setAttribute('aria-expanded', dropdown.classList.contains('show'));
-    };
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown')) {
-            document.querySelectorAll('.dropdown-menu').forEach(d => d.classList.remove('show'));
-        }
-    });
-
-    // ========== FLASH MESSAGES → TOAST ==========
-    document.querySelectorAll('.flash').forEach(el => {
-        const category = el.classList.contains('flash-success') ? 'success' :
-            el.classList.contains('flash-error') ? 'error' :
-                el.classList.contains('flash-warning') ? 'warning' : 'info';
-        if (typeof showToast === 'function') {
-            showToast(el.textContent.trim(), category);
-        }
-        el.remove();
-    });
-
-    // ========== SEARCH INPUT ==========
-    const searchInput = document.querySelector('.navbar-search input');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const query = searchInput.value.trim();
-                if (query) {
-                    window.location.href = `/search?q=${encodeURIComponent(query)}`;
-                }
-            }
-        });
-    }
-
-    // ========== THEME ==========
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-});
-
-// ==================================
-//  Global Utility Functions
-// ==================================
-
-window.getCSRFToken = () => {
-    const meta = document.querySelector('meta[name="csrf-token"]');
-    if (meta) return meta.getAttribute('content');
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 'csrf_token'.length + 1) === ('csrf_token' + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring('csrf_token'.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-};
-
-window.copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Copied to clipboard!', 'success');
-    }).catch(() => {
-        const input = document.createElement('textarea');
-        input.value = text;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-        showToast('Copied!', 'success');
-    });
-};
-
-window.showToast = (message, type = 'info') => {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    toast.setAttribute('role', 'alert');
-    document.body.appendChild(toast);
-
-    requestAnimationFrame(() => {
-        toast.style.transform = 'translateX(0)';
-        toast.style.opacity = '1';
-    });
-
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
-};
-
-window.apiFetch = async (url, options = {}) => {
-    const headers = {
-        'Content-Type': 'application/json',
-        ...options.headers
-    };
-    if (options.method && ['POST', 'PUT', 'DELETE'].includes(options.method.toUpperCase())) {
-        headers['X-CSRFToken'] = getCSRFToken();
-    }
-    const response = await fetch(url, { ...options, headers });
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || `HTTP ${response.status}`);
+      throw new Error(payload?.message || payload?.error || `Request failed (${response.status})`);
     }
-    return response.json();
-};
+    return payload;
+  }
 
-window.toggleTheme = async function () {
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-    
-    // Sync with server session
-    try {
-        await fetch('/account/settings/theme', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify({ theme: next })
-        });
-    } catch (e) {
-        console.error('Failed to sync theme with server');
-    }
-};
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
-// ==================================
-//  Toast CSS
-// ==================================
-const style = document.createElement('style');
-style.textContent = `
-.toast {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 14px 28px;
-    border-radius: 14px;
-    color: white;
-    font-weight: 600;
-    font-size: 0.95rem;
-    z-index: 9999;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    transform: translateX(120%);
-    opacity: 0;
-    transition: transform 0.3s ease, opacity 0.3s ease;
-    max-width: 380px;
-    backdrop-filter: blur(12px);
-}
-.toast-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
-.toast-error   { background: linear-gradient(135deg, #ef4444, #dc2626); }
-.toast-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.toast-info    { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-`;
-document.head.appendChild(style);
+  function showToast(message, type = "info") {
+    const region = getElement(selectors.toastRegion);
+    if (!region || !message) return;
 
-// ==================================
-//  Mobile Sidebar
-// ==================================
-const mobileSidebarToggle = document.getElementById('mobileSidebarToggle');
-const sidebar = document.getElementById('sidebar');
-const overlay = document.createElement('div');
-overlay.className = 'sidebar-overlay';
-document.body.appendChild(overlay);
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    toast.setAttribute("role", type === "error" ? "alert" : "status");
+    toast.textContent = message;
+    region.append(toast);
 
-if (mobileSidebarToggle && sidebar) {
-    mobileSidebarToggle.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('active');
+    window.setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(.4rem)";
+      window.setTimeout(() => toast.remove(), 180);
+    }, 4200);
+  }
+
+  function closeMenus(except = null) {
+    getAll(".dropdown-menu.show").forEach((menu) => {
+      if (menu !== except) menu.classList.remove("show");
     });
-    overlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
+    getAll('[aria-controls="userDropdown"], [aria-controls="notifMenu"]').forEach((trigger) => {
+      const controls = trigger.getAttribute("aria-controls");
+      if (getElement(`#${controls}`) !== except) trigger.setAttribute("aria-expanded", "false");
     });
-}
+  }
 
-window.addEventListener('resize', () => {
-    if (window.innerWidth > 768 && sidebar) {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
+  function toggleMenu(menuSelector, triggerSelector) {
+    const menu = getElement(menuSelector);
+    const trigger = getElement(triggerSelector);
+    if (!menu) return false;
+
+    const shouldOpen = !menu.classList.contains("show");
+    closeMenus(menu);
+    menu.classList.toggle("show", shouldOpen);
+    trigger?.setAttribute("aria-expanded", String(shouldOpen));
+    return shouldOpen;
+  }
+
+  function setSidebarOpen(isOpen) {
+    const sidebar = getElement(selectors.sidebar);
+    const backdrop = getElement(selectors.backdrop);
+    const trigger = getElement("#mobileSidebarToggle");
+    if (!sidebar || !backdrop) return;
+
+    sidebar.classList.toggle("open", isOpen);
+    backdrop.hidden = !isOpen;
+    backdrop.classList.toggle("is-visible", isOpen);
+    trigger?.setAttribute("aria-expanded", String(isOpen));
+    document.body.style.overflow = isOpen ? "hidden" : "";
+  }
+
+  function toggleSidebarCollapsed() {
+    const sidebar = getElement(selectors.sidebar);
+    const trigger = getElement("#sidebarToggle");
+    if (!sidebar || window.matchMedia("(max-width: 54rem)").matches) return;
+
+    const collapsed = !sidebar.classList.contains("collapsed");
+    sidebar.classList.toggle("collapsed", collapsed);
+    trigger?.setAttribute("aria-pressed", String(collapsed));
+    trigger?.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+    localStorage.setItem("triviaverse.sidebar.collapsed", String(collapsed));
+  }
+
+  function applyTheme(theme, { sync = false } = {}) {
+    const safeTheme = theme === "light" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", safeTheme);
+    localStorage.setItem("triviaverse.theme", safeTheme);
+
+    if (sync) {
+      apiFetch("/account/settings/theme", {
+        method: "POST",
+        body: JSON.stringify({ theme: safeTheme }),
+      }).catch(() => showToast("Theme saved locally; server sync will retry next time.", "warning"));
     }
-});
+    return safeTheme;
+  }
 
-function escapeHtml(text) {
-    if (!text) return '';
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme");
+    applyTheme(current === "dark" ? "light" : "dark", { sync: true });
+  }
 
-// ==================================
-//  Mini Chat
-// ==================================
-let miniChatUser = null;
+  function copyToClipboard(value) {
+    const text = String(value ?? "");
+    if (!text) return;
 
-window.openMiniChat = function(userId, username) {
-    miniChatUser = {id: userId, name: username};
-    const titleEl = document.getElementById('miniChatTitle');
-    if (titleEl) titleEl.textContent = '💬 ' + username;
-    const chatEl = document.getElementById('miniChat');
-    if (chatEl) chatEl.classList.remove('hidden');
-    const msgEl = document.getElementById('miniChatMessages');
-    if (msgEl) msgEl.innerHTML = '';
-};
+    const fallback = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.append(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    };
 
-window.closeMiniChat = function() {
-    const chatEl = document.getElementById('miniChat');
-    if (chatEl) chatEl.classList.add('hidden');
+    (navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject())
+      .catch(fallback)
+      .finally(() => showToast("Copied to clipboard.", "success"));
+  }
+
+  function openMiniChat(userId, username) {
+    const chat = getElement(selectors.miniChat);
+    const title = getElement(selectors.miniChatTitle);
+    const messages = getElement(selectors.miniChatMessages);
+    if (!chat) return;
+
+    miniChatUser = { id: userId, name: username || "Chat" };
+    if (title) title.textContent = miniChatUser.name;
+    if (messages) messages.replaceChildren();
+    chat.classList.remove("hidden");
+    getElement(selectors.miniChatInput)?.focus();
+  }
+
+  function closeMiniChat() {
+    getElement(selectors.miniChat)?.classList.add("hidden");
     miniChatUser = null;
-};
+  }
 
-window.toggleMiniChat = function() {
-    const chatEl = document.getElementById('miniChat');
-    if (chatEl) chatEl.classList.toggle('hidden');
-};
+  function toggleMiniChat() {
+    getElement(selectors.miniChat)?.classList.toggle("hidden");
+  }
 
-window.sendMiniChat = function() {
-    const input = document.getElementById('miniChatInput');
-    if (!input) return;
-    const msg = input.value.trim();
-    if (!msg || !miniChatUser) return;
-    // Use the global socket if available
-    if (typeof socket !== 'undefined' && socket) {
-        socket.emit('direct_message', {to_user_id: miniChatUser.id, message: msg});
-    }
-    appendMiniChatMessage('You', msg, true);
-    input.value = '';
-};
-
-function appendMiniChatMessage(sender, message, isSelf) {
-    const container = document.getElementById('miniChatMessages');
+  function appendMiniChatMessage(sender, message, isSelf) {
+    const container = getElement(selectors.miniChatMessages);
     if (!container) return;
-    const div = document.createElement('div');
-    div.style.cssText = `text-align:${isSelf ? 'right' : 'left'}; margin-bottom:8px;`;
-    div.innerHTML = `<div style="display:inline-block; padding:8px 12px; border-radius:12px; background:${isSelf ? 'var(--primary)' : 'var(--surface)'}; max-width:80%;">
-        <div style="font-size:0.8rem; font-weight:600;">${escapeHtml(sender)}</div>
-        <div>${escapeHtml(message)}</div>
-    </div>`;
-    container.appendChild(div);
+
+    const wrapper = document.createElement("article");
+    wrapper.className = `mini-chat-message${isSelf ? " is-self" : ""}`;
+    wrapper.innerHTML = `<strong>${escapeHtml(sender)}</strong><p>${escapeHtml(message)}</p>`;
+    container.append(wrapper);
     container.scrollTop = container.scrollHeight;
-}
+  }
+
+  function sendMiniChat() {
+    const input = getElement(selectors.miniChatInput);
+    const message = input?.value.trim();
+    if (!message || !miniChatUser) return;
+
+    if (window.socket?.emit) {
+      window.socket.emit("direct_message", { to_user_id: miniChatUser.id, message });
+    }
+    appendMiniChatMessage("You", message, true);
+    input.value = "";
+  }
+
+  function hydrateFlashMessages() {
+    getAll(".flash").forEach((flash) => {
+      const type = flash.classList.contains("flash-danger") || flash.classList.contains("flash-error")
+        ? "error"
+        : flash.classList.contains("flash-warning")
+          ? "warning"
+          : flash.classList.contains("flash-success")
+            ? "success"
+            : "info";
+      showToast(flash.textContent.trim(), type);
+      flash.remove();
+    });
+  }
+
+  function bindEvents() {
+    document.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-ui]")?.dataset.ui;
+      if (!action) {
+        if (!event.target.closest(".dropdown")) closeMenus();
+        return;
+      }
+
+      switch (action) {
+        case "collapse-sidebar":
+          toggleSidebarCollapsed();
+          break;
+        case "open-sidebar":
+          setSidebarOpen(true);
+          break;
+        case "toggle-theme":
+          toggleTheme();
+          break;
+        case "toggle-user-menu":
+          toggleMenu(selectors.userMenu, "#userMenuButton");
+          break;
+        case "toggle-notifications": {
+          const opened = toggleMenu(selectors.notifMenu, "#notifBtn");
+          if (opened && typeof window.loadNotifications === "function") window.loadNotifications();
+          break;
+        }
+        case "mark-notifications-read":
+          window.markAllRead?.();
+          break;
+        case "close-mini-chat":
+          closeMiniChat();
+          break;
+        case "toggle-mini-chat":
+          toggleMiniChat();
+          break;
+        default:
+          break;
+      }
+    });
+
+    getElement(selectors.backdrop)?.addEventListener("click", () => setSidebarOpen(false));
+    getElement("#miniChatForm")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMiniChat();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeMenus();
+        setSidebarOpen(false);
+      }
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable)) {
+          event.preventDefault();
+          getElement("#global-search")?.focus();
+        }
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      if (!window.matchMedia("(max-width: 54rem)").matches) setSidebarOpen(false);
+    });
+  }
+
+  function initialize() {
+    const storedTheme = localStorage.getItem("triviaverse.theme");
+    if (storedTheme) applyTheme(storedTheme);
+
+    const sidebar = getElement(selectors.sidebar);
+    const trigger = getElement("#sidebarToggle");
+    const collapsed = localStorage.getItem("triviaverse.sidebar.collapsed") === "true";
+    if (sidebar && collapsed && !window.matchMedia("(max-width: 54rem)").matches) {
+      sidebar.classList.add("collapsed");
+      trigger?.setAttribute("aria-pressed", "true");
+    }
+
+    bindEvents();
+    hydrateFlashMessages();
+  }
+
+  window.getCSRFToken = getCSRFToken;
+  window.apiFetch = apiFetch;
+  window.showToast = showToast;
+  window.copyToClipboard = copyToClipboard;
+  window.toggleTheme = toggleTheme;
+  window.setTheme = applyTheme;
+  window.toggleDropdown = () => toggleMenu(selectors.userMenu, "#userMenuButton");
+  window.toggleNotifDropdown = () => {
+    const opened = toggleMenu(selectors.notifMenu, "#notifBtn");
+    if (opened && typeof window.loadNotifications === "function") window.loadNotifications();
+  };
+  window.openMiniChat = openMiniChat;
+  window.closeMiniChat = closeMiniChat;
+  window.toggleMiniChat = toggleMiniChat;
+  window.sendMiniChat = sendMiniChat;
+  window.appendMiniChatMessage = appendMiniChatMessage;
+  window.escapeHtml = escapeHtml;
+
+  document.addEventListener("DOMContentLoaded", initialize, { once: true });
+})();
