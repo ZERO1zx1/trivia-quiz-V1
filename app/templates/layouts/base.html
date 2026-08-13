@@ -42,7 +42,7 @@
                     <a href="{{ url_for('rooms.lobby') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('rooms') %}is-active{% endif %}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4v16M17 4v16M3 8h18M3 16h18"/></svg><span>{{ _('Game rooms') }}</span>
                     </a>
-                    <a href="{{ url_for('quiz.start_solo') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('quiz') %}is-active{% endif %}">
+                    <a href="{{ url_for('rooms.lobby', solo='1') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('quiz') %}is-active{% endif %}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>{{ _('Solo quiz') }}</span>
                     </a>
                     <a href="{{ url_for('leaderboard.index') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('leaderboard') %}is-active{% endif %}">

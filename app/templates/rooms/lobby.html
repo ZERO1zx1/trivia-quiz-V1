@@ -257,5 +257,10 @@
         document.body.appendChild(form);
         form.submit();
     };
+
+    if (new URLSearchParams(window.location.search).get('solo') === '1') {
+        window.openSoloModal();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 </script>
 {% endblock %}
