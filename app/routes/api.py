@@ -496,3 +496,53 @@ def api_marry():
     target.spouse_id = sender.id
     db.session.commit()
     return jsonify({'success': True})
+
+
+@api_bp.route('/admin/server-stats')
+@discord_api_required
+def api_admin_server_stats():
+    return jsonify({
+        'total_players': User.query.count(),
+        'total_coins': db.session.query(db.func.sum(User.coins)).scalar() or 0,
+        'total_questions_answered': db.session.query(
+            db.func.sum(User.total_questions)).scalar() or 0,
+        'total_questions': Question.query.count(),
+        'active_rooms': Room.query.filter_by(status='waiting').count(),
+    })
+
+
+@api_bp.route('/admin/users/<int:user_id>/toggle-ban', methods=['POST'])
+@discord_api_required
+def api_toggle_ban(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    user.is_banned = not user.is_banned
+    db.session.commit()
+    return jsonify({'success': True, 'is_banned': user.is_banned})
+
+
+@api_bp.route('/admin/give-item', methods=['POST'])
+@discord_api_required
+def api_admin_give_item():
+    from app.models.shop import ShopItem, UserInventory
+
+    data = request.get_json(silent=True) or {}
+    discord_id = data.get('discord_id')
+    item_id = data.get('item_id')
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    item = db.session.get(ShopItem, item_id)
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+
+    inventory = UserInventory.query.filter_by(
+        user_id=discord_account.user.id, item_id=item.id).first()
+    if inventory:
+        inventory.quantity += 1
+    else:
+        db.session.add(UserInventory(
+            user_id=discord_account.user.id, item_id=item.id, quantity=1))
+    db.session.commit()
+    return jsonify({'success': True, 'item_name': item.name})

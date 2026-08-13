@@ -1,11 +1,13 @@
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models.boss import Boss
+from app.utils.decorators import discord_api_required
 from datetime import datetime
 
 boss_api_bp = Blueprint('boss_api', __name__)
 
 @boss_api_bp.route('/spawn', methods=['POST'])
+@discord_api_required
 def spawn_boss():
     data = request.get_json(silent=True) or {}
     hp = data.get('hp', 100000)
@@ -18,6 +20,7 @@ def spawn_boss():
     return jsonify({'id': boss.id, 'name': boss.name, 'max_hp': boss.max_hp, 'status': boss.status}), 201
 
 @boss_api_bp.route('/damage', methods=['POST'])
+@discord_api_required
 def deal_damage():
     data = request.get_json(silent=True) or {}
     boss_id = data.get('boss_id')

@@ -130,3 +130,51 @@ def test_discord_economy_endpoints_reject_malformed_numbers(app, client, db, use
 
     assert deposit.status_code == 400
     assert coinflip.status_code == 400
+
+
+def test_world_boss_mutations_require_service_token(app, client):
+    app.config['DISCORD_API_TOKEN'] = 'test-discord-token'
+    payload = {'name': 'Test Boss', 'hp': 1000}
+
+    assert client.post('/boss/spawn', json=payload).status_code == 401
+    headers = {'X-Discord-API-Key': 'test-discord-token'}
+    spawned = client.post('/boss/spawn', json=payload, headers=headers)
+    assert spawned.status_code == 201
+    boss_id = spawned.get_json()['id']
+
+    damage = client.post('/boss/damage', json={
+        'boss_id': boss_id, 'damage': 10,
+    }, headers=headers)
+    assert damage.status_code == 200
+    assert damage.get_json()['current_hp'] == 990
+
+
+def test_discord_bot_admin_compatibility_routes_are_protected(app, client, db, user):
+    from app.models.shop import ShopItem, UserInventory
+
+    app.config['DISCORD_API_TOKEN'] = 'test-discord-token'
+    db.session.add(DiscordAccount(user_id=user.id, discord_id='discord-123'))
+    item = ShopItem(
+        name='Admin grant item', price=100, base_price=100,
+        item_type='badge', is_active=True,
+    )
+    db.session.add(item)
+    db.session.commit()
+    headers = {'X-Discord-API-Key': 'test-discord-token'}
+
+    assert client.get('/api/admin/server-stats').status_code == 401
+    stats = client.get('/api/admin/server-stats', headers=headers)
+    assert stats.status_code == 200
+    assert stats.get_json()['total_players'] == 1
+
+    banned = client.post(
+        f'/api/admin/users/{user.id}/toggle-ban', headers=headers)
+    assert banned.status_code == 200
+    assert banned.get_json()['is_banned'] is True
+
+    granted = client.post('/api/admin/give-item', json={
+        'discord_id': 'discord-123', 'item_id': item.id,
+    }, headers=headers)
+    assert granted.status_code == 200
+    assert UserInventory.query.filter_by(
+        user_id=user.id, item_id=item.id).one().quantity == 1
