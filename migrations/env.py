@@ -4,6 +4,7 @@ from logging.config import fileConfig
 from flask import current_app
 
 from alembic import context
+from sqlalchemy import text
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -65,8 +66,10 @@ def run_migrations_offline():
     """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url, target_metadata=get_metadata(), literal_binds=True
+        url=url, target_metadata=get_metadata(), literal_binds=True,
+        version_table_schema='app'
     )
+    context.execute('CREATE SCHEMA IF NOT EXISTS app')
 
     with context.begin_transaction():
         context.run_migrations()
@@ -97,9 +100,15 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        # The private application schema is the only bootstrap object Alembic
+        # needs before it can inspect its version table.
+        if connection.dialect.name == 'postgresql':
+            connection.execute(text('CREATE SCHEMA IF NOT EXISTS app'))
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
+            version_table_schema='app',
             **conf_args
         )
 
