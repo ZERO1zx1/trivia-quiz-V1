@@ -1,38 +1,16 @@
 {% extends "layouts/base.html" %}
-{% block title %}Two-Factor Authentication Setup{% endblock %}
-{% block content %}
-<div class="container mx-auto max-w-lg mt-10">
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-purple-500/20">
-        <h1 class="text-2xl font-bold text-white mb-2">Two-Factor Authentication</h1>
-        <p class="text-gray-400 mb-6">Set up 2FA for enhanced account security</p>
-
-        <div class="bg-gray-900/50 rounded-xl p-6 mb-6">
-            <h3 class="text-lg font-semibold text-purple-400 mb-4">Step 1: Scan QR Code</h3>
-            <p class="text-gray-300 text-sm mb-4">
-                Scan this QR code with Google Authenticator or any TOTP app:
-            </p>
-            <div class="flex justify-center mb-4">
-                <img src="{{ qr_code }}" alt="2FA QR Code" class="w-48 h-48 rounded-lg border border-gray-600">
+{% block title %}Set up two-factor authentication · {{ app_name }}{% endblock %}
+{% block guest_content %}
+<div class="auth-page">
+    <div class="auth-bg" aria-hidden="true"><div class="gradient-orb orb-1"></div><div class="gradient-orb orb-2"></div></div>
+    <section class="auth-container auth-container--wide" aria-labelledby="two-factor-title">
+        <div class="auth-card glass two-factor-card">
+            <header class="auth-header"><span class="logo-icon" aria-hidden="true">⌁</span><h1 id="two-factor-title">Secure your account</h1><p>Set up two-factor authentication in two quick steps.</p></header>
+            <div class="two-factor-steps">
+                <section class="two-factor-step"><div class="two-factor-step-label">01 · Scan</div><h2>Open your authenticator app</h2><p>Scan this QR code with Google Authenticator or another TOTP-compatible app.</p><img src="{{ qr_code }}" alt="Two-factor authentication QR code" class="two-factor-qr"><p class="two-factor-manual">Manual code <code>{{ secret }}</code></p></section>
+                <section class="two-factor-step"><div class="two-factor-step-label">02 · Confirm</div><h2>Enter the six-digit code</h2><p>Use the current code displayed in your authenticator app to finish setup.</p><form method="POST" action="{{ url_for('two_factor.enable') }}" class="auth-form"><div class="form-group otp-group"><label for="two-factor-code">Authentication code</label><input type="text" id="two-factor-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required placeholder="000000"></div><button type="submit" class="btn btn-primary btn-full">Verify &amp; enable <span aria-hidden="true">→</span></button></form></section>
             </div>
-            <p class="text-gray-400 text-xs text-center">
-                Manual entry code: <code class="bg-gray-700 px-2 py-1 rounded text-purple-300">{{ secret }}</code>
-            </p>
         </div>
-
-        <div class="bg-gray-900/50 rounded-xl p-6 mb-6">
-            <h3 class="text-lg font-semibold text-purple-400 mb-4">Step 2: Verify Code</h3>
-            <p class="text-gray-300 text-sm mb-4">
-                Enter the 6-digit code from your authenticator app:
-            </p>
-            <form method="POST" action="{{ url_for('two_factor.enable') }}" class="flex gap-3">
-                <input type="text" name="code" maxlength="6" required
-                       class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white text-center text-xl tracking-widest"
-                       placeholder="000000">
-                <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                    Verify & Enable
-                </button>
-            </form>
-        </div>
-    </div>
+    </section>
 </div>
 {% endblock %}
