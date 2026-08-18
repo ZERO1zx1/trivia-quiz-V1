@@ -1,6 +1,6 @@
 """Puzzle Mode Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Puzzle(db.Model):
@@ -18,7 +18,7 @@ class Puzzle(db.Model):
     time_limit_seconds = db.Column(db.Integer, default=600)
     is_daily = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     expires_at = db.Column(db.DateTime, nullable=True)
 
     attempts = db.relationship('PuzzleAttempt', back_populates='puzzle', lazy='dynamic')
@@ -46,14 +46,14 @@ class PuzzleAttempt(db.Model):
     puzzle_id = db.Column(db.Integer, db.ForeignKey('puzzles.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     status = db.Column(db.String(20), default='in_progress')  # in_progress, completed, failed, timeout
-    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    start_time = db.Column(db.DateTime, default=utcnow)
     end_time = db.Column(db.DateTime, nullable=True)
     completion_time_seconds = db.Column(db.Integer, nullable=True)
     moves_count = db.Column(db.Integer, default=0)
     hints_used = db.Column(db.Integer, default=0)
     score = db.Column(db.Integer, default=0)
     is_perfect = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     puzzle = db.relationship('Puzzle', back_populates='attempts')
     user = db.relationship('User', backref='puzzle_attempts')
@@ -72,7 +72,7 @@ class PuzzleLeaderboardEntry(db.Model):
     completion_time = db.Column(db.Integer)  # seconds
     score = db.Column(db.Integer, default=0)
     hints_used = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     puzzle = db.relationship('Puzzle', backref='leaderboard_entries')
     user = db.relationship('User', backref='puzzle_leaderboard_entries')

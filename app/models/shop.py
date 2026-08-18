@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 # -------------------------------
 #  Дэлгүүрийн бараа
@@ -22,7 +22,7 @@ class ShopItem(db.Model):
     total_sold = db.Column(db.Integer, default=0)
     image_url = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     premium_only = db.Column(db.Boolean, default=False)
 
     # Хэрэглэгчдийн инвентартэй холбох

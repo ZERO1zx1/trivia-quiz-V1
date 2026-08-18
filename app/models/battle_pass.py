@@ -1,6 +1,6 @@
 """Battle Pass & Season System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Season(db.Model):
@@ -14,7 +14,7 @@ class Season(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     battle_passes = db.relationship('BattlePass', back_populates='season', lazy='dynamic')
 
@@ -33,7 +33,7 @@ class BattlePass(db.Model):
     price = db.Column(db.Integer, default=0)  # coins for premium
     premium_price = db.Column(db.Integer, default=1500)  # real money equivalent
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     season = db.relationship('Season', back_populates='battle_passes')
     rewards = db.relationship('BattlePassReward', back_populates='battle_pass', lazy='dynamic')
@@ -73,8 +73,8 @@ class BattlePassProgress(db.Model):
     is_premium = db.Column(db.Boolean, default=False)
     claimed_levels = db.Column(db.Text, default='')  # JSON array of claimed levels
     last_claimed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref='battle_pass_progress')
     battle_pass = db.relationship('BattlePass', backref='user_progress')

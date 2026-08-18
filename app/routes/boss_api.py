@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.boss import Boss
 from datetime import datetime
 
@@ -33,7 +33,7 @@ def deal_damage():
     if boss.current_hp <= 0:
         boss.current_hp = 0
         boss.status = 'defeated'
-        boss.end_time = datetime.utcnow()
+        boss.end_time = utcnow()
         # TODO: Топ 3-т шагнал олгох логик
     db.session.commit()
     return jsonify({'current_hp': boss.current_hp, 'defeated': boss.status == 'defeated'})

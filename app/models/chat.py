@@ -1,6 +1,6 @@
 """Advanced Chat System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class ChatChannel(db.Model):
@@ -13,7 +13,7 @@ class ChatChannel(db.Model):
     is_private = db.Column(db.Boolean, default=False)
     slowmode_seconds = db.Column(db.Integer, default=0)
     max_messages = db.Column(db.Integer, default=1000)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     # Relationships
     messages = db.relationship('ChatMessage', back_populates='channel', lazy='dynamic')
@@ -46,7 +46,7 @@ class ChatMember(db.Model):
     is_muted = db.Column(db.Boolean, default=False)
     muted_until = db.Column(db.DateTime, nullable=True)
     role = db.Column(db.String(20), default='member')  # member, moderator, admin
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=utcnow)
     last_read_at = db.Column(db.DateTime)
 
     channel = db.relationship('ChatChannel', back_populates='members')
@@ -69,7 +69,7 @@ class ChatMessage(db.Model):
     reply_to_id = db.Column(db.Integer, db.ForeignKey('chat_messages.id'), nullable=True)
     is_pinned = db.Column(db.Boolean, default=False)
     pinned_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     edited_at = db.Column(db.DateTime, nullable=True)
 
     channel = db.relationship('ChatChannel', back_populates='messages')
@@ -102,7 +102,7 @@ class ChatReaction(db.Model):
     message_id = db.Column(db.Integer, db.ForeignKey('chat_messages.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     emoji = db.Column(db.String(10), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     message = db.relationship('ChatMessage', back_populates='reactions')
     user = db.relationship('User', backref='chat_reactions')

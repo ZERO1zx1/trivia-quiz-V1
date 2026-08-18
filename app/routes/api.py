@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, jsonify, request, render_template
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.user import User, DiscordAccount, Friend
 from app.models.notification import Notification
 from app.models.question import Question
@@ -412,7 +412,7 @@ def api_daily():
         return jsonify({'error': 'User not found'}), 404
         
     user = discord_account.user
-    now = datetime.utcnow()
+    now = utcnow()
     
     if user.last_daily_reward and (now - user.last_daily_reward) < timedelta(hours=20):
         remaining = timedelta(hours=20) - (now - user.last_daily_reward)
@@ -440,7 +440,7 @@ def api_give_rep():
         
     sender = sender_acc.user
     target = target_acc.user
-    now = datetime.utcnow()
+    now = utcnow()
     
     if sender.last_rep_given and (now - sender.last_rep_given) < timedelta(hours=24):
         return jsonify({'error': 'You can only give reputation once every 24 hours'}), 400
@@ -472,3 +472,248 @@ def api_marry():
     target.spouse_id = sender.id
     db.session.commit()
     return jsonify({'success': True})
+
+# ==========================================
+#  Bot Integration Endpoints
+# ==========================================
+
+@api_bp.route('/user/<discord_id>/inventory')
+def api_user_inventory(discord_id):
+    """Bot: Get user's inventory by Discord ID."""
+    from app.models.shop import UserInventory
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    items = UserInventory.query.filter_by(user_id=user.id).all()
+    return jsonify([item.to_dict() for item in items])
+
+@api_bp.route('/equip', methods=['POST'])
+def api_equip_item():
+    """Bot: Equip an item from inventory."""
+    from app.models.shop import UserInventory, ShopItem
+    data = request.json
+    discord_id = data.get('discord_id')
+    item_id = data.get('item_id')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    inv = UserInventory.query.filter_by(user_id=user.id, item_id=item_id).first()
+    if not inv:
+        return jsonify({'error': 'Item not found in inventory'}), 404
+    
+    # Unequip all items of the same type
+    item = ShopItem.query.get(item_id)
+    if item and item.item_type:
+        same_type_items = UserInventory.query.join(ShopItem).filter(
+            UserInventory.user_id == user.id,
+            ShopItem.item_type == item.item_type,
+            UserInventory.is_equipped == True
+        ).all()
+        for i in same_type_items:
+            i.is_equipped = False
+    
+    inv.is_equipped = True
+    db.session.commit()
+    return jsonify({'success': True, 'item_name': item.name if item else 'item'})
+
+@api_bp.route('/notify', methods=['POST'])
+def api_notify():
+    """Bot: Send notification to user via Discord ID."""
+    data = request.json
+    discord_id = data.get('discord_id')
+    title = data.get('title', 'Notification')
+    message = data.get('message', '')
+    notif_type = data.get('type', 'info')
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    send_notification(
+        user_id=discord_account.user.id,
+        title=title,
+        message=message,
+        notif_type=notif_type
+    )
+    return jsonify({'success': True})
+
+@api_bp.route('/questions/random')
+def api_random_question():
+    """Bot: Get a random question for solo trivia."""
+    from app.models.question import Answer, Category
+    import random
+    
+    category_slug = request.args.get('category')
+    query = Question.query.filter_by(is_active=True)
+    
+    if category_slug:
+        cat = Category.query.filter_by(slug=category_slug).first()
+        if cat:
+            query = query.filter_by(category_id=cat.id)
+    
+    questions = query.all()
+    if not questions:
+        return jsonify({'error': 'No questions available'}), 404
+    
+    q = random.choice(questions)
+    answers = Answer.query.filter_by(question_id=q.id).all()
+    
+    # Shuffle answers and track correct index
+    answer_list = [(a.answer_text, a.is_correct) for a in answers]
+    random.shuffle(answer_list)
+    
+    correct_index = next(i for i, (_, is_correct) in enumerate(answer_list) if is_correct)
+    
+    return jsonify({
+        'id': q.id,
+        'question': q.question_text,
+        'question_text': q.question_text,
+        'answers': [text for text, _ in answer_list],
+        'answers_full': [{'answer_text': text, 'is_correct': is_correct} for text, is_correct in answer_list],
+        'correct_index': correct_index,
+        'category': q.category.name if q.category else 'General',
+        'difficulty': q.difficulty
+    })
+
+@api_bp.route('/leaderboard')
+def api_leaderboard():
+    """Bot: Get leaderboard data."""
+    from app.models.economy import LeaderboardEntry
+    period = request.args.get('period', 'alltime')
+    limit = min(int(request.args.get('limit', 10)), 25)
+    
+    if period not in ['daily', 'weekly', 'monthly', 'alltime']:
+        period = 'alltime'
+    
+    entries = LeaderboardEntry.query.filter_by(period=period)\
+        .order_by(LeaderboardEntry.score.desc()).limit(limit).all()
+    
+    data = []
+    for entry in entries:
+        user = User.query.get(entry.user_id)
+        data.append({
+            'username': user.username if user else 'Unknown',
+            'score': entry.score,
+            'wins': entry.wins,
+            'games_played': entry.games_played,
+            'accuracy': round(entry.accuracy, 1)
+        })
+    return jsonify(data)
+
+@api_bp.route('/admin/server-stats')
+def api_server_stats():
+    """Bot: Get server statistics."""
+    from app.models.question import Category
+    total_users = User.query.count()
+    total_questions = Question.query.count()
+    total_categories = Category.query.count()
+    active_rooms = Room.query.filter_by(status='waiting').count()
+    
+    return jsonify({
+        'total_players': total_users,
+        'total_questions': total_questions,
+        'total_categories': total_categories,
+        'active_rooms': active_rooms
+    })
+
+@api_bp.route('/boss/spawn', methods=['POST'])
+def api_boss_spawn():
+    """Bot: Spawn a boss."""
+    from app.models.boss import Boss
+    data = request.json
+    name = data.get('name', 'World Boss')
+    hp = data.get('hp', 100000)
+    
+    # Deactivate existing bosses
+    Boss.query.filter_by(status='active').update({'status': 'defeated'})
+    
+    boss = Boss(name=name, max_hp=hp, current_hp=hp, status='active')
+    db.session.add(boss)
+    db.session.commit()
+    
+    return jsonify({
+        'id': boss.id,
+        'name': boss.name,
+        'max_hp': boss.max_hp,
+        'current_hp': boss.current_hp,
+        'status': boss.status
+    }), 201
+
+@api_bp.route('/rooms/<code>')
+def api_room_info(code):
+    """Bot: Get room info by code."""
+    room = Room.query.filter_by(code=code).first()
+    if not room:
+        return jsonify({'exists': False}), 404
+    
+    return jsonify({
+        'exists': True,
+        'name': room.name,
+        'code': room.code,
+        'status': room.status,
+        'player_count': room.get_player_count(),
+        'max_players': room.max_players,
+        'game_mode': room.game_mode
+    })
+
+@api_bp.route('/boss/damage', methods=['POST'])
+def api_boss_damage():
+    """Bot: Apply damage to a boss."""
+    from app.models.boss import Boss
+    data = request.json
+    boss_id = data.get('boss_id')
+    discord_id = data.get('discord_id')
+    damage = data.get('damage', 0)
+    
+    boss = Boss.query.get(boss_id)
+    if not boss or boss.status != 'active':
+        return jsonify({'error': 'Boss not found or not active'}), 404
+    
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user = discord_account.user
+    
+    # Apply damage
+    boss.current_hp = max(0, boss.current_hp - damage)
+    
+    # Reward XP and coins for damage
+    xp_reward = max(1, damage // 100)
+    coin_reward = max(1, damage // 200)
+    user.add_xp(xp_reward)
+    user.add_coins(coin_reward, f'Boss damage: {damage}')
+    
+    defeated = False
+    if boss.current_hp <= 0:
+        boss.status = 'defeated'
+        boss.end_time = utcnow()
+        defeated = True
+        
+        # Bonus rewards for defeating the boss
+        user.add_coins(500, 'Boss defeat bonus')
+        user.add_xp(200)
+        
+        send_notification(
+            user_id=user.id,
+            title='🐉 Boss Defeated!',
+            message=f'You helped defeat {boss.name}! Bonus: 500 coins, 200 XP',
+            notif_type='success'
+        )
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'defeated': defeated,
+        'current_hp': boss.current_hp,
+        'max_hp': boss.max_hp,
+        'damage_dealt': damage,
+        'xp_earned': xp_reward,
+        'coins_earned': coin_reward
+    })

@@ -3,7 +3,7 @@ Detects suspicious activity: bots, scripts, and speed-hacking.
 """
 from datetime import datetime, timedelta
 from flask import current_app, request
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 # Suspicious speed threshold (seconds) - if answered correctly in less than this
@@ -61,7 +61,7 @@ class AntiCheatTracker:
         """
         from app.models.settings import AuditLog
 
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        one_hour_ago = utcnow() - timedelta(hours=1)
         suspicious_count = AuditLog.query.filter(
             AuditLog.user_id == user.id,
             AuditLog.action == 'suspicious_answer',
@@ -85,7 +85,7 @@ class AntiCheatTracker:
         """Get list of potentially suspicious users for admin review."""
         from app.models.settings import AuditLog
 
-        one_day_ago = datetime.utcnow() - timedelta(hours=24)
+        one_day_ago = utcnow() - timedelta(hours=24)
         suspicious_logs = db.session.query(
             AuditLog.user_id,
             db.func.count(AuditLog.id).label('suspicious_count')

@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 import random
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.box import Box, UserBox
 from app.models.shop import ShopItem, UserInventory
 
@@ -42,7 +42,7 @@ def spin_wheel():
     """Spin the fortune wheel once per 22 hours. Awards prizes."""
     # Check cooldown
     if current_user.last_fortune_spin:
-        time_diff = datetime.utcnow() - current_user.last_fortune_spin
+        time_diff = utcnow() - current_user.last_fortune_spin
         if time_diff < timedelta(hours=22):
             hours_left = round(22 - (time_diff.total_seconds() / 3600), 1)
             return jsonify({'success': False, 'message': f'Come back in {hours_left} hours.'})
@@ -93,7 +93,7 @@ def spin_wheel():
             db.session.rollback()
             current_app.logger.error(f"Failed to award aura frame: {e}")
 
-    current_user.last_fortune_spin = datetime.utcnow()
+    current_user.last_fortune_spin = utcnow()
     db.session.commit()
 
     return jsonify({'success': True, 'prize': prize_response})

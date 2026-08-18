@@ -1,6 +1,6 @@
 """Economy and Shop Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 # -------------------------------
 #  Санхүүгийн гүйлгээ
@@ -21,7 +21,7 @@ class Transaction(db.Model):
     amount = db.Column(db.Integer, nullable=False)          # эерэг=орлого, сөрөг=зарлага
     type = db.Column(db.String(20), nullable=False)         # 'credit' / 'debit'
     reason = db.Column(db.String(200))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', back_populates='transactions')
 
@@ -51,7 +51,7 @@ class LeaderboardEntry(db.Model):
     wins = db.Column(db.Integer, default=0)
     games_played = db.Column(db.Integer, default=0)
     accuracy = db.Column(db.Float, default=0.0)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User')
 

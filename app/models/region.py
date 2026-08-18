@@ -1,6 +1,6 @@
 """Global Region System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Region(db.Model):
@@ -14,7 +14,7 @@ class Region(db.Model):
     player_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     ping_server_url = db.Column(db.String(500), default='')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     leaderboards = db.relationship('RegionLeaderboard', back_populates='region', lazy='dynamic')
 
@@ -43,7 +43,7 @@ class RegionLeaderboard(db.Model):
     accuracy = db.Column(db.Float, default=0.0)
     level = db.Column(db.Integer, default=1)
     elo_rating = db.Column(db.Integer, default=1200)
-    last_updated = db.Column(db.DateTime, default=datetime.utcnow)
+    last_updated = db.Column(db.DateTime, default=utcnow)
 
     region = db.relationship('Region', back_populates='leaderboards')
     user = db.relationship('User', backref='region_leaderboard_entries')

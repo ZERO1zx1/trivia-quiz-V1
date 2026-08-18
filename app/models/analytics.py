@@ -1,6 +1,6 @@
 """Analytics Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class PlayerAnalytics(db.Model):
@@ -8,7 +8,7 @@ class PlayerAnalytics(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    date = db.Column(db.Date, default=datetime.utcnow)
+    date = db.Column(db.Date, default=utcnow)
     games_played = db.Column(db.Integer, default=0)
     total_questions = db.Column(db.Integer, default=0)
     correct_answers = db.Column(db.Integer, default=0)
@@ -17,7 +17,7 @@ class PlayerAnalytics(db.Model):
     coins_earned = db.Column(db.Integer, default=0)
     xp_earned = db.Column(db.Integer, default=0)
     play_time_minutes = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='analytics')
 
@@ -47,7 +47,7 @@ class CategoryAnalytics(db.Model):
     questions_answered = db.Column(db.Integer, default=0)
     correct_answers = db.Column(db.Integer, default=0)
     average_time = db.Column(db.Float, default=0.0)
-    last_played = db.Column(db.DateTime, default=datetime.utcnow)
+    last_played = db.Column(db.DateTime, default=utcnow)
     is_weak = db.Column(db.Boolean, default=False)  # accuracy < 50%
     is_strong = db.Column(db.Boolean, default=False)  # accuracy > 85%
 
@@ -67,7 +67,7 @@ class ServerAnalytics(db.Model):
     __tablename__ = 'server_analytics'
 
     id = db.Column(db.Integer, primary_key=True)
-    date = db.Column(db.Date, default=datetime.utcnow)
+    date = db.Column(db.Date, default=utcnow)
     total_users = db.Column(db.Integer, default=0)
     active_users = db.Column(db.Integer, default=0)
     games_played = db.Column(db.Integer, default=0)
@@ -75,7 +75,7 @@ class ServerAnalytics(db.Model):
     coins_circulated = db.Column(db.Integer, default=0)
     new_registrations = db.Column(db.Integer, default=0)
     revenue_coins = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     def to_dict(self):
         return {

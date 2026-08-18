@@ -14,7 +14,7 @@ activity) so the alert is both safe and meaningful.
 """
 from datetime import datetime, timedelta
 
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.room import Match, Score
 from app.models.user import User
 from app.utils.email import send_streak_alert_email
@@ -33,8 +33,8 @@ def check_streak_protection(app):
     wrapped by ``register_jobs``.
     """
     with app.app_context():
-        yesterday = datetime.utcnow() - timedelta(days=STREAK_LOOKBACK_DAYS)
-        warning_threshold = datetime.utcnow() - timedelta(hours=STREAK_WARNING_HOURS)
+        yesterday = utcnow() - timedelta(days=STREAK_LOOKBACK_DAYS)
+        warning_threshold = utcnow() - timedelta(hours=STREAK_WARNING_HOURS)
 
         # Users with a recent high-streak score (joined through the match
         # timestamp, since the scores table carries no created_at), opted

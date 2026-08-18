@@ -1,6 +1,6 @@
 """Settings & Security 2.0 Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class UserSettings(db.Model):
@@ -29,8 +29,8 @@ class UserSettings(db.Model):
     accessibility_high_contrast = db.Column(db.Boolean, default=False)
     accessibility_reduce_motion = db.Column(db.Boolean, default=False)
     keybinds = db.Column(db.Text, default='')  # JSON: custom keybindings
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref='settings', uselist=False)
 
@@ -66,8 +66,8 @@ class DeviceHistory(db.Model):
     ip_address = db.Column(db.String(45))
     location = db.Column(db.String(200))
     is_current = db.Column(db.Boolean, default=False)
-    last_login = db.Column(db.DateTime, default=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime, default=utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='device_history')
 
@@ -115,8 +115,8 @@ class Session(db.Model):
     device_info = db.Column(db.String(500))
     ip_address = db.Column(db.String(45))
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_active = db.Column(db.DateTime, default=utcnow)
     expires_at = db.Column(db.DateTime)
 
     user = db.relationship('User', backref='sessions')
@@ -135,7 +135,7 @@ class BanAppeal(db.Model):
     status = db.Column(db.String(20), default='pending')  # pending, approved, denied
     reviewed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     review_notes = db.Column(db.Text, default='')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     reviewed_at = db.Column(db.DateTime, nullable=True)
 
     user = db.relationship('User', foreign_keys=[user_id])
@@ -154,7 +154,7 @@ class AuditLog(db.Model):
     target_id = db.Column(db.Integer)
     details = db.Column(db.Text, default='')  # JSON: additional details
     ip_address = db.Column(db.String(45))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     actor = db.relationship('User', backref='audit_logs')
 
@@ -170,7 +170,7 @@ class FeatureToggle(db.Model):
     is_enabled = db.Column(db.Boolean, default=True)
     description = db.Column(db.Text, default='')
     updated_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def __repr__(self):
         return f'<FeatureToggle {self.feature_name} enabled={self.is_enabled}>'

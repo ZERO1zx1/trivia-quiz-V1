@@ -1,7 +1,7 @@
 """Battle Pass Routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.battle_pass import Season, BattlePass, BattlePassReward, BattlePassProgress
 from datetime import datetime
 
@@ -73,7 +73,7 @@ def claim_reward(pass_id, level):
     # Mark as claimed
     claimed.append(level)
     progress.claimed_levels = json.dumps(claimed)
-    progress.last_claimed_at = datetime.utcnow()
+    progress.last_claimed_at = utcnow()
     db.session.commit()
 
     return jsonify({'success': True, 'reward': reward.reward_name})

@@ -1,6 +1,6 @@
 """Pet / Companion System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class PetSpecies(db.Model):
@@ -17,7 +17,7 @@ class PetSpecies(db.Model):
     evolves_to = db.Column(db.Integer, db.ForeignKey('pet_species.id'), nullable=True)
     evolution_level = db.Column(db.Integer, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     pets = db.relationship('Pet', back_populates='species', lazy='dynamic')
 
@@ -50,8 +50,8 @@ class Pet(db.Model):
     energy = db.Column(db.Integer, default=100)
     equipped_items = db.Column(db.Text, default='')  # JSON: {"head": id, "body": id, "accessory": id}
     buffs = db.Column(db.Text, default='')  # JSON: active buffs
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_interacted = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_interacted = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='pets')
     species = db.relationship('PetSpecies', back_populates='pets')
@@ -81,7 +81,7 @@ class PetEvolution(db.Model):
     from_species_id = db.Column(db.Integer, db.ForeignKey('pet_species.id'), nullable=False)
     to_species_id = db.Column(db.Integer, db.ForeignKey('pet_species.id'), nullable=False)
     level_at_evolution = db.Column(db.Integer)
-    evolved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    evolved_at = db.Column(db.DateTime, default=utcnow)
 
     pet = db.relationship('Pet', back_populates='evolution_log')
 

@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class Boss(db.Model):
     __tablename__ = 'bosses'
@@ -8,5 +8,5 @@ class Boss(db.Model):
     max_hp = db.Column(db.Integer, default=100000)
     current_hp = db.Column(db.Integer, default=100000)
     status = db.Column(db.String(20), default='active')  # active, defeated
-    spawn_time = db.Column(db.DateTime, default=datetime.utcnow)
+    spawn_time = db.Column(db.DateTime, default=utcnow)
     end_time = db.Column(db.DateTime, nullable=True)

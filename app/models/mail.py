@@ -1,6 +1,6 @@
 """Mail System Models"""
 from datetime import datetime, timedelta
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Mail(db.Model):
@@ -16,8 +16,8 @@ class Mail(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     is_claimed = db.Column(db.Boolean, default=False)
     has_attachments = db.Column(db.Boolean, default=False)
-    expires_at = db.Column(db.DateTime, default=lambda: datetime.utcnow() + timedelta(days=30))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, default=lambda: utcnow() + timedelta(days=30))
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     sender_user = db.relationship('User', foreign_keys=[sender_id], backref='sent_mails')
     user = db.relationship('User', foreign_keys=[user_id], backref='received_mails')

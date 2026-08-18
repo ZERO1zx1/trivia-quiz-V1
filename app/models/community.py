@@ -1,6 +1,6 @@
 """Community / Forum System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class ForumCategory(db.Model):
@@ -13,7 +13,7 @@ class ForumCategory(db.Model):
     color = db.Column(db.String(7), default='#7C3AED')
     order = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     posts = db.relationship('ForumPost', back_populates='category', lazy='dynamic')
 
@@ -36,8 +36,8 @@ class ForumPost(db.Model):
     comment_count = db.Column(db.Integer, default=0)
     is_guide = db.Column(db.Boolean, default=False)
     is_tutorial = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     category = db.relationship('ForumCategory', back_populates='posts')
     user = db.relationship('User', backref='forum_posts')
@@ -72,7 +72,7 @@ class ForumComment(db.Model):
     is_edited = db.Column(db.Boolean, default=False)
     is_deleted = db.Column(db.Boolean, default=False)
     reply_to_id = db.Column(db.Integer, db.ForeignKey('forum_comments.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     edited_at = db.Column(db.DateTime, nullable=True)
 
     post = db.relationship('ForumPost', back_populates='comments')
@@ -88,7 +88,7 @@ class ForumLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     post_id = db.Column(db.Integer, db.ForeignKey('forum_posts.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     post = db.relationship('ForumPost', back_populates='likes')
     user = db.relationship('User', backref='forum_likes')
@@ -104,7 +104,7 @@ class UserBookmark(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     post_id = db.Column(db.Integer, db.ForeignKey('forum_posts.id'), nullable=True)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='bookmarks')
     post = db.relationship('ForumPost', backref='bookmarkers')

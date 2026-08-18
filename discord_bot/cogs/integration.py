@@ -8,7 +8,8 @@ class IntegrationCog(commands.Cog):
 
     async def sync_role_for_user(self, discord_id: str, level: int):
         """Хэрэглэгчийн level-д тохирох Discord role олгох"""
-        guild_id = int(self.bot.config.get('DISCORD_GUILD_ID', 0))
+        import os
+        guild_id = int(os.getenv('DISCORD_GUILD_ID', 0))
         if not guild_id:
             return
 

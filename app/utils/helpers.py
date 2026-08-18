@@ -9,7 +9,7 @@ def generate_id(length=8):
 def format_time_ago(dt):
     if not dt:
         return 'Never'
-    now = datetime.utcnow()
+    now = utcnow()
     diff = now - dt
     if diff < timedelta(minutes=1):
         return 'Just now'

@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class DailyQuest(db.Model):
     __tablename__ = 'daily_quests'
@@ -15,7 +15,7 @@ class DailyQuest(db.Model):
     is_claimed = db.Column(db.Boolean, default=False)
     date_assigned = db.Column(db.Date, nullable=False)
     completed_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref=db.backref('daily_quests', lazy='dynamic'))
 

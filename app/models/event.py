@@ -1,6 +1,6 @@
 """Event System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class GameEvent(db.Model):
@@ -18,7 +18,7 @@ class GameEvent(db.Model):
     end_date = db.Column(db.DateTime, nullable=False)
     region = db.Column(db.String(10), default='global')
     is_featured = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     rewards = db.relationship('EventReward', back_populates='event', lazy='dynamic')
     participants = db.relationship('EventParticipant', back_populates='event', lazy='dynamic')
@@ -50,7 +50,7 @@ class EventReward(db.Model):
     image_url = db.Column(db.String(500), default='')
     requirement = db.Column(db.Text, default='')  # JSON: e.g., {"type": "score", "value": 1000}
     is_limited = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     event = db.relationship('GameEvent', back_populates='rewards')
 
@@ -67,7 +67,7 @@ class EventParticipant(db.Model):
     score = db.Column(db.Integer, default=0)
     progress = db.Column(db.Integer, default=0)
     rewards_claimed = db.Column(db.Text, default='')  # JSON array of claimed reward IDs
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=utcnow)
 
     event = db.relationship('GameEvent', back_populates='participants')
     user = db.relationship('User', backref='event_participations')

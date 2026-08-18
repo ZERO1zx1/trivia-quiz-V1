@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.user import User
 from app.models.profile import ProfileView, UserRespect, GameChallenge, GiftTransaction
 from app.utils.notify import send_notification
@@ -23,7 +23,7 @@ def record_profile_view(user_id):
         viewer_id=current_user.id, profile_id=user_id
     ).order_by(ProfileView.viewed_at.desc()).first()
 
-    if last_view and (datetime.utcnow() - last_view.viewed_at) < timedelta(hours=24):
+    if last_view and (utcnow() - last_view.viewed_at) < timedelta(hours=24):
         return jsonify({'success': False, 'message': 'Already viewed within 24h'})
 
     view = ProfileView(viewer_id=current_user.id, profile_id=user_id)
@@ -41,7 +41,7 @@ def give_respect(user_id):
         return jsonify({'success': False, 'message': 'Cannot respect yourself'})
 
     # Өдөрт нэг удаа
-    today = datetime.utcnow().date()
+    today = utcnow().date()
     already = UserRespect.query.filter(
         UserRespect.giver_id == current_user.id,
         UserRespect.receiver_id == user_id,
@@ -77,7 +77,7 @@ def challenge_user(user_id):
         sender_id=current_user.id, receiver_id=user_id
     ).order_by(GameChallenge.created_at.desc()).first()
 
-    if last_challenge and (datetime.utcnow() - last_challenge.created_at) < timedelta(minutes=1):
+    if last_challenge and (utcnow() - last_challenge.created_at) < timedelta(minutes=1):
         return jsonify({'success': False, 'message': 'Please wait before challenging again'})
 
     challenge = GameChallenge(sender_id=current_user.id, receiver_id=user_id, status='pending')

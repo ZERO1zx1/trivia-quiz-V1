@@ -1,7 +1,7 @@
 """Puzzle Mode Routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.puzzle import Puzzle, PuzzleAttempt, PuzzleLeaderboardEntry
 from datetime import datetime
 
@@ -84,7 +84,7 @@ def submit_puzzle(puzzle_id):
         attempt.completion_time_seconds = completion_time
         attempt.moves_count = moves
         attempt.hints_used = hints
-        attempt.end_time = datetime.utcnow()
+        attempt.end_time = utcnow()
 
         # Calculate score (fewer moves, fewer hints, faster = higher score)
         base_score = 1000
@@ -109,7 +109,7 @@ def submit_puzzle(puzzle_id):
         db.session.add(entry)
     else:
         attempt.status = 'failed'
-        attempt.end_time = datetime.utcnow()
+        attempt.end_time = utcnow()
 
     db.session.commit()
 

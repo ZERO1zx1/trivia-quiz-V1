@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class UserQuestion(db.Model):
     __tablename__ = 'user_questions'
@@ -15,7 +15,7 @@ class UserQuestion(db.Model):
     difficulty = db.Column(db.String(20), default='medium')
     status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
     admin_comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref=db.backref('submitted_questions', lazy='dynamic'))
     category = db.relationship('Category')

@@ -11,7 +11,7 @@ import qrcode
 import io
 import base64
 from flask import current_app
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 def generate_2fa_secret():
@@ -62,14 +62,14 @@ def enable_2fa_for_user(user, secret):
     if existing:
         existing.secret_key = secret
         existing.is_enabled = True
-        existing.updated_at = datetime.datetime.utcnow()
-        existing.enabled_at = existing.enabled_at or datetime.datetime.utcnow()
+        existing.updated_at = utcnow()
+        existing.enabled_at = existing.enabled_at or utcnow()
     else:
         twofa = TwoFactorAuth(
             user_id=user.id,
             secret_key=secret,
             is_enabled=True,
-            enabled_at=datetime.datetime.utcnow(),
+            enabled_at=utcnow(),
         )
         db.session.add(twofa)
 

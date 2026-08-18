@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import login_required, current_user
 from werkzeug.security import check_password_hash
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.user import User
 from app.models.profile import ProfileView
 from app.services.auth_sessions import access_token
@@ -74,7 +74,7 @@ def user_profile(user_id):
     last_view = ProfileView.query.filter_by(
         viewer_id=current_user.id, profile_id=user_id
     ).order_by(ProfileView.viewed_at.desc()).first()
-    if not last_view or (datetime.utcnow() - last_view.viewed_at) > timedelta(hours=24):
+    if not last_view or (utcnow() - last_view.viewed_at) > timedelta(hours=24):
         view = ProfileView(viewer_id=current_user.id, profile_id=user_id)
         db.session.add(view)
         db.session.commit()

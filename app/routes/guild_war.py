@@ -2,7 +2,7 @@
 from datetime import datetime
 from flask import Blueprint, jsonify, request, render_template, flash, redirect, url_for
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.guild import Guild, GuildMember, GuildWar, GuildBoss, GuildBossDamage
 from app.models.user import User
 
@@ -105,7 +105,7 @@ def challenge_guild(guild_id):
         guild_a_id=guild_id,
         guild_b_id=target_guild_id,
         status='pending',
-        started_at=datetime.utcnow()
+        started_at=utcnow()
     )
     db.session.add(war)
     db.session.commit()

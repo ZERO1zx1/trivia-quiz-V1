@@ -9,7 +9,7 @@ from datetime import datetime
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.marketplace import Auction, AuctionBid, MarketplaceListing
 from app.models.shop import UserInventory
 from app.economy.inventory.transactions import EconomyError
@@ -46,7 +46,7 @@ def index():
     # On-the-fly expiry check for listings without a scheduler process.
     expired = MarketplaceListing.query.filter(
         MarketplaceListing.status == 'active',
-        MarketplaceListing.expires_at < datetime.utcnow(),
+        MarketplaceListing.expires_at < utcnow(),
     ).all()
     for listing in expired:
         expire_listing(listing)

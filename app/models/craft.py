@@ -1,6 +1,6 @@
 """Crafting System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class CraftRecipe(db.Model):
@@ -18,7 +18,7 @@ class CraftRecipe(db.Model):
     craft_time_seconds = db.Column(db.Integer, default=300)
     success_rate = db.Column(db.Float, default=100.0)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     def to_dict(self):
         return {
@@ -59,7 +59,7 @@ class UserCraftingProgress(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     recipe_id = db.Column(db.Integer, db.ForeignKey('craft_recipes.id'), nullable=False)
     status = db.Column(db.String(20), default='in_progress')  # in_progress, completed, failed
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=utcnow)
     completed_at = db.Column(db.DateTime)
     result_item_id = db.Column(db.Integer, nullable=True)
 

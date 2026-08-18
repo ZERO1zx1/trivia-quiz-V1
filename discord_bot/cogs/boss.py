@@ -57,10 +57,16 @@ class BossCog(commands.Cog):
                 return
             question = await resp.json()
 
-        embed = discord.Embed(title="⚔️ Boss Attack", description=question['question_text'], color=0xff0000)
+        question_text = question.get('question_text') or question.get('question', 'No question')
+        answers = question.get('answers', [])
+        correct_index = question.get('correct_index', 0)
+        
+        embed = discord.Embed(title="⚔️ Boss Attack", description=question_text, color=0xff0000)
         view = discord.ui.View()
-        for i, ans in enumerate(question['answers']):
-            btn = discord.ui.Button(label=ans['answer_text'], style=discord.ButtonStyle.primary, custom_id=f"boss_{i}_{question['correct_index']}")
+        for i, ans in enumerate(answers):
+            # Handle both string answers and object answers
+            ans_text = ans['answer_text'] if isinstance(ans, dict) else ans
+            btn = discord.ui.Button(label=ans_text, style=discord.ButtonStyle.primary, custom_id=f"boss_{i}_{correct_index}")
             btn.callback = self.boss_answer_callback
             view.add_item(btn)
 

@@ -1,6 +1,6 @@
 """Replay System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 import json
 
 
@@ -23,7 +23,7 @@ class Replay(db.Model):
     view_count = db.Column(db.Integer, default=0)
     like_count = db.Column(db.Integer, default=0)
     share_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='replays')
 
@@ -58,7 +58,7 @@ class ReplayEvent(db.Model):
     event_type = db.Column(db.String(50), nullable=False)  # question_shown, answer_submitted, correct, wrong, combo, elimination
     player_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     data = db.Column(db.Text, default='')  # JSON: event-specific data
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     replay = db.relationship('Replay', backref='events')
     player = db.relationship('User', foreign_keys=[player_id])
@@ -82,7 +82,7 @@ class ReplayLike(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     replay_id = db.Column(db.Integer, db.ForeignKey('replays.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     replay = db.relationship('Replay', backref='likes')
     user = db.relationship('User', backref='replay_likes')

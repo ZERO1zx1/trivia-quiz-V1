@@ -1,6 +1,6 @@
 """Premium Cosmetic & Companion System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Cosmetic(db.Model):
@@ -19,7 +19,7 @@ class Cosmetic(db.Model):
     animation_url = db.Column(db.String(500), default='')
     effect_config = db.Column(db.Text, default='')  # JSON: effect parameters
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user_cosmetics = db.relationship('UserCosmetic', back_populates='cosmetic', lazy='dynamic')
 
@@ -47,7 +47,7 @@ class UserCosmetic(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     cosmetic_id = db.Column(db.Integer, db.ForeignKey('cosmetics.id'), nullable=False)
     is_equipped = db.Column(db.Boolean, default=False)
-    obtained_at = db.Column(db.DateTime, default=datetime.utcnow)
+    obtained_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='cosmetics_collection')
     cosmetic = db.relationship('Cosmetic', back_populates='user_cosmetics')
@@ -85,7 +85,7 @@ class UserProfileTheme(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     theme_id = db.Column(db.Integer, db.ForeignKey('profile_themes.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=False)
-    obtained_at = db.Column(db.DateTime, default=datetime.utcnow)
+    obtained_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='profile_themes')
     theme = db.relationship('ProfileTheme', back_populates='user_themes')

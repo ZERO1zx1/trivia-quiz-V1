@@ -158,9 +158,9 @@ class QuizCog(commands.Cog):
                 else:
                     raise Exception("Could not fetch question from the server.")
 
-            question_text = q['question']
-            answers = q['answers']
-            correct_index = q['correct_index']
+            question_text = q.get('question_text') or q.get('question', 'No question')
+            answers = q.get('answers', [])
+            correct_index = q.get('correct_index', 0)
             category_name = q.get('category', 'General')
 
             embed = discord.Embed(
@@ -309,30 +309,8 @@ class QuizCog(commands.Cog):
             ) as resp:
                 pass
 
-    @app_commands.command(name="black-list", description="[Admin] Ban a user from using the bot")
-    @app_commands.describe(user="User to blacklist")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def black_list(self, interaction: discord.Interaction, user: discord.Member):
-        await interaction.response.defer(ephemeral=True)
-        async with self.bot.session.post(f"{self.bot.api_base}/admin/users/{user.id}/toggle-ban") as resp:
-            if resp.status == 200:
-                await interaction.followup.send(f"✅ Blacklist status updated for {user.mention}!", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ Failed to update blacklist status.", ephemeral=True)
-
-    @app_commands.command(name="add-item", description="[Admin] Give an item to a user")
-    @app_commands.describe(user="User to give item to", item_id="ID of the item")
-    @app_commands.checks.has_permissions(administrator=True)
-    async def add_item(self, interaction: discord.Interaction, user: discord.Member, item_id: int):
-        await interaction.response.defer(ephemeral=True)
-        # Assuming we can use the buy logic or a new admin endpoint
-        async with self.bot.session.post(f"{self.bot.api_base}/admin/give-item", json={
-            "discord_id": str(user.id), "item_id": item_id
-        }) as resp:
-            if resp.status == 200:
-                await interaction.followup.send(f"✅ Item granted to {user.mention}!", ephemeral=True)
-            else:
-                await interaction.followup.send("❌ Failed to grant item.", ephemeral=True)
+    # NOTE: /black-list and /add-item commands are defined in cogs/moderation.py
+    # to avoid CommandAlreadyRegistered conflicts.
 
 async def setup(bot):
     await bot.add_cog(QuizCog(bot))

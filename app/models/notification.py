@@ -1,5 +1,5 @@
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
@@ -10,7 +10,7 @@ class Notification(db.Model):
     message = db.Column(db.String(255))
     type = db.Column(db.String(50), default='info')
     is_read = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', back_populates='notifications')
 

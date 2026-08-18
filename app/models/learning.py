@@ -1,6 +1,6 @@
 """Learning System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Flashcard(db.Model):
@@ -19,7 +19,7 @@ class Flashcard(db.Model):
     last_reviewed = db.Column(db.DateTime, nullable=True)
     next_review = db.Column(db.DateTime, nullable=True)
     is_bookmarked = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='flashcards')
 
@@ -36,8 +36,8 @@ class StudyNote(db.Model):
     content = db.Column(db.Text, default='')
     category = db.Column(db.String(100), default='')
     is_public = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     user = db.relationship('User', backref='study_notes')
 
@@ -58,7 +58,7 @@ class ExamAttempt(db.Model):
     duration_seconds = db.Column(db.Integer, default=0)
     passed = db.Column(db.Boolean, default=False)
     certificate_id = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='exam_attempts')
 

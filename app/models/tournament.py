@@ -1,6 +1,6 @@
 """Tournament System Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Tournament(db.Model):
@@ -25,8 +25,8 @@ class Tournament(db.Model):
     is_ranked = db.Column(db.Boolean, default=True)
     rules = db.Column(db.Text, default='')
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     creator = db.relationship('User', backref='created_tournaments')
     participants = db.relationship('TournamentParticipant', back_populates='tournament', lazy='dynamic')
@@ -64,7 +64,7 @@ class TournamentParticipant(db.Model):
     losses = db.Column(db.Integer, default=0)
     score = db.Column(db.Integer, default=0)
     eliminated = db.Column(db.Boolean, default=False)
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=utcnow)
 
     tournament = db.relationship('Tournament', back_populates='participants')
     user = db.relationship('User', backref='tournament_participations')
@@ -110,7 +110,7 @@ class TournamentHistory(db.Model):
     mvp_votes = db.Column(db.Integer, default=0)
     total_score = db.Column(db.Integer, default=0)
     accuracy = db.Column(db.Float, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user = db.relationship('User', backref='tournament_history')
     tournament = db.relationship('Tournament', backref='history_records')

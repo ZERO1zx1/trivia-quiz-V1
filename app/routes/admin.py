@@ -1,7 +1,7 @@
 """Admin Routes (Chapters 5, 7, 15)"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.utils.admin import admin_required, role_required
 from app.models.user import User
 from app.models.question import Category, Question, Answer
@@ -103,7 +103,7 @@ def toggle_premium(user_id):
     user = User.query.get_or_404(user_id)
     user.is_premium = not user.is_premium
     if user.is_premium:
-        user.premium_expiry = datetime.utcnow() + timedelta(days=30)
+        user.premium_expiry = utcnow() + timedelta(days=30)
     else:
         user.premium_expiry = None
     db.session.commit()
@@ -445,7 +445,7 @@ def review_ban_appeal(appeal_id):
         return redirect(url_for('admin.ban_appeals'))
 
     appeal.reviewed_by = current_user.id
-    appeal.reviewed_at = datetime.utcnow()
+    appeal.reviewed_at = utcnow()
     appeal.review_notes = request.form.get('review_note', '')
     db.session.commit()
 

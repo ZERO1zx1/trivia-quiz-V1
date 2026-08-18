@@ -30,8 +30,8 @@ def lobby():
     return render_template('rooms/lobby.html', rooms=rooms, categories=categories)
 
 @rooms_bp.route('/create', methods=['POST'])
-@login_required
 def create_room():
+    """Create a room. Supports both web (login_required) and bot (discord_id) access."""
     if request.is_json:
         data = request.json
         name = data.get('name', 'Trivia Room').strip()
@@ -43,7 +43,10 @@ def create_room():
         max_players = data.get('max_players', 8)
         game_mode = data.get('game_mode', 'classic')
         time_attack_duration = data.get('time_attack_duration', 15)
+        survival_lives = data.get('survival_lives', 3)
         host_discord_id = data.get('host_discord_id')
+        opponent_discord_id = data.get('opponent_discord_id')
+        bet = data.get('bet', 0)
         
         if host_discord_id:
             from app.models.user import DiscordAccount
@@ -52,9 +55,14 @@ def create_room():
                 host_user = da.user
             else:
                 return jsonify({'error': 'Host not found'}), 404
-        else:
+        elif current_user.is_authenticated:
             host_user = current_user
+        else:
+            return jsonify({'error': 'Authentication required'}), 401
     else:
+        if not current_user.is_authenticated:
+            flash('Please log in to create a room.', 'warning')
+            return redirect(url_for('auth.login'))
         name = request.form.get('name', 'Trivia Room').strip()
         is_private = 'is_private' in request.form
         password = request.form.get('password', '').strip() or None
@@ -64,9 +72,14 @@ def create_room():
         max_players = request.form.get('max_players', 8, type=int)
         game_mode = request.form.get('game_mode', 'classic')
         time_attack_duration = request.form.get('time_attack_duration', 15, type=int)
+        survival_lives = request.form.get('survival_lives', 3, type=int)
+        opponent_discord_id = None
+        bet = 0
         host_user = current_user
 
     if not name:
+        if request.is_json:
+            return jsonify({'error': 'Room name is required'}), 400
         flash('Room name is required.', 'danger')
         return redirect(url_for('rooms.lobby'))
 
@@ -84,7 +97,8 @@ def create_room():
         question_count=question_count,
         max_players=max_players,
         game_mode=game_mode,
-        time_attack_duration=time_attack_duration
+        time_attack_duration=time_attack_duration,
+        survival_lives=survival_lives
     )
 
     db.session.add(room)
@@ -92,6 +106,22 @@ def create_room():
 
     room_player = RoomPlayer(room_id=room.id, user_id=host_user.id, is_ready=True)
     db.session.add(room_player)
+    
+    # For duel mode: add opponent if specified
+    if opponent_discord_id:
+        from app.models.user import DiscordAccount
+        opponent_da = DiscordAccount.query.filter_by(discord_id=opponent_discord_id).first()
+        if opponent_da and opponent_da.user:
+            opponent_player = RoomPlayer(room_id=room.id, user_id=opponent_da.user.id, is_ready=False)
+            db.session.add(opponent_player)
+            # Notify opponent about the duel
+            send_notification(
+                user_id=opponent_da.user.id,
+                title='⚔️ Quiz Duel Challenge!',
+                message=f'{host_user.username} challenged you to a quiz duel for {bet} coins! Room: {room.code}',
+                notif_type='game_invite'
+            )
+    
     db.session.commit()
 
     if request.is_json:

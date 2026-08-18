@@ -1,6 +1,6 @@
 """Room and Game Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class Room(db.Model):
     __tablename__ = 'rooms'
@@ -18,7 +18,7 @@ class Room(db.Model):
     time_per_question = db.Column(db.Integer, default=20)
     status = db.Column(db.String(20), default='waiting')
     current_question = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
     started_at = db.Column(db.DateTime)
     ended_at = db.Column(db.DateTime)
     game_mode = db.Column(db.String(20), default='classic')
@@ -70,8 +70,8 @@ class GameSnapshot(db.Model):
     state = db.Column(db.JSON, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     updated_at = db.Column(db.DateTime(timezone=True),
-                           default=datetime.utcnow,
-                           onupdate=datetime.utcnow, nullable=False)
+                           default=utcnow,
+                           onupdate=utcnow, nullable=False)
 
     room = db.relationship('Room')
 
@@ -87,7 +87,7 @@ class RoomPlayer(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     is_ready = db.Column(db.Boolean, default=False)
     is_spectator = db.Column(db.Boolean, default=False)
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=utcnow)
     score = db.Column(db.Integer, default=0)
     correct_answers = db.Column(db.Integer, default=0)
     streak = db.Column(db.Integer, default=0)
@@ -122,7 +122,7 @@ class Match(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
     difficulty = db.Column(db.String(20))
     question_count = db.Column(db.Integer)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=utcnow)
     ended_at = db.Column(db.DateTime)
 
     room = db.relationship('Room', back_populates='match')

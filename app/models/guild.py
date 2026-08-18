@@ -1,6 +1,6 @@
 """Guild System 2.0 Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class Guild(db.Model):
@@ -20,8 +20,8 @@ class Guild(db.Model):
     max_members = db.Column(db.Integer, default=50)
     region = db.Column(db.String(10), default='global')
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_activity = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    last_activity = db.Column(db.DateTime, default=utcnow)
 
     # Relationships
     members = db.relationship('GuildMember', back_populates='guild', lazy='dynamic')
@@ -56,9 +56,9 @@ class GuildMember(db.Model):
     rank_id = db.Column(db.Integer, db.ForeignKey('guild_ranks.id'), nullable=False)
     coins_contributed = db.Column(db.Integer, default=0)
     xp_contributed = db.Column(db.Integer, default=0)
-    joined_at = db.Column(db.DateTime, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, default=utcnow)
     is_banned = db.Column(db.Boolean, default=False)
-    last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    last_active = db.Column(db.DateTime, default=utcnow)
 
     guild = db.relationship('Guild', back_populates='members')
     user = db.relationship('User', backref='guild_memberships', lazy='joined')
@@ -126,7 +126,7 @@ class GuildQuest(db.Model):
     target = db.Column(db.Integer, default=10)
     is_completed = db.Column(db.Boolean, default=False)
     expires_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     guild = db.relationship('Guild', backref='quests', lazy='joined')
 
@@ -181,7 +181,7 @@ class GuildBossDamage(db.Model):
     guild_id = db.Column(db.Integer, db.ForeignKey('guilds.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     damage = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     boss = db.relationship('GuildBoss', backref='damage_log')
     guild = db.relationship('Guild', backref='boss_damage_log')

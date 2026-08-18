@@ -7,7 +7,7 @@ deprecated compatibility shim.
 """
 from datetime import datetime
 
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.user import User
 
 try:
@@ -32,7 +32,7 @@ def check_expired_premium(app):
         expired = User.query.filter(
             User.is_premium.is_(True),
             User.premium_expiry.isnot(None),
-            User.premium_expiry < datetime.utcnow(),
+            User.premium_expiry < utcnow(),
         ).all()
         api_base = app.config.get('API_BASE_URL', '')
         for user in expired:

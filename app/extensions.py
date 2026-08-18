@@ -34,13 +34,6 @@ def utcnow():
     """
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
-    def process_result_value(self, value, dialect):
-        # Legacy routes currently compare against datetime.utcnow(). Return a
-        # normalized naive UTC value until those call sites are all migrated.
-        if value is not None and value.tzinfo is not None:
-            return value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value
-
 # Database & ORM
 db = SQLAlchemy()
 db.DateTime = UTCDateTime

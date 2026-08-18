@@ -1,7 +1,7 @@
 """Community / Forum Routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.community import ForumCategory, ForumPost, ForumComment, ForumLike, UserBookmark
 from datetime import datetime
 
@@ -103,7 +103,7 @@ def edit_post(post_id):
     if request.method == 'POST':
         post.title = request.form.get('title', '').strip()
         post.content = request.form.get('content', '').strip()
-        post.updated_at = datetime.utcnow()
+        post.updated_at = utcnow()
         db.session.commit()
 
         flash('Post updated!', 'success')

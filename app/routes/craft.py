@@ -1,7 +1,7 @@
 """Crafting System Routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.craft import CraftRecipe, CraftingMaterial, UserCraftingProgress
 from datetime import datetime
 
@@ -72,12 +72,12 @@ def complete_crafting(progress_id):
 
     if success:
         progress.status = 'completed'
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = utcnow()
         progress.result_item_id = recipe.output_item_id
         flash(f'Successfully crafted {recipe.name}!', 'success')
     else:
         progress.status = 'failed'
-        progress.completed_at = datetime.utcnow()
+        progress.completed_at = utcnow()
         flash('Crafting failed!', 'danger')
 
     db.session.commit()

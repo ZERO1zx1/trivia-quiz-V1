@@ -2,7 +2,7 @@
 from flask import (Blueprint, current_app, flash, jsonify, redirect,
                    render_template, request, url_for)
 from flask_login import login_required, current_user
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.chat import ChatChannel, ChatMember, ChatMessage, ChatReaction
 from datetime import datetime
 from app.services.supabase import SupabaseError, SupabaseService
@@ -99,7 +99,7 @@ def send_message():
     ).first()
 
     if member and member.is_muted:
-        if member.muted_until and member.muted_until > datetime.utcnow():
+        if member.muted_until and member.muted_until > utcnow():
             return jsonify({'error': 'You are muted'}), 403
 
     message = ChatMessage(
@@ -136,7 +136,7 @@ def edit_message(message_id):
 
     message.content = new_content
     message.is_edited = True
-    message.edited_at = datetime.utcnow()
+    message.edited_at = utcnow()
     db.session.commit()
 
     _broadcast(message.channel_id, 'message_edited', {
@@ -201,7 +201,7 @@ def pin_message(message_id):
 
     message.is_pinned = not message.is_pinned
     if message.is_pinned:
-        message.pinned_at = datetime.utcnow()
+        message.pinned_at = utcnow()
     db.session.commit()
 
     return jsonify({'success': True, 'pinned': message.is_pinned})

@@ -1,6 +1,6 @@
 """Achievement Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class Achievement(db.Model):
     __tablename__ = 'achievements'
@@ -16,7 +16,7 @@ class Achievement(db.Model):
     coin_reward = db.Column(db.Integer, default=0)
     rarity = db.Column(db.String(20), default='common')
     is_hidden = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     user_achievements = db.relationship('UserAchievement', back_populates='achievement', lazy='dynamic')
 
@@ -75,7 +75,7 @@ class UserAchievement(db.Model):
         if self.achievement and self.progress >= self.achievement.requirement_value:
             if not self.is_unlocked:
                 self.is_unlocked = True
-                self.unlocked_at = datetime.utcnow()
+                self.unlocked_at = utcnow()
                 return True  # Шинээр unlock хийгдсэн
         return False
 

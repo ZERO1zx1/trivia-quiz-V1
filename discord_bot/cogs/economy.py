@@ -179,9 +179,12 @@ class Economy(commands.Cog):
                 )
                 for inv in items[:10]:
                     equipped = "✅ " if inv.get("is_equipped") else ""
+                    item_data = inv.get('item') or {}
+                    item_name = item_data.get('name', 'Unknown Item')
+                    item_id = inv.get('item_id') or item_data.get('id', '?')
                     embed.add_field(
-                        name=f"{equipped}{inv['item']['name']} (x{inv['quantity']})",
-                        value=f"ID: {inv['item_id']} | Use `/equip {inv['item_id']}` to equip",
+                        name=f"{equipped}{item_name} (x{inv.get('quantity', 1)})",
+                        value=f"ID: {item_id} | Use `/equip {item_id}` to equip",
                         inline=False
                     )
                 await interaction.followup.send(embed=embed, ephemeral=True)

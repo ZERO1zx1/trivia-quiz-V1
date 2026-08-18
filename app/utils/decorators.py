@@ -2,7 +2,7 @@ from functools import wraps
 from flask import abort, flash, redirect, url_for
 from flask_login import current_user
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 def premium_required(f):
     @wraps(f)
@@ -14,7 +14,7 @@ def premium_required(f):
             flash('This feature requires a premium account.', 'warning')
             return redirect(url_for('dashboard.index'))
         # Хугацаа дууссан эсэхийг шалгах
-        if current_user.premium_expiry and current_user.premium_expiry < datetime.utcnow():
+        if current_user.premium_expiry and current_user.premium_expiry < utcnow():
             current_user.is_premium = False
             db.session.commit()
             flash('Your premium has expired.', 'warning')

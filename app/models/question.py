@@ -1,6 +1,6 @@
 """Question and Category Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 class Category(db.Model):
     __tablename__ = 'categories'
@@ -13,7 +13,7 @@ class Category(db.Model):
     color = db.Column(db.String(20), default='#5865F2')
     is_active = db.Column(db.Boolean, default=True)
     question_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     questions = db.relationship('Question', back_populates='category', lazy='dynamic')
 
@@ -45,7 +45,7 @@ class Question(db.Model):
     times_used = db.Column(db.Integer, default=0)
     correct_rate = db.Column(db.Float, default=0.0)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     category = db.relationship('Category', back_populates='questions')
     answers = db.relationship('Answer', back_populates='question', lazy='dynamic',

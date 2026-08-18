@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime
 import random
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.box import UserBox, Box
 from app.models.shop import ShopItem, UserInventory
 
@@ -23,7 +23,7 @@ def open_box(box_id):
     loot = generate_loot(user_box.box.rarity)
 
     user_box.is_opened = True
-    user_box.opened_at = datetime.utcnow()
+    user_box.opened_at = utcnow()
     db.session.commit()
 
     return jsonify({'success': True, 'loot': loot})

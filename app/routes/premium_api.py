@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.utils.decorators import premium_required
 
 premium_api_bp = Blueprint('premium_api', __name__)
@@ -12,7 +12,7 @@ premium_api_bp = Blueprint('premium_api', __name__)
 @premium_required
 def claim_daily_premium_reward():
     """Өдөр бүр 3,000 coin авах (зөвхөн Premium)"""
-    today = datetime.utcnow().date()
+    today = utcnow().date()
     if current_user.daily_premium_reward_claimed_at:
         last_claim = current_user.daily_premium_reward_claimed_at.date()
         if last_claim == today:
@@ -20,7 +20,7 @@ def claim_daily_premium_reward():
 
     reward = 3000
     current_user.add_coins(reward, 'Daily Premium Reward')
-    current_user.daily_premium_reward_claimed_at = datetime.utcnow()
+    current_user.daily_premium_reward_claimed_at = utcnow()
     db.session.commit()
     return jsonify({'success': True, 'reward': reward, 'new_coins': current_user.coins})
 

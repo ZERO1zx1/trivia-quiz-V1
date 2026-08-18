@@ -1,6 +1,6 @@
 """Collection Book Models"""
 from datetime import datetime
-from app.extensions import db
+from app.extensions import db, utcnow
 
 
 class CollectionItem(db.Model):
@@ -15,7 +15,7 @@ class CollectionItem(db.Model):
     image_url = db.Column(db.String(500), default='')
     source = db.Column(db.String(100), default='')  # how to obtain
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
 
     progress_entries = db.relationship('CollectionProgress', back_populates='item', lazy='dynamic')
 

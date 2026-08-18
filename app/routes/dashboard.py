@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, jsonify, request, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from app.extensions import db
+from app.extensions import db, utcnow
 from app.models.room import Room, RoomPlayer
 from app.models.question import Category
 from app.models.economy import Transaction, LeaderboardEntry
@@ -66,7 +66,7 @@ def coach():
 def daily_reward():
     # Хугацаа шалгах
     if current_user.last_daily_reward:
-        time_since = datetime.utcnow() - current_user.last_daily_reward
+        time_since = utcnow() - current_user.last_daily_reward
         if time_since < timedelta(hours=20):
             hours_left = 20 - (time_since.total_seconds() / 3600)
             return jsonify({'success': False, 'message': f'Come back in {int(hours_left)}h!'})
@@ -76,7 +76,7 @@ def daily_reward():
     xp_reward = 10
     current_user.add_coins(coin_reward, 'Daily Reward')
     level_up, old_level, new_level = current_user.add_xp(xp_reward)
-    current_user.last_daily_reward = datetime.utcnow()
+    current_user.last_daily_reward = utcnow()
     db.session.commit()
 
     # Мэдэгдэл илгээх
