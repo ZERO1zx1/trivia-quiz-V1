@@ -1,4 +1,6 @@
 """Auction Validators"""
+from datetime import datetime, timezone
+
 from app.models.shop import UserInventory
 
 MIN_AUCTION_DURATION_HOURS = 1
@@ -14,6 +16,12 @@ def validate_bid(auction, bidder, bid_amount):
         return ['Auction not found.']
     if auction.status != 'active':
         return ['This auction has ended.']
+    if auction.ends_at:
+        ends_at = auction.ends_at
+        if ends_at.tzinfo is None:
+            ends_at = ends_at.replace(tzinfo=timezone.utc)
+        if ends_at <= datetime.now(timezone.utc):
+            return ['This auction has ended.']
     if auction.seller_id == bidder.id:
         return ['You cannot bid on your own auction.']
     if bid_amount is None or bid_amount <= 0:

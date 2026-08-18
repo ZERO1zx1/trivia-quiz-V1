@@ -148,7 +148,13 @@ def v2_check_answer():
     if not question_id or answer_id is None:
         return jsonify({'error': 'Missing parameters'}), 400
 
-    question = Question.query.get(question_id)
+    try:
+        question_id = int(question_id)
+        answer_id = int(answer_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Question and answer IDs must be integers'}), 400
+
+    question = db.session.get(Question, question_id)
     if not question:
         return jsonify({'error': 'Question not found'}), 404
 
@@ -156,7 +162,7 @@ def v2_check_answer():
     if not correct_answer:
         return jsonify({'error': 'No correct answer'}), 500
 
-    is_correct = (int(answer_id) == correct_answer.id)
+    is_correct = (answer_id == correct_answer.id)
 
     return jsonify({
         'correct': is_correct,

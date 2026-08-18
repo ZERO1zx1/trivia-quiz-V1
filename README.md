@@ -85,6 +85,12 @@ cp .env.example .env
 `.env` доторх secret болон Supabase connection-уудыг бөглөнө. Secret-ийг Git-д
 commit хийж болохгүй.
 
+Discord bot ашиглах бол веб болон ботын орчинд ижил, урт санамсаргүй утгатай
+`DISCORD_API_TOKEN` тохируулна. Энэ service token нь bot-ын coins, XP, bank,
+gamble, shop, daily, social mutation API дуудлагыг `X-Discord-API-Key` header-аар
+хамгаална. Token тохируулаагүй үед эдгээр endpoint fail-closed байдлаар `503`,
+буруу эсвэл дутуу token-той хүсэлт `401` буцаана.
+
 ### 3. Docker ашиглан ажиллуулах (Санал болгож буй)
 
 ```bash

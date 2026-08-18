@@ -6,6 +6,7 @@ from app.models.notification import Notification
 from app.models.question import Question
 from app.models.room import Room
 from app.utils.notify import send_notification
+from app.utils.decorators import discord_api_required
 from app.utils.search import search_questions, search_users, search_rooms
 
 api_bp = Blueprint('api', __name__)
@@ -151,8 +152,9 @@ def mark_all_read():
 #  Найзын систем (API)
 # ==========================================
 @api_bp.route('/friends/search', methods=['POST'])
+@discord_api_required
 def api_search_friends():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     username = data.get('username')
 
@@ -189,8 +191,9 @@ def api_search_friends():
     return jsonify({'message': 'Friend request sent'})
 
 @api_bp.route('/users/coins/add', methods=['POST'])
+@discord_api_required
 def add_coins():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     amount = data.get('amount', 0)
     reason = data.get('reason', 'Discord activity')
@@ -206,8 +209,9 @@ def add_coins():
     return jsonify({'new_coins': user.coins})
 
 @api_bp.route('/users/xp/add', methods=['POST'])
+@discord_api_required
 def add_xp():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     amount = data.get('amount', 0)
     reason = data.get('reason', 'Discord activity')
@@ -229,6 +233,7 @@ def add_xp():
     })
 
 @api_bp.route('/discord/sync-role', methods=['POST'])
+@discord_api_required
 def discord_sync_role():
     data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
@@ -252,8 +257,9 @@ def discord_sync_role():
 #  Economy & Banking
 # ==========================================
 @api_bp.route('/bank/deposit', methods=['POST'])
+@discord_api_required
 def bank_deposit():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     amount = data.get('amount')
     
@@ -265,7 +271,10 @@ def bank_deposit():
     if amount == 'all':
         amount = user.coins
     else:
-        amount = int(amount)
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid amount or insufficient coins'}), 400
         
     if amount <= 0 or user.coins < amount:
         return jsonify({'error': 'Invalid amount or insufficient coins'}), 400
@@ -276,8 +285,9 @@ def bank_deposit():
     return jsonify({'success': True, 'coins': user.coins, 'bank': user.bank_balance})
 
 @api_bp.route('/bank/withdraw', methods=['POST'])
+@discord_api_required
 def bank_withdraw():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     amount = data.get('amount')
     
@@ -289,7 +299,10 @@ def bank_withdraw():
     if amount == 'all':
         amount = user.bank_balance
     else:
-        amount = int(amount)
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid amount or insufficient bank balance'}), 400
         
     if amount <= 0 or user.bank_balance < amount:
         return jsonify({'error': 'Invalid amount or insufficient bank balance'}), 400
@@ -300,11 +313,17 @@ def bank_withdraw():
     return jsonify({'success': True, 'coins': user.coins, 'bank': user.bank_balance})
 
 @api_bp.route('/gamble/coinflip', methods=['POST'])
+@discord_api_required
 def gamble_coinflip():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
-    bet = int(data.get('bet', 0))
+    try:
+        bet = int(data.get('bet', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid bet'}), 400
     side = data.get('side', 'heads') # heads/tails
+    if side not in ('heads', 'tails'):
+        return jsonify({'error': 'Side must be heads or tails'}), 400
     
     discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
     if not discord_account or not discord_account.user:
@@ -329,8 +348,9 @@ def gamble_coinflip():
     return jsonify({'success': True, 'win': win, 'result': result, 'message': msg, 'new_balance': user.coins})
 
 @api_bp.route('/gamble/rob', methods=['POST'])
+@discord_api_required
 def gamble_rob():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     target_id = data.get('target_id')
     
@@ -371,9 +391,10 @@ def api_shop_items():
     return jsonify([item.to_dict() for item in items])
 
 @api_bp.route('/buy', methods=['POST'])
+@discord_api_required
 def api_buy_item():
     from app.models.shop import ShopItem, UserInventory
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     item_id = data.get('item_id')
     
@@ -402,9 +423,10 @@ def api_buy_item():
     return jsonify({'success': True, 'item_name': item.name, 'coins_left': user.coins})
 
 @api_bp.route('/daily', methods=['POST'])
+@discord_api_required
 def api_daily():
     from datetime import datetime, timedelta
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     
     discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
@@ -426,9 +448,10 @@ def api_daily():
     return jsonify({'success': True, 'reward': reward, 'new_coins': user.coins})
 
 @api_bp.route('/user/rep/give', methods=['POST'])
+@discord_api_required
 def api_give_rep():
     from datetime import datetime, timedelta
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     target_id = data.get('target_id')
     
@@ -451,8 +474,9 @@ def api_give_rep():
     return jsonify({'success': True})
 
 @api_bp.route('/user/marry', methods=['POST'])
+@discord_api_required
 def api_marry():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     discord_id = data.get('discord_id')
     target_id = data.get('target_id')
     
@@ -717,3 +741,56 @@ def api_boss_damage():
         'xp_earned': xp_reward,
         'coins_earned': coin_reward
     })
+
+# ==========================================
+#  Admin Endpoints (Discord API)
+# ==========================================
+
+@api_bp.route('/admin/server-stats/secure')
+@discord_api_required
+def api_admin_server_stats():
+    return jsonify({
+        'total_players': User.query.count(),
+        'total_coins': db.session.query(db.func.sum(User.coins)).scalar() or 0,
+        'total_questions_answered': db.session.query(
+            db.func.sum(User.total_questions)).scalar() or 0,
+        'total_questions': Question.query.count(),
+        'active_rooms': Room.query.filter_by(status='waiting').count(),
+    })
+
+
+@api_bp.route('/admin/users/<int:user_id>/toggle-ban', methods=['POST'])
+@discord_api_required
+def api_toggle_ban(user_id):
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    user.is_banned = not user.is_banned
+    db.session.commit()
+    return jsonify({'success': True, 'is_banned': user.is_banned})
+
+
+@api_bp.route('/admin/give-item', methods=['POST'])
+@discord_api_required
+def api_admin_give_item():
+    from app.models.shop import ShopItem, UserInventory
+
+    data = request.get_json(silent=True) or {}
+    discord_id = data.get('discord_id')
+    item_id = data.get('item_id')
+    discord_account = DiscordAccount.query.filter_by(discord_id=discord_id).first()
+    if not discord_account or not discord_account.user:
+        return jsonify({'error': 'User not found'}), 404
+    item = db.session.get(ShopItem, item_id)
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
+
+    inventory = UserInventory.query.filter_by(
+        user_id=discord_account.user.id, item_id=item.id).first()
+    if inventory:
+        inventory.quantity += 1
+    else:
+        db.session.add(UserInventory(
+            user_id=discord_account.user.id, item_id=item.id, quantity=1))
+    db.session.commit()
+    return jsonify({'success': True, 'item_name': item.name})

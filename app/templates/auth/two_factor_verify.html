@@ -1,24 +1,17 @@
 {% extends "layouts/base.html" %}
-{% block title %}Verify 2FA Code{% endblock %}
-{% block content %}
-<div class="container mx-auto max-w-md mt-20">
-    <div class="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-purple-500/20 text-center">
-        <div class="text-4xl mb-4">🔐</div>
-        <h1 class="text-2xl font-bold text-white mb-2">Two-Factor Authentication</h1>
-        <p class="text-gray-400 mb-6">Enter the 6-digit code from your authenticator app</p>
-
-        <form method="POST" action="{{ url_for('two_factor.verify') }}" class="space-y-4">
-            <input type="text" name="code" maxlength="6" required autofocus
-                   class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-4 text-white text-center text-2xl tracking-widest"
-                   placeholder="000000">
-            <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition">
-                Verify
-            </button>
-        </form>
-
-        <p class="text-gray-500 text-sm mt-4">
-            Lost your authenticator? Contact support for help.
-        </p>
-    </div>
+{% block title %}Verify two-factor code · {{ app_name }}{% endblock %}
+{% block guest_content %}
+<div class="auth-page">
+    <div class="auth-bg" aria-hidden="true"><div class="gradient-orb orb-1"></div><div class="gradient-orb orb-2"></div></div>
+    <section class="auth-container" aria-labelledby="two-factor-verify-title">
+        <div class="auth-card glass auth-card--verification">
+            <header class="auth-header"><span class="logo-icon" aria-hidden="true">⌁</span><h1 id="two-factor-verify-title">Two-factor authentication</h1><p>Enter the current six-digit code from your authenticator app.</p></header>
+            <form method="POST" action="{{ url_for('two_factor.verify') }}" class="auth-form">
+                <div class="form-group otp-group"><label for="two-factor-code">Authentication code</label><input type="text" id="two-factor-code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required autofocus placeholder="000000"></div>
+                <button type="submit" class="btn btn-primary btn-full">Verify code <span aria-hidden="true">→</span></button>
+            </form>
+            <footer class="auth-footer">Lost access to your authenticator? Contact support for help.</footer>
+        </div>
+    </section>
 </div>
 {% endblock %}

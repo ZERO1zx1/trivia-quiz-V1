@@ -78,8 +78,13 @@ def submit_answer():
     question_id = data.get('question_id')
     answer_id = data.get('answer_id')
 
-    if not question_id or not answer_id:
+    if question_id is None or answer_id is None:
         return jsonify({'error': 'Missing question_id or answer_id'}), 400
+
+    try:
+        answer_id = int(answer_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'answer_id must be an integer'}), 400
 
     question = Question.query.get(question_id)
     if not question:
@@ -90,7 +95,7 @@ def submit_answer():
     if not correct_answer:
         return jsonify({'error': 'No correct answer defined for this question'}), 500
 
-    is_correct = (int(answer_id) == correct_answer.id)
+    is_correct = (answer_id == correct_answer.id)
 
     # Anti-cheat: check for suspicious speed
     time_taken = data.get('time_taken', 0)
@@ -204,23 +209,44 @@ def start_solo():
 @quiz_bp.route('/solo/submit', methods=['POST'])
 @login_required
 def solo_submit():
-    data = request.json
+    data = request.get_json(silent=True) or {}
+    correct = data.get('correct')
+    total = data.get('total')
+    if (
+        isinstance(correct, bool)
+        or isinstance(total, bool)
+        or not isinstance(correct, int)
+        or not isinstance(total, int)
+        or correct < 0
+        or total < 0
+        or correct > total
+        or total > 50
+    ):
+        return jsonify({'error': 'correct and total must be integers with 0 <= correct <= total <= 50'}), 400
+
     current_user.games_played += 1
-    current_user.total_correct += data.get('correct', 0)
-    current_user.total_questions += data.get('total', 0)
+    current_user.total_correct += correct
+    current_user.total_questions += total
     current_user.update_accuracy()
-    current_user.add_xp(data.get('correct', 0) * 5)
-    current_user.add_coins(data.get('correct', 0) * 2, 'Solo practice')
+    current_user.add_xp(correct * 5)
+    current_user.add_coins(correct * 2, 'Solo practice')
     db.session.commit()
-    return jsonify({'success': True, 'xp_earned': data.get('correct', 0) * 5, 'coins_earned': data.get('correct', 0) * 2})
+    return jsonify({'success': True, 'xp_earned': correct * 5, 'coins_earned': correct * 2})
 
 
 @quiz_bp.route('/solo/check_answer', methods=['POST'])
 @login_required
 def check_solo_answer():
-    data = request.json
+    data = request.get_json(silent=True) or {}
     question_id = data.get('question_id')
     answer_id = data.get('answer_id')
+    if question_id is None or answer_id is None:
+        return jsonify({'error': 'Missing question_id or answer_id'}), 400
+    try:
+        answer_id = int(answer_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'answer_id must be an integer'}), 400
+
     question = Question.query.get(question_id)
     if not question:
         return jsonify({'error': 'Question not found'}), 404
@@ -231,7 +257,7 @@ def check_solo_answer():
             'correct_answer_id': correct_answer.id if correct_answer else None
         })
         
-    is_correct = (correct_answer and correct_answer.id == answer_id)
+    is_correct = bool(correct_answer and correct_answer.id == answer_id)
     return jsonify({
         'correct': is_correct,
         'correct_answer_id': correct_answer.id if correct_answer else None
@@ -293,9 +319,15 @@ def ai_generate_room():
         status='waiting'
     )
     db.session.add(room)
-    
-    # Join host to room
-    player = RoomPlayer(room_id=room.id, user_id=current_user.id, is_host=True)
+    db.session.flush()
+
+    # Join host to room. Host status is derived from Room.host_id; RoomPlayer
+    # intentionally stores only participation state.
+    player = RoomPlayer(
+        room_id=room.id,
+        user_id=current_user.id,
+        is_ready=True,
+    )
     db.session.add(player)
     db.session.commit()
     

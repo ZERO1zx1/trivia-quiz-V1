@@ -255,9 +255,9 @@ class TestAuctionEscrow:
         item = _shop_item()
         _inv(seller, item)
         auction = create_auction(seller, item.id, 100, duration_hours=24)
-        auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
         db.session.commit()
         place_bid(buyer, auction, 500)
+        auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
         db.session.commit()
         buyer_start = buyer.coins  # 500 after the 500-coin escrow deduction
         seller_start = seller.coins
@@ -295,12 +295,12 @@ class TestAuctionEscrow:
         item = _shop_item()
         _inv(seller, item)
         auction = create_auction(seller, item.id, 100, duration_hours=24)
-        auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
         db.session.commit()
         place_bid(buyer, auction, 200)
         db.session.commit()
         buyer_before = buyer.coins  # 800 after the 200-coin escrow deduction
         place_bid(user, auction, 300)
+        auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
         db.session.commit()
         user_start = user.coins  # 700 after the 300-coin escrow deduction
 
@@ -334,9 +334,9 @@ class TestAuctionEscrow:
             item = _shop_item()
             _inv(seller, item)
             auction = create_auction(seller, item.id, 100, duration_hours=24)
-            auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
             db.session.commit()
             place_bid(buyer, auction, 500)
+            auction.ends_at = __import__('datetime').datetime.utcnow() - timedelta(hours=1)
             db.session.commit()
 
             settle_auctions_job(app)

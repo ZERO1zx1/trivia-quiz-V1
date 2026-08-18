@@ -65,11 +65,14 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
+    migration_options = {}
+    if url.startswith(('postgresql://', 'postgresql+psycopg2://')):
+        migration_options['version_table_schema'] = 'app'
+        context.execute('CREATE SCHEMA IF NOT EXISTS app')
     context.configure(
         url=url, target_metadata=get_metadata(), literal_binds=True,
-        version_table_schema='app'
+        **migration_options
     )
-    context.execute('CREATE SCHEMA IF NOT EXISTS app')
 
     with context.begin_transaction():
         context.run_migrations()
@@ -105,11 +108,15 @@ def run_migrations_online():
         if connection.dialect.name == 'postgresql':
             connection.execute(text('CREATE SCHEMA IF NOT EXISTS app'))
             connection.commit()
+        migration_options = dict(conf_args)
+        if connection.dialect.name == 'postgresql':
+            migration_options['version_table_schema'] = 'app'
+        else:
+            migration_options.pop('version_table_schema', None)
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
-            version_table_schema='app',
-            **conf_args
+            **migration_options
         )
 
         with context.begin_transaction():

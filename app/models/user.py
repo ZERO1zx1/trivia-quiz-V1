@@ -192,14 +192,20 @@ class User(UserMixin, db.Model):
             # Discord role синк (хэрэв Discord холбогдсон бол)
             if self.discord_account:
                 import requests
-                try:
-                    requests.post(
-                        f"{current_app.config['API_BASE_URL']}/discord/sync-role",
-                        json={"discord_id": self.discord_account.discord_id, "level": self.level},
-                        timeout=5
-                    )
-                except:
-                    pass
+                api_token = current_app.config.get('DISCORD_API_TOKEN', '')
+                if api_token:
+                    try:
+                        requests.post(
+                            f"{current_app.config['API_BASE_URL']}/discord/sync-role",
+                            json={"discord_id": self.discord_account.discord_id, "level": self.level},
+                            headers={"X-Discord-API-Key": api_token},
+                            timeout=(2, 5),
+                        ).raise_for_status()
+                    except requests.RequestException:
+                        current_app.logger.warning(
+                            'Discord role synchronization request failed',
+                            exc_info=True,
+                        )
             return True, old_level, self.level
         return False, self.level, self.level
 

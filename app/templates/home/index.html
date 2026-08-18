@@ -1,212 +1,98 @@
 {% extends "layouts/base.html" %}
 
-{# ========== ЗОЧИН ХЭРЭГЛЭГЧ (НЭВТРЭЭГҮЙ) ========== #}
+{% block title %}{{ app_name }} — Play smarter{% endblock %}
+
 {% block guest_content %}
 <div class="landing-page">
-    <!-- Animated Background -->
-    <div class="animated-bg">
+    <div class="animated-bg" aria-hidden="true">
         <div class="gradient-orb orb-1"></div>
         <div class="gradient-orb orb-2"></div>
         <div class="gradient-orb orb-3"></div>
         <div class="particles" id="particles"></div>
     </div>
 
-    <!-- Navigation -->
-    <nav class="landing-nav">
-        <div class="nav-brand">
-            <span class="logo-icon">◆</span>
-            <span class="logo-text">{{ app_name }}</span>
-        </div>
+    <nav class="landing-nav" aria-label="{{ _('Primary navigation') }}">
+        <a class="nav-brand" href="{{ url_for('home.index') }}" aria-label="{{ app_name }} {{ _('home') }}">
+            <span class="brand__mark" aria-hidden="true">T</span>
+            <span>{{ app_name }}</span>
+        </a>
         <div class="nav-links">
-            <a href="#how-to-play">How to Play</a>
-            <a href="#features">Features</a>
-            <a href="#leaderboard">Leaderboard</a>
-            <a href="{{ url_for('auth.login') }}" class="btn btn-ghost">Sign In</a>
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Get Started</a>
+            <a href="#how-to-play">{{ _('How it works') }}</a>
+            <a href="#features">{{ _('Why play') }}</a>
+            <a href="#leaderboard">{{ _('Leaders') }}</a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-ghost btn-sm">{{ _('Sign in') }}</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm">{{ _('Create account') }}</a>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <section class="hero">
+    <section class="hero" aria-labelledby="hero-title">
         <div class="hero-content">
-            <div class="hero-badge">
-                <span class="pulse-dot"></span>
-                Live Multiplayer Trivia
-            </div>
-            <h1 class="hero-title">
-                Test Your Knowledge.<br>
-                <span class="gradient-text">Conquer the Universe.</span>
-            </h1>
-            <p class="hero-subtitle">
-                The ultimate multiplayer trivia platform. Battle friends, climb leaderboards, 
-                and become the ultimate trivia champion in real-time.
-            </p>
+            <p class="hero-badge"><span class="pulse-dot"></span>{{ _('Live trivia, real competition') }}</p>
+            <h1 class="hero-title" id="hero-title">{{ _('Make every answer') }} <span class="gradient-text">{{ _('count.') }}</span></h1>
+            <p class="hero-subtitle">{{ _('Compete with friends, train in solo mode, and build your reputation one sharp answer at a time.') }}</p>
             <div class="hero-actions">
-                <a href="{{ url_for('auth.register') }}" class="btn btn-glow btn-lg">
-                    Play Now Free
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                </a>
-                <a href="{{ url_for('auth.discord_login') }}" class="btn btn-discord btn-lg">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-                    Login with Discord
-                </a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">{{ _('Start playing free') }} <span aria-hidden="true">→</span></a>
+                <a href="{{ url_for('auth.discord_login') }}" class="btn btn-discord btn-lg">{{ _('Continue with Discord') }}</a>
             </div>
-            <div class="hero-stats">
-                <div class="stat-item">
-                    <span class="stat-value" id="statPlayers">{{ total_players }}</span>
-                    <span class="stat-label">Players</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="statQuestions">0</span>
-                    <span class="stat-label">Questions</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value" id="statRooms">0</span>
-                    <span class="stat-label">Active Rooms</span>
-                </div>
+            <div class="hero-stats" aria-label="{{ _('TriviaVerse live statistics') }}">
+                <div class="stat-item"><span class="stat-value" id="statPlayers">{{ total_players }}</span><span class="stat-label">{{ _('players') }}</span></div>
+                <div class="stat-item"><span class="stat-value" id="statQuestions">—</span><span class="stat-label">{{ _('questions') }}</span></div>
+                <div class="stat-item"><span class="stat-value" id="statRooms">—</span><span class="stat-label">{{ _('open rooms') }}</span></div>
             </div>
         </div>
-        <div class="hero-visual">
+        <div class="hero-visual" aria-label="{{ _('Example trivia player milestones') }}">
             <div class="floating-cards">
-                <div class="float-card card-1"><div class="card-icon">🏆</div><div class="card-text">Champion</div></div>
-                <div class="float-card card-2"><div class="card-icon">⚡</div><div class="card-text">Streak x12</div></div>
-                <div class="float-card card-3"><div class="card-icon">🧠</div><div class="card-text">Genius</div></div>
+                <article class="float-card card-1"><div class="card-icon" aria-hidden="true">01</div><div class="card-text">{{ _('Fastest answer') }}</div></article>
+                <article class="float-card card-2"><div class="card-icon" aria-hidden="true">12×</div><div class="card-text">{{ _('Answer streak') }}</div></article>
+                <article class="float-card card-3"><div class="card-icon" aria-hidden="true">#1</div><div class="card-text">{{ _('Weekly rank') }}</div></article>
             </div>
         </div>
     </section>
 
-    <!-- How to Play Section -->
-    <section id="how-to-play" class="landing-section">
-        <div class="section-header">
-            <h2>🎮 How to Play</h2>
-            <p>Getting started is easy! Just follow these simple steps.</p>
-        </div>
+    <section id="how-to-play" class="landing-section" aria-labelledby="how-to-play-title">
+        <header class="section-header"><h2 id="how-to-play-title">{{ _('A better way to play trivia') }}</h2><p>{{ _('Join a room in seconds, focus on the question, and let your results speak for themselves.') }}</p></header>
         <div class="features-grid">
-            <div class="feature-card glass">
-                <div class="feature-icon">1️⃣</div>
-                <h3>Create an Account</h3>
-                <p>Sign up with your email or link your Discord account to get started instantly.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">2️⃣</div>
-                <h3>Join or Create a Room</h3>
-                <p>Enter a room code to join friends, or create your own public/private room.</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">3️⃣</div>
-                <h3>Answer Questions</h3>
-                <p>You have 20 seconds to choose the correct answer. Earn points for speed and streaks!</p>
-            </div>
-            <div class="feature-card glass">
-                <div class="feature-icon">4️⃣</div>
-                <h3>Climb the Leaderboard</h3>
-                <p>Win matches, earn XP, unlock achievements, and become the trivia champion!</p>
-            </div>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">01</div><h3>{{ _('Pick your mode') }}</h3><p>{{ _('Warm up in solo practice or join a live room when you are ready to compete.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">02</div><h3>{{ _('Think quickly') }}</h3><p>{{ _('Every question rewards sound knowledge and fast decisions, not random guessing.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">03</div><h3>{{ _('Build momentum') }}</h3><p>{{ _('Track streaks, earn rewards, and turn regular play into a lasting advantage.') }}</p></article>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section id="features" class="landing-section">
-        <div class="section-header">
-            <h2>Why TriviaVerse?</h2>
-            <p>Everything you need for an amazing trivia experience</p>
-        </div>
+    <section id="features" class="landing-section" aria-labelledby="features-title">
+        <header class="section-header"><h2 id="features-title">{{ _('Designed for curious competitors') }}</h2><p>{{ _('Everything is built around focused play, clear progress, and a social game experience.') }}</p></header>
         <div class="features-grid">
-            <div class="feature-card glass"><div class="feature-icon">🎮</div><h3>Multiplayer Battles</h3><p>Compete with up to 8 players in real-time trivia matches.</p></div>
-            <div class="feature-card glass"><div class="feature-icon">🧠</div><h3>10+ Categories</h3><p>From General Knowledge to Anime, Science to Gaming – there's something for everyone.</p></div>
-            <div class="feature-card glass"><div class="feature-icon">🏆</div><h3>Competitive Rankings</h3><p>Climb the global leaderboard, earn achievements, and prove you're the ultimate trivia master.</p></div>
-            <div class="feature-card glass"><div class="feature-icon">💎</div><h3>Earn Rewards</h3><p>Collect coins, unlock exclusive items, and customize your profile with unique cosmetics.</p></div>
-            <div class="feature-card glass"><div class="feature-icon">💬</div><h3>Discord Integration</h3><p>Link your Discord account, invite friends directly, and get real-time notifications.</p></div>
-            <div class="feature-card glass"><div class="feature-icon">📊</div><h3>Detailed Stats</h3><p>Track your progress with comprehensive statistics, accuracy rates, and performance history.</p></div>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">↗</div><h3>{{ _('Live rooms') }}</h3><p>{{ _('Jump into real-time matches and see the room change as every answer lands.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">◎</div><h3>{{ _('Meaningful progress') }}</h3><p>{{ _('Your level, streak, accuracy, and wins create a profile that tells your story.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">✦</div><h3>{{ _('Play your way') }}</h3><p>{{ _('Explore categories, run solo quizzes, or assemble the perfect room for friends.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">⌁</div><h3>{{ _('Connected community') }}</h3><p>{{ _('Keep your friends close with chat, guilds, and Discord-based sign-in.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">◇</div><h3>{{ _('Collect and customize') }}</h3><p>{{ _('Earn coins and rewards to create a profile that feels unmistakably yours.') }}</p></article>
+            <article class="feature-card"><div class="feature-icon" aria-hidden="true">◌</div><h3>{{ _('Play on any screen') }}</h3><p>{{ _('The game stays fast, readable, and keyboard-friendly from desktop to mobile.') }}</p></article>
         </div>
     </section>
 
-    <!-- Leaderboard Section -->
-    <section id="leaderboard" class="landing-section">
-        <div class="section-header">
-            <h2>🏆 Global Leaderboard</h2>
-            <p>Top players this week</p>
-        </div>
+    <section id="leaderboard" class="landing-section" aria-labelledby="leaderboard-title">
+        <header class="section-header"><h2 id="leaderboard-title">{{ _('Current leaders') }}</h2><p>{{ _('The most consistent trivia players in the community.') }}</p></header>
         <div class="leaderboard-container glass">
             {% if top_players %}
             <div class="leaderboard-list">
                 {% for entry in top_players %}
                 <div class="leaderboard-item">
-                    <span class="rank">#{{ loop.index }}</span>
-                    <img src="{{ entry.user.avatar_url }}" alt="{{ entry.user.username }}" class="leaderboard-avatar"
-                         onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2250%22 fill=%22%23444%22/%3E%3Ctext x=%2250%22 y=%2250%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22white%22 font-size=%2240%22%3E{{ entry.user.username[0]|upper }}%3C/text%3E%3C/svg%3E';">
-                    <div class="leaderboard-info">
-                        <span class="leaderboard-name">{{ entry.user.username }}</span>
-                        <span class="leaderboard-stats">{{ entry.wins }} wins • {{ "%.1f"|format(entry.accuracy) }}% accuracy</span>
-                    </div>
+                    <span class="rank">{{ '%02d'|format(loop.index) }}</span>
+                    <img src="{{ entry.user.avatar_url or url_for('static', filename='avatars/default.png') }}" alt="" class="leaderboard-avatar">
+                    <div class="leaderboard-info"><span class="leaderboard-name">{{ entry.user.username }}</span><span class="leaderboard-stats">{{ entry.wins }} {{ _('wins') }} · {{ '%.1f'|format(entry.accuracy) }}% {{ _('accuracy') }}</span></div>
                     <span class="leaderboard-score">{{ entry.score }}</span>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="leaderboard-empty"><p>No players yet. Be the first to join!</p></div>
+            <div class="leaderboard-empty">{{ _('The board is open. Be the first to make your mark.') }}</div>
             {% endif %}
         </div>
-        <div class="section-cta">
-            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Join and Compete!</a>
-        </div>
+        <div class="section-cta"><a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">{{ _('Join the competition') }}</a></div>
     </section>
 
-    <!-- Footer -->
-    <footer class="landing-footer">
-        <div class="footer-brand"><span class="logo-icon">◆</span><span>{{ app_name }}</span></div>
-        <p>© 2026 TriviaVerse. All rights reserved.</p>
-    </footer>
+    <footer class="landing-footer"><div class="footer-brand"><span class="brand__mark" aria-hidden="true">T</span><span>{{ app_name }}</span></div><p>© {{ current_year }} {{ app_name }}. {{ _('Built for the next great answer.') }}</p></footer>
 </div>
-
-<script>
-// Fetch live stats
-fetch('/api/stats').then(r => r.json()).then(data => {
-    document.getElementById('statPlayers').textContent = data.total_players.toLocaleString();
-    document.getElementById('statQuestions').textContent = data.total_questions.toLocaleString();
-    document.getElementById('statRooms').textContent = data.active_rooms;
-}).catch(() => {});
-
-// Particles
-const particles = document.getElementById('particles');
-if (particles) {
-    for (let i = 0; i < 50; i++) {
-        const p = document.createElement('div');
-        p.className = 'particle';
-        p.style.left = Math.random() * 100 + '%';
-        p.style.top = Math.random() * 100 + '%';
-        p.style.animationDelay = Math.random() * 20 + 's';
-        p.style.animationDuration = (15 + Math.random() * 20) + 's';
-        particles.appendChild(p);
-    }
-}
-</script>
 {% endblock %}
 
-
-{# ========== НЭВТЭРСЭН ХЭРЭГЛЭГЧ (Нэвтрэлтийн дараа) ========== #}
-{% block content %}
-{% if current_user.is_authenticated %}
-<div style="text-align:center; padding:80px 24px; max-width:700px; margin:0 auto;">
-    <div style="font-size:4rem; margin-bottom:16px;">👋</div>
-    <h1 style="font-size:2.5rem; font-weight:800; margin-bottom:12px;">
-        Welcome back, {{ current_user.display_name or current_user.username }}!
-        {% if current_user.is_premium %} 👑{% endif %}
-    </h1>
-    <p style="color:var(--text-secondary); margin-bottom:32px; font-size:1.1rem;">
-        Ready to test your knowledge today? Jump into a game or check your progress.
-    </p>
-    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
-        <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary btn-lg">📊 Dashboard</a>
-        <a href="{{ url_for('rooms.lobby') }}" class="btn btn-glow btn-lg">🎮 Play Now</a>
-        <a href="{{ url_for('quiz.start_solo') }}" class="btn btn-ghost btn-lg">🎯 Solo Practice</a>
-    </div>
-    {% if not current_user.email or '@discord' in current_user.email %}
-    <div class="glass" style="margin-top:32px; padding:20px; text-align:left;">
-        <p style="color:var(--warning);">⚠️ Your account email is not set. Please update your profile to receive important notifications.</p>
-        <a href="{{ url_for('account.profile') }}" class="btn btn-ghost btn-sm">Update Profile</a>
-    </div>
-    {% endif %}
-</div>
-{% endif %}
-{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/home.js') }}"></script>{% endblock %}

@@ -29,7 +29,6 @@
     const emptyState = document.getElementById('emptyState');
     const questionArea = document.getElementById('questionArea');
     const resultsArea = document.getElementById('resultsArea');
-    const quizContainer = document.getElementById('quizContainer');
 
     // ============ INITIALIZATION ============
     async function init() {
@@ -103,7 +102,7 @@
         const optionsContainer = document.getElementById('optionsContainer');
         const letters = ['A', 'B', 'C', 'D'];
         optionsContainer.innerHTML = q.answers.map((a, idx) => `
-            <button class="v2-option-btn" data-id="${a.id}" data-index="${idx}" onclick="quizV2Play.selectAnswer(${a.id})">
+            <button class="v2-option-btn" data-id="${a.id}" data-index="${idx}" onclick="window.quizV2Play.selectAnswer(${a.id})">
                 <span class="option-letter">${letters[idx]}</span>
                 <span class="option-text">${a.text}</span>
             </button>
@@ -153,7 +152,7 @@
 
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
-                quizV2Play.selectAnswer(-1); // Time's up
+                window.quizV2Play.selectAnswer(-1); // Time's up
             }
         }, 1000);
     }
